@@ -234,3 +234,62 @@ services:
     container_name: redis-broker
     ports: ["6379:6379"]
     restart: unless-stopped
+
+  # === Worker側のマイクロサービス===
+  svc-routing:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.routing.main:app --host 0.0.0.0 --port 9101"
+    environment:
+      OSRM_CAR_URL: http://osrm-car:5000
+      OSRM_FOOT_URL: http://osrm-foot:5000
+      STATIC_DB_HOST: static-db
+      STATIC_DB_NAME: nav_static
+      STATIC_DB_USER: nav_static
+      STATIC_DB_PASSWORD: nav_static
+    depends_on: [osrm-car, osrm-foot, static-db]
+    ports: ["9101:9101"]
+
+  svc-alongpoi:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.alongpoi.main:app --host 0.0.0.0 --port 9102"
+    environment:
+      STATIC_DB_HOST: static-db
+      STATIC_DB_NAME: nav_static
+      STATIC_DB_USER: nav_static
+      STATIC_DB_PASSWORD: nav_static
+    depends_on: [static-db]
+    ports: ["9102:9102"]
+
+  svc-llm:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.llm.main:app --host 0.0.0.0 --port 9103"
+    environment:
+      CHROMA_URL: http://chromadb:8000
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: Qwen3:30
+    depends_on: [chromadb, ollama]
+    ports: ["9103:9103"]
+
+  svc-voice:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104"
+    environment:
+      COQUI_DEVICE: cpu
+      PACKS_DIR: /packs
+    volumes:
+      - ./packs:/packs
+    ports: ["9104:9104"]
+
+  svc-nav:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.nav.main:app --host 0.0.0.0 --port 9100"
+    environment:
+      ROUTING_BASE: http://svc-routing:9101
+      ALONGPOI_BASE: http://svc-alongpoi:9102
+      LLM_BASE: http://svc-llm:9103
+      VOICE_BASE: http://svc-voice:9104
+      PACKS_DIR: /packs
+    volumes:
+      - ./packs:/packs
+    depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
+    ports: ["9100:9100"]
