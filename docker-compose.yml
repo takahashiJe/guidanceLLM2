@@ -1,0 +1,18 @@
+services:
+  chromadb:
+    image: chromadb/chroma:0.6.3   # バージョンを明示推奨
+    container_name: chromadb-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chromadb_data:/chroma/chroma  # データ永続化フォルダ
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=TRUE
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
