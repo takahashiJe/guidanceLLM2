@@ -1,4 +1,5 @@
 services:
+  # === Vector DB ===
   chromadb:
     image: chromadb/chroma:0.6.3   # バージョンを明示推奨
     container_name: chromadb-server
@@ -16,3 +17,100 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  # === Static DB (POI / access_points) ===
+  static-db:
+    image: postgis/postgis:16-3.4
+    container_name: nav_static_db
+    environment:
+      POSTGRES_DB: nav_static
+      POSTGRES_USER: nav_static
+      POSTGRES_PASSWORD: nav_static
+    ports:
+      - "5432:5432"       # ローカルから接続したい場合（不要なら消してください）
+    volumes:
+      - ./backend/.pgdata_static:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nav_static -d nav_static"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # 初期データ投入（POI / facilities / access_points）
+  static-db-init:
+    image: python:3.11-slim
+    container_name: nav_static_db_init
+    depends_on:
+      static-db:
+        condition: service_healthy
+    working_dir: /app
+    environment:
+      PYTHONPATH: /app/backend
+      DB_HOST: static-db
+      DB_PORT: "5432"
+      DB_NAME: nav_static
+      DB_USER: nav_static
+      DB_PASSWORD: nav_static
+      # 入力ファイル（必要に応じてパス調整）
+      POI_JSON: /app/backend/worker/data/POI.json
+      FACILITIES_JSON: /app/backend/worker/data/facilities.json
+      ACCESS_POINTS: /app/backend/worker/data/access_points.geojson
+      # 既存データがあっても挿入したい場合は 1 に（既定は 0 = 既存ありならスキップ）
+      FORCE_INSERT: "0"
+    volumes:
+      - ./backend:/app/backend   # ← COPY せず volume で
+    command: >
+      bash -lc "
+        pip install --no-cache-dir
+          psycopg2-binary==2.9.9
+          sqlalchemy==2.0.30
+          geoalchemy2==0.14.6
+          shapely==2.0.4
+          pandas==2.2.2
+          orjson==3.10.3 &&
+        python backend/script/init_static_db.py
+      "
+    
+  # === Ollama (GPU想定) ===
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      # 開発でモデルを固定したい場合は環境変数を持たせておく（pullは下の sidecar）
+      - OLLAMA_DEFAULT_MODEL=Qwen3:30
+      - OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    # GPU を使う場合（Compose v2+）
+    gpus: all
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  
+  # Ollama モデルを起動時にpull（任意．不要なら削除）
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_DEFAULT_MODEL=Qwen3:30
+    command: >
+      bash -lc "
+        ollama pull ${OLLAMA_DEFAULT_MODEL} || true && ollama pull ${OLLAMA_EMBEDDING_MODEL} || true
+      "
+    restart: "no"
+  
+  # === API Gateway (FastAPI) ===
+
+  # === Worker ===
+  
