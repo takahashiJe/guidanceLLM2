@@ -1,4 +1,4 @@
-# models.py
+# static_db_models.py
 from sqlalchemy import (
     Column, Text, BigInteger, DateTime, func, Index
 )

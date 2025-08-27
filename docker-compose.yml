@@ -110,7 +110,127 @@ services:
       "
     restart: "no"
   
-  # === API Gateway (FastAPI) ===
+  # === OSRM (car / foot) ===
+  osrm-car:
+    image: osrm/osrm-backend
+    container_name: osrm-car
+    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-car.osrm"]
+    volumes:
+      - ./backend/worker/data/map/car:/data:ro
+    ports:
+      - "5001:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
-  # === Worker ===
+  osrm-foot:
+    image: osrm/osrm-backend
+    container_name: osrm-foot
+    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-foot.osrm"]
+    volumes:
+      - ./backend/worker/data/map/foot:/data:ro
+    ports:
+      - "5002:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
   
+  # === API Gateway (フロント直結) ===
+  api:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    container_name: api-gateway
+    environment:
+      # --- 静的DB（POI・access_points） ---
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: nav_static
+      STATIC_DB_USER: nav_static
+      STATIC_DB_PASSWORD: nav_static
+      # --- 将来の動的DB（ユーザ）を見据えた命名 ---
+      APP_DB_HOST: app-db
+      APP_DB_PORT: "5432"
+      APP_DB_NAME: app_runtime
+      APP_DB_USER: app_runtime
+      APP_DB_PASSWORD: app_runtime
+      # --- 下流（Worker FastAPI） ---
+      WORKER_BASE_URL: http://worker:8090
+    depends_on:
+      static-db:
+        condition: service_healthy
+      worker:
+        condition: service_started
+    command: bash -lc "uvicorn backend.api.main:app --host 0.0.0.0 --port 8080"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # === Worker (全てのタスクを行う) ===
+  worker:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    container_name: worker-api
+    environment:
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: nav_static
+      STATIC_DB_USER: nav_static
+      STATIC_DB_PASSWORD: nav_static
+      OSRM_CAR_URL: http://osrm-car:5000
+      OSRM_FOOT_URL: http://osrm-foot:5000
+      # RAG/LLM
+      CHROMA_URL: http://chromadb:8000
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: Qwen3:30
+      OLLAMA_EMBED_MODEL: mxbai-embed-large:latest
+      # ナビ設定
+      CORRIDOR_WIDTH_M: "500"
+      ALONG_BUFFER_CAR_M: "300"
+      ALONG_BUFFER_FOOT_M: "10"
+    depends_on:
+      static-db:
+        condition: service_healthy
+      osrm-car:
+        condition: service_started
+      osrm-foot:
+        condition: service_started
+      chromadb:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./backend/worker/data:/app/backend/worker/data:ro
+    command: bash -lc "uvicorn backend.worker.app.main:app --host 0.0.0.0 --port 8090"
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+
+  # Celery Worker（将来の会話系タスク用。今は並行で常駐させるだけ）
+  celery:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    container_name: celery-worker
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    depends_on:
+      - worker
+    command: >
+      bash -lc "celery -A backend.worker.celery.celery_app.celery_app
+      worker --loglevel=info --pool=threads --concurrency=1"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-broker
+    ports: ["6379:6379"]
+    restart: unless-stopped

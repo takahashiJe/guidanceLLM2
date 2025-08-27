@@ -10,7 +10,7 @@ celery_app = Celery(
     "guidance",
     broker=BROKER_URL,
     backend=RESULT_BACKEND,
-    include=[""] # 実行するタスクが定義されているモジュールを指定                                                              
+    include=["tasks.py"] # 実行するタスクが定義されているモジュールを指定                                                              
 )
 
 # Celeryの設定（オプション）                                                                                                                   
