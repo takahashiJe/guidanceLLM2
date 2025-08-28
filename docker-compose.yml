@@ -6,7 +6,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./chromadb_data:/chroma/chroma  # データ永続化フォルダ
+      - chromadb_data:/chroma/chroma  # データ永続化フォルダ
     environment:
       - IS_PERSISTENT=TRUE
       - PERSIST_DIRECTORY=/chroma/chroma
@@ -26,7 +26,6 @@ services:
       POSTGRES_DB: static_db
       POSTGRES_USER: static_db
       POSTGRES_PASSWORD: static_db
-    user: "${UID}:${GID}"
     ports:
       - "5432:5432"       # ローカルから接続したい場合（不要なら消してください）
     volumes:
@@ -236,3 +235,4 @@ services:
 volumes:
   ollama_models:
   pgdata_static:
+  chromadb_data:
