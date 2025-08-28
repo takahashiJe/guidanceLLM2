@@ -49,4 +49,8 @@ celery[redis]==5.4.0
 redis>=5.0.0
 
 pyproj>=3.5,<3.7
+
+# テスト用
 pytest
+respx==0.21.1
+pytest-asyncio==0.23.7

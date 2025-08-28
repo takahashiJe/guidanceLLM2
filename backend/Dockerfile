@@ -8,7 +8,8 @@ ENV PYTHONUNBUFFERED=1 \
 # 必要に応じてビルド依存を追加
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl build-essential netcat-traditional && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get update && apt-get install -y --no-install-recommends ffmpeg
 
 WORKDIR /app
 ENV PYTHONPATH="/app"

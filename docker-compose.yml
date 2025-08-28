@@ -114,7 +114,7 @@ services:
   osrm-car:
     image: osrm/osrm-backend
     container_name: osrm-car
-    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-car.osrm"]
+    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-latest.osrm"]
     volumes:
       - ./backend/worker/data/map/car:/data:ro
     ports:
@@ -129,7 +129,7 @@ services:
   osrm-foot:
     image: osrm/osrm-backend
     container_name: osrm-foot
-    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-foot.osrm"]
+    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-latest-foot.osrm"]
     volumes:
       - ./backend/worker/data/map/foot:/data:ro
     ports:
