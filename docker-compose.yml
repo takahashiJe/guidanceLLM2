@@ -36,9 +36,6 @@ services:
       timeout: 5s
       retries: 20
     restart: unless-stopped
-    depends_on:
-      static-db:
-        condition: service_healthy # この記述が重要
 
   # 初期データ投入（POI / facilities / access_points）
   static-db-init:
@@ -50,11 +47,11 @@ services:
     working_dir: /app
     environment:
       PYTHONPATH: /app/backend
-      DB_HOST: static-db
-      DB_PORT: "5432"
-      DB_NAME: static_db
-      DB_USER: static_db
-      DB_PASSWORD: static_db
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
       # 入力ファイル（必要に応じてパス調整）
       POI_JSON: /app/backend/worker/data/POI.json
       FACILITIES_JSON: /app/backend/worker/data/facilities.json
@@ -64,7 +61,10 @@ services:
     volumes:
       - ./backend:/app/backend   # ← COPY せず volume で
     command: bash -lc "pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 && python backend/script/init_static_db.py"
-    
+    depends_on:
+      static-db:
+        condition: service_healthy # この記述が重要
+
   # === Ollama (GPU想定) ===
   ollama:
     image: ollama/ollama:latest
