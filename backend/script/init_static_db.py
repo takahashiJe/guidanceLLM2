@@ -113,7 +113,7 @@ END$$;
 DDL_VIEW_POI_FEATURES_V = """
 CREATE OR REPLACE VIEW poi_features_v AS
 SELECT
-  s.id::text AS spot_id,
+  s.spot_id::text AS spot_id,
   COALESCE(
     s.official_name->>'ja',
     s.official_name->>'en',
@@ -130,7 +130,7 @@ SELECT
 FROM spots s
 UNION ALL
 SELECT
-  f.id::text AS spot_id,
+  f.spot_id::text AS spot_id,
   COALESCE(
     f.official_name->>'ja',
     f.official_name->>'en',

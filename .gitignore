@@ -16,3 +16,5 @@ ollama_data/
 japan-latest.osm.pbf
 backend/worker/data/map/car/*
 backend/worker/data/map/foot/*
+
+chromadb_data/
