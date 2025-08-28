@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List, Optional
 
-# ChromaDB が使える場合に備える（無ければファイル走査のみ）
+# ChromaDB は任意
 _CHROMA_AVAILABLE = True
 try:
     import chromadb  # type: ignore
@@ -12,99 +12,77 @@ except Exception:
     _CHROMA_AVAILABLE = False
 
 
-def _knowledge_dir() -> Path:
-    # 例: /app/backend/worker/data/knowledge/ja
-    return Path(os.getenv("KNOWLEDGE_DIR", "/app/backend/worker/data/knowledge"))
+def _knowledge_base() -> Path:
+    # 例: backend/worker/data/knowledge
+    return Path(os.getenv("KNOWLEDGE_DIR", "backend/worker/data/knowledge")).resolve()
 
 
-def _slug_candidates(spot_id: str) -> list[str]:
-    s = (spot_id or "").strip().lower()
-    cands = [s]
-    if not s.startswith("spot_"):
-        cands.append(f"spot_{s}")
-    return cands
-
-
-def _read_if_exists(p: Path) -> str | None:
-    try:
-        if p.exists() and p.is_file():
-            return p.read_text(encoding="utf-8")
-    except Exception:
+def _safe_slug(s: Optional[str]) -> Optional[str]:
+    if not s:
         return None
-    return None
+    # ファイル名安全化
+    s2 = "".join(ch for ch in s if ch.isalnum() or ch in ("-", "_"))
+    return s2 or None
 
 
-def _fs_search(spot_id: str, lang: str, k: int = 4) -> List[Dict]:
+def _find_md_by_slug(lang: str, md_slug: str, max_files: int = 1) -> List[Dict]:
     """
-    簡易ファイルベース RAG：knowledge/{lang}/ 以下を走査。
-    1) spots/spot_{spot_id}.md があれば最優先
-    2) 他カテゴリも将来拡張可
+    knowledge/{lang}/**/{md_slug}.md を最優先で探索（再帰）。
     """
-    base = _knowledge_dir() / lang
-    out: List[Dict] = []
-
-    # まずスポット個別
-    spots = base / "spots"
-    if spots.exists():
-        for slug in _slug_candidates(spot_id):
-            cand = spots / f"{slug}.md"
-            txt = _read_if_exists(cand)
-            if txt:
-                out.append({"text": txt, "source": str(cand)})
-                if len(out) >= k:
-                    return out
-
-    # 追加で一般カテゴリ（歴史・自然・マナー等）からも少し拾う（ライトに）
-    for sub in ["history-and-culture", "nature", "rules-and-manners", "safety-and-preparation"]:
-        d = base / sub
-        if not d.exists():
+    base = _knowledge_base() / lang
+    if not base.exists():
+        return []
+    matches: List[Dict] = []
+    for p in base.rglob(f"{md_slug}.md"):
+        try:
+            txt = p.read_text(encoding="utf-8")
+        except Exception:
             continue
-        for md in d.glob("*.md"):
-            txt = _read_if_exists(md)
-            if txt:
-                out.append({"text": txt, "source": str(md)})
-                if len(out) >= k:
-                    return out
-
-    return out
+        matches.append({"text": txt, "source": str(p)})
+        if len(matches) >= max_files:
+            break
+    return matches
 
 
-def _chroma_search(spot_id: str, lang: str, k: int = 4) -> List[Dict]:
-    """
-    ChromaDB を利用した検索（collection 名は 'knowledge_{lang}' 想定）。
-    無ければ空を返す。簡易に spot_id をクエリとして使う。
-    """
-    if not _CHROMA_AVAILABLE:
+def _chroma_search(q: str, lang: str, n: int = 4) -> List[Dict]:
+    if not (_CHROMA_AVAILABLE and os.getenv("CHROMA_URL")):
         return []
-
-    url = os.getenv("CHROMA_URL")
-    if not url:
-        return []
-
     try:
-        client = chromadb.HttpClient(host=url.split("://")[-1].split(":")[0],
-                                     port=int(url.split(":")[-1]))
-        coll_name = f"knowledge_{lang}"
-        coll = client.get_or_create_collection(coll_name)
-        res = coll.query(query_texts=[spot_id], n_results=k)
+        url = os.getenv("CHROMA_URL")
+        host = url.split("://")[-1].split(":")[0]
+        port = int(url.split(":")[-1])
+        client = chromadb.HttpClient(host=host, port=port)
+        coll = client.get_or_create_collection(f"knowledge_{lang}")
+        res = coll.query(query_texts=[q], n_results=n)
         docs = res.get("documents") or [[]]
-        sources = res.get("metadatas") or [[]]
+        metas = res.get("metadatas") or [[]]
         out: List[Dict] = []
         for i, doc in enumerate(docs[0]):
-            src = sources[0][i] if i < len(sources[0]) else {}
-            out.append({"text": doc, "source": src.get("source") if isinstance(src, dict) else str(src)})
+            meta = metas[0][i] if i < len(metas[0]) else {}
+            out.append({"text": doc, "source": (meta.get("source") if isinstance(meta, dict) else str(meta))})
         return out
     except Exception:
         return []
 
 
-def retrieve_context(spot_id: str, lang: str, k: int = 4) -> List[Dict]:
+def retrieve_context(spot_ref: Dict, lang: str, k: int = 4) -> List[Dict]:
     """
-    優先順位：
-      1) ChromaDB（利用可能なら）
-      2) ファイルシステム（knowledge/{lang}/...）
+    優先順位:
+      1) md_slug があれば knowledge/{lang}/**/{md_slug}.md を最優先
+      2) （任意）Chroma → md_slug / spot_id / name の順でクエリ
+      3) 見つからなければ []（＝ description のみで生成）
     """
-    docs = _chroma_search(spot_id, lang, k=k)
-    if docs:
-        return docs
-    return _fs_search(spot_id, lang, k=k)
+    md_slug = _safe_slug(spot_ref.get("md_slug"))
+    if md_slug:
+        docs = _find_md_by_slug(lang, md_slug, max_files=k)
+        if docs:
+            return docs
+
+    # Chroma フォールバック（任意）
+    for q in [md_slug, spot_ref.get("spot_id"), spot_ref.get("name")]:
+        if q:
+            docs = _chroma_search(str(q), lang, n=k)
+            if docs:
+                return docs
+
+    return []

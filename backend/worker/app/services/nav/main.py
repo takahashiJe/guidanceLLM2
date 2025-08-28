@@ -2,20 +2,20 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict
 
-import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-ROUTING_BASE = os.getenv("ROUTING_BASE", "http://svc-routing:9101")
-ALONGPOI_BASE = os.getenv("ALONGPOI_BASE", "http://svc-alongpoi:9102")
-LLM_BASE = os.getenv("LLM_BASE", "http://svc-llm:9103")
-VOICE_BASE = os.getenv("VOICE_BASE", "http://svc-voice:9104")
+from backend.worker.app.services.nav.client_routing import post_route
+from backend.worker.app.services.nav.client_alongpoi import post_along
+from backend.worker.app.services.nav.client_llm import post_describe
+from backend.worker.app.services.nav.client_voice import post_synthesize
+from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
 
 app = FastAPI(title="nav service")
 
-# ---- Schemas ----
+# ==== Schemas ====
 class Waypoint(BaseModel):
     lat: float
     lon: float
@@ -47,7 +47,42 @@ class PlanResponse(BaseModel):
     along_pois: List[dict]
     assets: List[Asset]
 
-# ---- Endpoints ----
+# ==== Helpers ====
+def _collect_unique_spot_ids(waypoints: List[Waypoint], along_pois: List[dict]) -> List[str]:
+    planned = [w.spot_id for w in waypoints if w.spot_id and w.spot_id != "current"]
+    along = [p.get("spot_id") for p in along_pois if p.get("spot_id")]
+    uniq: List[str] = []
+    seen = set()
+    for sid in planned + along:
+        if sid not in seen:
+            seen.add(sid)
+            uniq.append(sid)
+    return uniq
+
+def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
+    """
+    spots テーブルから name/description/md_slug を解決し、
+    LLM へ渡す SpotRef（dict）に整形。
+    """
+    refmap = get_spots_by_ids(spot_ids)  # {id: SpotRow}
+    items: List[dict] = []
+    for sid in spot_ids:
+        row = refmap.get(sid)
+        if row:
+            items.append(
+                {
+                    "spot_id": sid,
+                    "name": row.name,
+                    "description": row.description,
+                    "md_slug": row.md_slug,
+                }
+            )
+        else:
+            # DB から取れなくても最低限 spot_id だけ渡す
+            items.append({"spot_id": sid})
+    return items
+
+# ==== Endpoints ====
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -61,11 +96,7 @@ def plan(payload: PlanRequest):
 
     # 1) routing
     routing_req = {"waypoints": [w.model_dump() for w in payload.waypoints], "car_to_trailhead": True}
-    with httpx.Client(timeout=30) as client:
-        r1 = client.post(f"{ROUTING_BASE}/route", json=routing_req)
-    if r1.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"routing error: {r1.text}")
-    routing = r1.json()
+    routing = post_route(routing_req)
     route_fc = routing["feature_collection"]
     legs = routing["legs"]
     polyline = routing["polyline"]
@@ -73,50 +104,28 @@ def plan(payload: PlanRequest):
 
     # 2) alongpoi
     along_req = {"polyline": polyline, "segments": segments, "buffer": payload.buffers}
-    with httpx.Client(timeout=30) as client:
-        r2 = client.post(f"{ALONGPOI_BASE}/along", json=along_req)
-    if r2.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"alongpoi error: {r2.text}")
-    along = r2.json()
+    along = post_along(along_req)
     along_pois = along.get("pois", [])
 
-    # 3) LLM（説明テキスト生成）— テキストURLは後で付与（任意）
-    #    入力スポット：訪問予定（current 以外）＋沿道
-    planned_spots = [w for w in payload.waypoints if (w.spot_id and w.spot_id != "current")]
-    planned_ids = [w.spot_id for w in planned_spots]
-    along_ids = [p["spot_id"] for p in along_pois]
-    unique_ids = []
-    seen = set()
-    for sid in planned_ids + along_ids:
-        if sid and sid not in seen:
-            seen.add(sid)
-            unique_ids.append(sid)
-    llm_req = {"language": payload.language, "style": "narration", "spots": [{"spot_id": sid} for sid in unique_ids]}
-    with httpx.Client(timeout=60) as client:
-        r3 = client.post(f"{LLM_BASE}/describe", json=llm_req)
-    if r3.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"llm error: {r3.text}")
-    llm_out = r3.json()  # {"items":[{"spot_id","text"}]}
+    # 3) LLM: planned + along をユニーク化し、spots テーブルで name/description/md_slug を解決
+    uniq_ids = _collect_unique_spot_ids(payload.waypoints, along_pois)
+    spot_refs = _build_spot_refs(uniq_ids)
+    llm_req = {"language": payload.language, "style": "narration", "spots": spot_refs}
+    llm_out = post_describe(llm_req)  # {"items":[{"spot_id","text"}]}
 
-    # 4) voice（TTS）
-    assets: list[Asset] = []
-    with httpx.Client(timeout=60) as client:
-        for item in llm_out.get("items", []):
-            sid = item["spot_id"]
-            # 説明テキストの保存と text_url 生成は後続の実装で．ここでは音声のみ必須．
-            voice_req = {
-                "language": payload.language,
-                "voice": "guide_female_1",
-                "text": item["text"],
-                "spot_id": sid,
-                "pack_id": pack_id,
-            }
-            rv = client.post(f"{VOICE_BASE}/synthesize", json=voice_req)
-            if rv.status_code != 200:
-                # 音声生成に失敗しても他は継続（必要に応じて仕様変更）
-                continue
-            vj = rv.json()
-            assets.append(Asset(spot_id=sid, audio_url=vj.get("audio_url"), bytes=vj.get("bytes"), duration_s=vj.get("duration_s")))
+    # 4) voice TTS（並列化は後続タスクで。まずは逐次でOK）
+    assets: List[Asset] = []
+    for item in llm_out.get("items", []):
+        sid = item["spot_id"]
+        voice_req = {
+            "language": payload.language,
+            "voice": "guide_female_1",
+            "text": item["text"],
+            "spot_id": sid,
+            "pack_id": pack_id,
+        }
+        vj = post_synthesize(voice_req)
+        assets.append(Asset(spot_id=sid, audio_url=vj.get("audio_url"), bytes=vj.get("bytes"), duration_s=vj.get("duration_s")))
 
     return PlanResponse(
         pack_id=pack_id,

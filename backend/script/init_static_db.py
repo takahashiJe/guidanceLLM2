@@ -1,228 +1,302 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Static DB 初期化スクリプト（PostGIS 拡張・GIST インデックス・統合ビュー）
+- PostGIS 拡張の有効化
+- spots / facilities の geom に GIST インデックス（存在しなければ作成）
+- 観光スポットと施設を統合する VIEW: poi_features_v を作成
+- （任意）環境変数 LOAD_STATIC_JSON=1 の時のみ、POI.json / facilities.json を軽量投入
+    * JSON スキーマ差異に耐えるよう best-effort で挿入（無理せずスキップ）
+"""
+
+from __future__ import annotations
+
+import json
 import os
 import sys
-import json
-import orjson
 from pathlib import Path
+from typing import Any, Dict, Iterable, Optional
 
-from sqlalchemy import create_engine, text, select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine, Connection
 
-# GeoAlchemy2
-from geoalchemy2.shape import from_shape
-from shapely.geometry import Point
 
-# あなたのモデル（Spot / Facility）は shared.models にある前提
-# Spot / Facility のクラス名は添付 models.py に合わせてください
-try:
-    from shared.models import Base, Spot, Facility  # Baseはdeclarative_base()
-except Exception as e:
-    print("[FATAL] models import failed:", e, file=sys.stderr)
-    sys.exit(1)
+# -------------------------
+# DB 接続
+# -------------------------
+def _conn_url() -> str:
+    host = os.getenv("STATIC_DB_HOST", "static-db")
+    port = os.getenv("STATIC_DB_PORT", "5432")
+    db   = os.getenv("STATIC_DB_NAME", "nav_static")
+    user = os.getenv("STATIC_DB_USER", "nav_static")
+    pwd  = os.getenv("STATIC_DB_PASSWORD", "nav_static")
+    return f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
 
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_NAME = os.getenv("DB_NAME", "nav_static")
-DB_USER = os.getenv("DB_USER", "nav_static")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "nav_static")
 
-POI_JSON = Path(os.getenv("POI_JSON", "/app/backend/worker/data/POI.json"))
-FACILITIES_JSON = Path(os.getenv("FACILITIES_JSON", "/app/backend/worker/data/facilities.json"))
-ACCESS_POINTS = Path(os.getenv("ACCESS_POINTS", "/app/backend/worker/data/access_points.geojson"))
-FORCE_INSERT = os.getenv("FORCE_INSERT", "0") == "1"
+def _engine() -> Engine:
+    return create_engine(_conn_url(), future=True)
 
-DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-engine = create_engine(DATABASE_URL, future=True)
-Session = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
-def load_json(path: Path):
-    with path.open("rb") as f:
-        try:
-            return orjson.loads(f.read())
-        except Exception:
-            f.seek(0)
-            return json.load(f)
+# -------------------------
+# DDL（拡張・インデックス・ビュー）
+# -------------------------
+DDL_ENABLE_POSTGIS = """
+CREATE EXTENSION IF NOT EXISTS postgis;
+"""
 
-def normalize_md_slug(v):
+DDL_INDEX_SPOTS = """
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'idx_spots_geom' AND n.nspname = 'public'
+    ) THEN
+        EXECUTE 'CREATE INDEX idx_spots_geom ON spots USING GIST (geom)';
+    END IF;
+END$$;
+"""
+
+DDL_INDEX_FACILITIES = """
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'idx_facilities_geom' AND n.nspname = 'public'
+    ) THEN
+        EXECUTE 'CREATE INDEX idx_facilities_geom ON facilities USING GIST (geom)';
+    END IF;
+END$$;
+"""
+
+DDL_VIEW_POI_FEATURES_V = """
+CREATE OR REPLACE VIEW poi_features_v AS
+SELECT
+  s.id::text AS spot_id,
+  COALESCE(
+    s.official_name->>'ja',
+    s.official_name->>'en',
+    s.official_name->>'zh',
+    s.aliases->>'ja',
+    s.aliases->>'en',
+    s.aliases->>'zh',
+    'unknown'
+  ) AS name,
+  ST_X(s.geom)::float AS lon,
+  ST_Y(s.geom)::float AS lat,
+  'spot'::text AS kind,
+  s.geom
+FROM spots s
+UNION ALL
+SELECT
+  f.id::text AS spot_id,
+  COALESCE(
+    f.official_name->>'ja',
+    f.official_name->>'en',
+    f.official_name->>'zh',
+    f.aliases->>'ja',
+    f.aliases->>'en',
+    f.aliases->>'zh',
+    'unknown'
+  ) AS name,
+  ST_X(f.geom)::float AS lon,
+  ST_Y(f.geom)::float AS lat,
+  'facility'::text AS kind,
+  f.geom
+FROM facilities f;
+"""
+
+
+def apply_ddl(conn: Connection) -> None:
+    conn.execute(text(DDL_ENABLE_POSTGIS))
+    conn.execute(text(DDL_INDEX_SPOTS))
+    conn.execute(text(DDL_INDEX_FACILITIES))
+    conn.execute(text(DDL_VIEW_POI_FEATURES_V))
+
+
+# -------------------------
+# 任意: JSON 投入（best-effort）
+# -------------------------
+def _read_json(path: Path) -> Optional[Any]:
+    try:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return None
+
+
+def _to_jsonb_name(name_ja: Optional[str], name_en: Optional[str] = None, name_zh: Optional[str] = None) -> Dict[str, str]:
+    out: Dict[str, str] = {}
+    if name_ja:
+        out["ja"] = name_ja
+    if name_en:
+        out["en"] = name_en
+    if name_zh:
+        out["zh"] = name_zh
+    return out
+
+
+SQL_UPSERT_SPOT = text(
+    """
+    INSERT INTO spots (id, official_name, aliases, description, md_slug, geom)
+    VALUES (:id, :official_name::jsonb, :aliases::jsonb, :description, :md_slug,
+            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
+    ON CONFLICT (id) DO UPDATE SET
+        official_name = EXCLUDED.official_name,
+        aliases       = EXCLUDED.aliases,
+        description   = EXCLUDED.description,
+        md_slug       = EXCLUDED.md_slug,
+        geom          = EXCLUDED.geom
+    """
+)
+
+SQL_UPSERT_FACILITY = text(
+    """
+    INSERT INTO facilities (id, official_name, aliases, description, md_slug, geom)
+    VALUES (:id, :official_name::jsonb, :aliases::jsonb, :description, :md_slug,
+            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
+    ON CONFLICT (id) DO UPDATE SET
+        official_name = EXCLUDED.official_name,
+        aliases       = EXCLUDED.aliases,
+        description   = EXCLUDED.description,
+        md_slug       = EXCLUDED.md_slug,
+        geom          = EXCLUDED.geom
+    """
+)
+
+
+def _safe_id(v: Any) -> Optional[str]:
     if v is None:
         return None
-    if isinstance(v, str) and v.strip().lower() in {"none", ""}:
-        return None
-    return v.strip()
+    s = str(v).strip()
+    return s or None
 
-def ensure_postgis(conn):
-    conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
 
-def create_indices(conn):
-    # GIST
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_spots_geom_gist ON spots USING GIST (geom)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_facilities_geom_gist ON facilities USING GIST (geom)"))
-    # JSONB GIN（存在する場合のみ作成を試行）
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_spots_official_name_gin ON spots USING GIN (official_name)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_spots_aliases_gin ON spots USING GIN (aliases)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_spots_tags_gin ON spots USING GIN (tags)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_facilities_official_name_gin ON facilities USING GIN (official_name)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_facilities_aliases_gin ON facilities USING GIN (aliases)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_facilities_tags_gin ON facilities USING GIN (tags)"))
-    # access_points 用（後述でテーブル作成）
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_access_points_geom_gist ON access_points USING GIST (geom)"))
-    conn.execute(text("CREATE INDEX IF NOT EXISTS idx_access_points_props_gin ON access_points USING GIN (properties)"))
-
-def ensure_access_points_table(conn):
-    # テーブルが無ければ作成（単純な汎用スキーマ）
-    conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS access_points (
-          id TEXT PRIMARY KEY,
-          properties JSONB,
-          geom geometry(Point, 4326) NOT NULL
-        )
-    """))
-
-def table_count(sess, model):
-    return sess.scalar(select(text("count(1)")).select_from(model.__table__))
-
-def insert_spots(sess, items):
-    if not items:
-        return 0
-    inserted = 0
-    for it in items:
-        # JSONキーに合わせて取得（存在しないキーは None）
-        spot_id = it.get("spot_id") or it.get("id")  # 柔軟に
-        coords = (it.get("coordinates") or {})
-        lon = coords.get("longitude") or coords.get("lon")
-        lat = coords.get("latitude") or coords.get("lat")
-        if spot_id is None or lon is None or lat is None:
-            continue
-
-        md_slug = normalize_md_slug(it.get("md_slug"))
-
-        geom = from_shape(Point(float(lon), float(lat)), srid=4326)
-        row = Spot(
-            spot_id=spot_id,
-            category=it.get("category") or "tourist_spot",
-            official_name=it.get("official_name"),
-            aliases=it.get("aliases"),
-            description=it.get("description"),
-            social_proof=it.get("social_proof"),
-            tags=it.get("tags"),
-            address=it.get("address"),
-            osm_place_id=((it.get("osm_ids") or {}).get("place_id")),
-            osm_type=((it.get("osm_ids") or {}).get("osm_type")),
-            osm_id=((it.get("osm_ids") or {}).get("osm_id")),
-            md_slug=md_slug,
-            geom=geom,
-        )
-        # 既存があればスキップ（簡易）
-        if sess.get(Spot, spot_id) is None:
-            sess.add(row)
-            inserted += 1
-    return inserted
-
-def insert_facilities(sess, items):
-    if not items:
-        return 0
-    inserted = 0
-    for it in items:
-        spot_id = it.get("spot_id") or it.get("id")
-        coords = (it.get("coordinates") or {})
-        lon = coords.get("longitude") or coords.get("lon")
-        lat = coords.get("latitude") or coords.get("lat")
-        if spot_id is None or lon is None or lat is None:
-            continue
-
-        md_slug = normalize_md_slug(it.get("md_slug"))
-
-        geom = from_shape(Point(float(lon), float(lat)), srid=4326)
-        row = Facility(
-            spot_id=spot_id,
-            category=it.get("category") or "accommodation",
-            official_name=it.get("official_name"),
-            aliases=it.get("aliases"),
-            description=it.get("description"),
-            social_proof=it.get("social_proof"),
-            tags=it.get("tags"),
-            address=it.get("address"),
-            osm_place_id=((it.get("osm_ids") or {}).get("place_id")),
-            osm_type=((it.get("osm_ids") or {}).get("osm_type")),
-            osm_id=((it.get("osm_ids") or {}).get("osm_id")),
-            md_slug=md_slug,
-            geom=geom,
-        )
-        if sess.get(Facility, spot_id) is None:
-            sess.add(row)
-            inserted += 1
-    return inserted
-
-def insert_access_points(sess, features):
-    if not features:
-        return 0
-    # 生SQLでINSERT（単純に upsert は省略：id重複は無視）
-    inserted = 0
-    for feat in features:
-        # GeoJSON 構造を想定
-        gid = str(feat.get("id") or feat.get("properties", {}).get("id") or inserted+1)
-        props = feat.get("properties") or {}
-        geom = feat.get("geometry") or {}
-        if (geom.get("type") != "Point") or (not geom.get("coordinates")):
-            continue
-        lon, lat = geom["coordinates"][:2]
-        # 存在チェック
-        exists = sess.execute(text("SELECT 1 FROM access_points WHERE id = :id"), {"id": gid}).first()
-        if exists:
-            continue
-        sess.execute(
-            text("INSERT INTO access_points (id, properties, geom) VALUES (:id, :props, ST_SetSRID(ST_MakePoint(:lon,:lat),4326))"),
-            {"id": gid, "props": json.dumps(props, ensure_ascii=False), "lon": float(lon), "lat": float(lat)}
-        )
-        inserted += 1
-    return inserted
-
-def main():
-    print("[INFO] Connecting:", DATABASE_URL.replace(DB_PASSWORD, "****"))
-    with engine.begin() as conn:
-        ensure_postgis(conn)
-        # Spot/Facility テーブルの作成
-        Base.metadata.create_all(conn)
-        # access_points テーブル
-        ensure_access_points_table(conn)
-        # 推奨インデックス
-        create_indices(conn)
-
-    sess = Session()
+def _coerce_float(v: Any) -> Optional[float]:
     try:
-        # 既存データの有無
-        spots_count = table_count(sess, Spot)
-        facs_count = table_count(sess, Facility)
+        if v is None:
+            return None
+        return float(v)
+    except Exception:
+        return None
 
-        # JSON 読み込み
-        poi_items = load_json(POI_JSON) if POI_JSON.exists() else []
-        fac_items = load_json(FACILITIES_JSON) if FACILITIES_JSON.exists() else []
-        ap_geojson = load_json(ACCESS_POINTS) if ACCESS_POINTS.exists() else {}
-        ap_features = ap_geojson.get("features") if isinstance(ap_geojson, dict) else []
 
-        inserted_spots = inserted_facs = inserted_ap = 0
+def _guess_names(rec: Dict[str, Any]) -> Dict[str, Optional[str]]:
+    # よくあるキー名に対応（存在しなければ None）
+    return {
+        "ja": rec.get("name_ja") or rec.get("ja") or rec.get("name") or rec.get("official_name_ja"),
+        "en": rec.get("name_en") or rec.get("en") or rec.get("official_name_en"),
+        "zh": rec.get("name_zh") or rec.get("zh") or rec.get("official_name_zh"),
+    }
 
-        if FORCE_INSERT or spots_count == 0:
-            inserted_spots = insert_spots(sess, poi_items)
-        else:
-            print(f"[INFO] spots already has {spots_count} rows. Skip insert (set FORCE_INSERT=1 to force).")
 
-        if FORCE_INSERT or facs_count == 0:
-            inserted_facs = insert_facilities(sess, fac_items)
-        else:
-            print(f"[INFO] facilities already has {facs_count} rows. Skip insert (set FORCE_INSERT=1 to force).")
+def _guess_aliases(rec: Dict[str, Any]) -> Dict[str, Any]:
+    # シンプルに空の dict を既定。必要なら将来拡張。
+    return {}
 
-        if ap_features:
-            inserted_ap = insert_access_points(sess, ap_features)
 
-        sess.commit()
-        print(f"[DONE] inserted: spots={inserted_spots}, facilities={inserted_facs}, access_points={inserted_ap}")
+def _guess_md_slug(rec: Dict[str, Any]) -> Optional[str]:
+    slug = rec.get("md_slug")
+    if slug:
+        return str(slug)
+    # POI.json に slug が無い場合は None
+    return None
 
-    except Exception as e:
-        sess.rollback()
-        print("[ERROR]", e, file=sys.stderr)
-        raise
-    finally:
-        sess.close()
+
+def load_spots_from_poi_json(conn: Connection, poi_json_path: Path) -> None:
+    data = _read_json(poi_json_path)
+    if not isinstance(data, list):
+        return
+
+    for rec in data:
+        # POI.json には施設も入っている可能性があるが、ここでは「基本 spot 扱い」
+        sid = _safe_id(rec.get("id") or rec.get("spot_id"))
+        lat = _coerce_float(rec.get("lat"))
+        lon = _coerce_float(rec.get("lon"))
+        if not (sid and lat is not None and lon is not None):
+            continue
+
+        names = _guess_names(rec)
+        official_name = _to_jsonb_name(names["ja"], names["en"], names["zh"])
+        aliases = _guess_aliases(rec)
+        desc = rec.get("description") or rec.get("desc") or None
+        md_slug = _guess_md_slug(rec)
+
+        conn.execute(
+            SQL_UPSERT_SPOT,
+            {
+                "id": sid,
+                "official_name": json.dumps(official_name),
+                "aliases": json.dumps(aliases),
+                "description": desc,
+                "md_slug": md_slug,
+                "lat": lat,
+                "lon": lon,
+            },
+        )
+
+
+def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> None:
+    data = _read_json(facilities_json_path)
+    if not isinstance(data, list):
+        return
+
+    for rec in data:
+        fid = _safe_id(rec.get("id") or rec.get("facility_id"))
+        lat = _coerce_float(rec.get("lat"))
+        lon = _coerce_float(rec.get("lon"))
+        if not (fid and lat is not None and lon is not None):
+            continue
+
+        names = _guess_names(rec)
+        official_name = _to_jsonb_name(names["ja"], names["en"], names["zh"])
+        aliases = _guess_aliases(rec)
+        desc = rec.get("description") or rec.get("desc") or None
+        md_slug = _guess_md_slug(rec)
+
+        conn.execute(
+            SQL_UPSERT_FACILITY,
+            {
+                "id": fid,
+                "official_name": json.dumps(official_name),
+                "aliases": json.dumps(aliases),
+                "description": desc,
+                "md_slug": md_slug,
+                "lat": lat,
+                "lon": lon,
+            },
+        )
+
+
+# -------------------------
+# main
+# -------------------------
+def main() -> int:
+    engine = _engine()
+    with engine.begin() as conn:
+        # DDL（拡張・インデックス・ビュー）
+        apply_ddl(conn)
+
+        # 任意: JSON 投入（必要時のみ）
+        if os.getenv("LOAD_STATIC_JSON", "0") == "1":
+            # 既定のファイルパス（存在すればロード）
+            # プロジェクト構成に合わせて調整。相対/絶対どちらでも可。
+            root = Path(__file__).resolve().parents[2]  # backend/
+            default_poi = root / "worker" / "data" / "POI.json"
+            default_fac = root / "worker" / "data" / "facilities.json"
+
+            poi_path = Path(os.getenv("POI_JSON_PATH", str(default_poi)))
+            fac_path = Path(os.getenv("FACILITIES_JSON_PATH", str(default_fac)))
+
+            if poi_path.exists():
+                load_spots_from_poi_json(conn, poi_path)
+            if fac_path.exists():
+                load_facilities_from_json(conn, fac_path)
+
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -23,17 +23,17 @@ SAFETY_FOOTER = {
 }
 
 
-def _join_context(ctx: List[Dict], max_tokens: int = 800) -> str:
+def _join_context(ctx: List[Dict], max_chars: int = 8000) -> str:
     # 単純に text を連結（必要なら将来トークン制御）
     texts = []
-    length = 0
+    total = 0
     for c in ctx or []:
         t = (c.get("text") or "").strip()
         if not t:
             continue
-        length += len(t)
+        total += len(t)
         texts.append(t)
-        if length >= max_tokens * 4:  # 適当な上限
+        if total >= max_chars:
             break
     return "\n\n".join(texts)
 
@@ -42,7 +42,7 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "narration
     """
     音声ナレーション向けのプロンプトを構築。
     - 言語・スタイルの明示
-    - スポット名/説明（もしあれば）と RAG 文脈
+    - スポット名/description（必ず含める）と RAG 文脈
     - 構成指示（導入→要点→豆知識→安全ひとこと）
     """
     lang_label = LANG_HINT.get(lang, lang)
@@ -50,14 +50,15 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "narration
     name = spot.get("name") or spot.get("spot_id", "this spot")
     desc = (spot.get("description") or "").strip()
 
-    context_block = _join_context(ctx, max_tokens=800)
-    # description は常に含める（コンテキスト0件のフェイルセーフにもなる）
-    base_facts = []
+    context_block = _join_context(ctx, max_chars=8000)
+
+    # description は常に Facts に含める（md_slug 無しでも最低限の内容が出る）
+    facts_lines = []
     if desc:
-        base_facts.append(f"- POI.description: {desc}")
+        facts_lines.append(f"- POI.description: {desc}")
     if context_block:
-        base_facts.append(f"- RAG:\n{context_block}")
-    base_facts_txt = "\n".join(base_facts) if base_facts else "- (no extra context)"
+        facts_lines.append(f"- RAG:\n{context_block}")
+    facts_txt = "\n".join(facts_lines) if facts_lines else "- (no extra context)"
 
     prompt = f"""
 [LANGUAGE={lang}|{lang_label}] [STYLE={style}|ナレーション]
@@ -65,7 +66,7 @@ You are a professional tour guide for visitors around Mt. Chokai area.
 
 Spot: {name} (ID: {spot.get('spot_id')})
 Facts:
-{base_facts_txt}
+{facts_txt}
 
 Write a spoken narration in {lang_label}.
 Constraints:

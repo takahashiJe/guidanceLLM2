@@ -45,5 +45,8 @@ loguru>=0.7.2
 tenacity>=8.3.0
 
 # ========== 将来Celeryに切替える場合（今は不要ならコメントのまま） ==========
-# celery[redis]==5.4.0
-# redis>=5.0.0
+celery[redis]==5.4.0
+redis>=5.0.0
+
+pyproj>=3.5,<3.7
+pytest
