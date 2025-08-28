@@ -61,9 +61,6 @@ services:
     volumes:
       - ./backend:/app/backend   # ← COPY せず volume で
     command: bash -lc "pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 && python backend/script/init_static_db.py"
-    depends_on:
-      static-db:
-        condition: service_healthy # この記述が重要
 
   # === Ollama (GPU想定) ===
   ollama:
