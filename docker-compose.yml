@@ -182,7 +182,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
     depends_on:
-      - worker
+      - redis
     command: >
       bash -lc "celery -A backend.worker.celery.celery_app.celery_app
       worker --loglevel=info --pool=threads --concurrency=1"
