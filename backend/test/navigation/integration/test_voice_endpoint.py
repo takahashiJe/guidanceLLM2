@@ -9,9 +9,9 @@ def test_voice_endpoint__synthesize_and_save(monkeypatch, client_voice, tmp_path
     monkeypatch.setattr(tts, "synthesize", lambda text, language, voice, engine=None: b"\x00\x01\x02\x03\x04", raising=True)
     # write_mp3 → 実ファイルI/Oは避けて戻り値だけ返す
     def fake_save_audio(pack_dir: Path, spot_id: str, lang: str, data: bytes, *, preferred_format="mp3", bitrate_kbps: int = 64):
-    rel = f"/packs/GUID/{spot_id}.{lang}.{preferred_format}"
-    # duration_s は 1.23 を返す
-    return rel, len(data), 1.23, preferred_format
+        rel = f"/packs/GUID/{spot_id}.{lang}.{preferred_format}"
+        # duration_s は 1.23 を返す
+        return rel, len(data), 1.23, preferred_format
     monkeypatch.setattr(tts, "save_audio", fake_save_audio, raising=True)
 
     body = {
