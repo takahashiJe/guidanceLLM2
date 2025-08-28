@@ -40,7 +40,7 @@ services:
   # 初期データ投入（POI / facilities / access_points）
   static-db-init:
     image: python:3.11-slim
-    container_name: nav_static_db_init
+    container_name: static_db_init
     depends_on:
       static-db:
         condition: service_healthy
@@ -60,17 +60,7 @@ services:
       FORCE_INSERT: "0"
     volumes:
       - ./backend:/app/backend   # ← COPY せず volume で
-    command: >
-      bash -lc "
-        pip install --no-cache-dir
-          psycopg2-binary==2.9.9
-          sqlalchemy==2.0.30
-          geoalchemy2==0.14.6
-          shapely==2.0.4
-          pandas==2.2.2
-          orjson==3.10.3 &&
-        python backend/script/init_static_db.py
-      "
+    command: bash -lc "pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 && python backend/script/init_static_db.py"
     
   # === Ollama (GPU想定) ===
   ollama:
@@ -81,7 +71,7 @@ services:
     environment:
       - OLLAMA_KEEP_ALIVE=24h
       # 開発でモデルを固定したい場合は環境変数を持たせておく（pullは下の sidecar）
-      - OLLAMA_DEFAULT_MODEL=Qwen3:30
+      - OLLAMA_DEFAULT_MODEL=qwen3:30b
       - OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
     volumes:
       - ollama_models:/root/.ollama
@@ -93,22 +83,6 @@ services:
       timeout: 5s
       retries: 10
     restart: unless-stopped
-  
-  # Ollama モデルを起動時にpull（任意．不要なら削除）
-  ollama-pull:
-    image: ollama/ollama:latest
-    container_name: ollama-pull
-    depends_on:
-      ollama:
-        condition: service_healthy
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_DEFAULT_MODEL=Qwen3:30
-    command: >
-      bash -lc "
-        ollama pull ${OLLAMA_DEFAULT_MODEL} || true && ollama pull ${OLLAMA_EMBEDDING_MODEL} || true
-      "
-    restart: "no"
   
   # === OSRM (car / foot) ===
   osrm-car:
@@ -172,21 +146,21 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
-  # Celery Worker（将来の会話系タスク用。今は並行で常駐させるだけ）
-  celery:
-    build:
-      context: .
-      dockerfile: ./backend/Dockerfile
-    container_name: celery-worker
-    environment:
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/1
-    depends_on:
-      - redis
-    command: >
-      bash -lc "celery -A backend.worker.celery.celery_app.celery_app
-      worker --loglevel=info --pool=threads --concurrency=1"
-    restart: unless-stopped
+  # # Celery Worker（将来の会話系タスク用。今は並行で常駐させるだけ）
+  # celery:
+  #   build:
+  #     context: .
+  #     dockerfile: ./backend/Dockerfile
+  #   container_name: celery-worker
+  #   environment:
+  #     CELERY_BROKER_URL: redis://redis:6379/0
+  #     CELERY_RESULT_BACKEND: redis://redis:6379/1
+  #   depends_on:
+  #     - redis
+  #   command: >
+  #     bash -lc "celery -A backend.worker.celery.celery_app.celery_app
+  #     worker --loglevel=info --pool=threads --concurrency=1"
+  #   restart: unless-stopped
 
   redis:
     image: redis:7.2-alpine
@@ -257,3 +231,6 @@ services:
       - ./packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
     ports: ["9100:9100"]
+
+volumes:
+  ollama_models:
