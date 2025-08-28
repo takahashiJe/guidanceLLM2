@@ -22,10 +22,13 @@ services:
   static-db:
     image: postgis/postgis:16-3.4
     container_name: static_db
+    user: "${UID}:${GID}"
     environment:
       POSTGRES_DB: static_db
       POSTGRES_USER: static_db
       POSTGRES_PASSWORD: static_db
+      UID: "1000"
+      GID: "1000"
     ports:
       - "5432:5432"       # ローカルから接続したい場合（不要なら消してください）
     volumes:
