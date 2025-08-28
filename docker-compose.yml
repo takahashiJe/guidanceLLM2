@@ -21,21 +21,24 @@ services:
   # === Static DB (POI / access_points) ===
   static-db:
     image: postgis/postgis:16-3.4
-    container_name: nav_static_db
+    container_name: static_db
     environment:
-      POSTGRES_DB: nav_static
-      POSTGRES_USER: nav_static
-      POSTGRES_PASSWORD: nav_static
+      POSTGRES_DB: static_db
+      POSTGRES_USER: static_db
+      POSTGRES_PASSWORD: static_db
     ports:
       - "5432:5432"       # ローカルから接続したい場合（不要なら消してください）
     volumes:
       - ./backend/.pgdata_static:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nav_static -d nav_static"]
+      test: ["CMD-SHELL", "pg_isready -U static_db -d static_db"]
       interval: 5s
       timeout: 5s
       retries: 20
     restart: unless-stopped
+    depends_on:
+      static-db:
+        condition: service_healthy # この記述が重要
 
   # 初期データ投入（POI / facilities / access_points）
   static-db-init:
@@ -49,9 +52,9 @@ services:
       PYTHONPATH: /app/backend
       DB_HOST: static-db
       DB_PORT: "5432"
-      DB_NAME: nav_static
-      DB_USER: nav_static
-      DB_PASSWORD: nav_static
+      DB_NAME: static_db
+      DB_USER: static_db
+      DB_PASSWORD: static_db
       # 入力ファイル（必要に応じてパス調整）
       POI_JSON: /app/backend/worker/data/POI.json
       FACILITIES_JSON: /app/backend/worker/data/facilities.json
@@ -125,9 +128,9 @@ services:
       # --- 静的DB（POI・access_points） ---
       STATIC_DB_HOST: static-db
       STATIC_DB_PORT: "5432"
-      STATIC_DB_NAME: nav_static
-      STATIC_DB_USER: nav_static
-      STATIC_DB_PASSWORD: nav_static
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
       # --- 将来の動的DB（ユーザ）を見据えた命名 ---
       APP_DB_HOST: app-db
       APP_DB_PORT: "5432"
@@ -176,9 +179,9 @@ services:
       OSRM_CAR_URL: http://osrm-car:5000
       OSRM_FOOT_URL: http://osrm-foot:5000
       STATIC_DB_HOST: static-db
-      STATIC_DB_NAME: nav_static
-      STATIC_DB_USER: nav_static
-      STATIC_DB_PASSWORD: nav_static
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
       STATIC_DB_PORT: "5432"
     depends_on: [osrm-car, osrm-foot, static-db]
     ports: ["9101:9101"]
@@ -188,9 +191,9 @@ services:
     command: bash -lc "uvicorn backend.worker.app.services.alongpoi.main:app --host 0.0.0.0 --port 9102"
     environment:
       STATIC_DB_HOST: static-db
-      STATIC_DB_NAME: nav_static
-      STATIC_DB_USER: nav_static
-      STATIC_DB_PASSWORD: nav_static
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
       STATIC_DB_PORT: "5432"
     depends_on: [static-db]
     ports: ["9102:9102"]
