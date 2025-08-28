@@ -39,6 +39,7 @@ class Asset(BaseModel):
     text_url: Optional[str] = None
     bytes: Optional[int] = None
     duration_s: Optional[float] = None
+    format: Optional[Literal["mp3","wav"]] = None
 
 class PlanResponse(BaseModel):
     pack_id: str
@@ -114,6 +115,9 @@ def plan(payload: PlanRequest):
     llm_out = post_describe(llm_req)  # {"items":[{"spot_id","text"}]}
 
     # 4) voice TTS（並列化は後続タスクで。まずは逐次でOK）
+    voice_format = os.getenv("VOICE_FORMAT", "mp3")
+    voice_bitrate = int(os.getenv("VOICE_BITRATE_KBPS", "64"))
+    save_text = (os.getenv("VOICE_SAVE_TEXT", "1") == "1")
     assets: List[Asset] = []
     for item in llm_out.get("items", []):
         sid = item["spot_id"]
@@ -123,9 +127,21 @@ def plan(payload: PlanRequest):
             "text": item["text"],
             "spot_id": sid,
             "pack_id": pack_id,
+            "format": voice_format,
+            "bitrate_kbps": voice_bitrate,
+            "save_text": save_text,
         }
         vj = post_synthesize(voice_req)
-        assets.append(Asset(spot_id=sid, audio_url=vj.get("audio_url"), bytes=vj.get("bytes"), duration_s=vj.get("duration_s")))
+        assets.append(
+            Asset(
+                spot_id=sid,
+                audio_url=vj.get("audio_url"),
+                text_url=vj.get("text_url"),  # 追加（save_text=true時に返る）
+                bytes=vj.get("bytes"),
+                duration_s=vj.get("duration_s"),
+                format=vj.get("format"),   # 任意で格納したい場合のみ
+            )
+        )
 
     return PlanResponse(
         pack_id=pack_id,
