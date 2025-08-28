@@ -40,6 +40,46 @@ def _engine() -> Engine:
 # -------------------------
 # DDL（拡張・インデックス・ビュー）
 # -------------------------
+DDL_CREATE_TABLE_SPOTS = """
+CREATE TABLE IF NOT EXISTS spots (
+    spot_id TEXT PRIMARY KEY,
+    category TEXT NOT NULL DEFAULT 'tourist_spot',
+    official_name JSONB NOT NULL,
+    aliases JSONB,
+    description JSONB,
+    social_proof JSONB,
+    tags JSONB,
+    address JSONB,
+    osm_place_id BIGINT,
+    osm_type TEXT,
+    osm_id BIGINT,
+    md_slug TEXT,
+    geom GEOMETRY(Point, 4326) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+DDL_CREATE_TABLE_FACILITIES = """
+CREATE TABLE IF NOT EXISTS facilities (
+    spot_id TEXT PRIMARY KEY,
+    category TEXT NOT NULL DEFAULT 'accommodation',
+    official_name JSONB NOT NULL,
+    aliases JSONB,
+    description JSONB,
+    social_proof JSONB,
+    tags JSONB,
+    address JSONB,
+    osm_place_id BIGINT,
+    osm_type TEXT,
+    osm_id BIGINT,
+    md_slug TEXT,
+    geom GEOMETRY(Point, 4326) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
 DDL_ENABLE_POSTGIS = """
 CREATE EXTENSION IF NOT EXISTS postgis;
 """
@@ -110,6 +150,8 @@ FROM facilities f;
 
 def apply_ddl(conn: Connection) -> None:
     conn.execute(text(DDL_ENABLE_POSTGIS))
+    conn.execute(text(DDL_CREATE_TABLE_SPOTS))
+    conn.execute(text(DDL_CREATE_TABLE_FACILITIES))
     conn.execute(text(DDL_INDEX_SPOTS))
     conn.execute(text(DDL_INDEX_FACILITIES))
     conn.execute(text(DDL_VIEW_POI_FEATURES_V))
