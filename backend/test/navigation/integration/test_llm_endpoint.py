@@ -21,8 +21,8 @@ def test_llm_endpoint__returns_texts_for_spots(monkeypatch, client_llm):
         "language": "ja",
         "style": "narration",
         "spots": [
-            {"spot_id": "A", "name": "丸池様", "description": "透明度の高い湧水池。"},
-            {"spot_id": "B", "name": "法体の滝", "description": "落差57mの名瀑。"}
+            {"spot_id": "A", "name": "丸池様", "description": "透明度の高い湧水池。", "md_slug": "spot_maruike_sama"},
+            {"spot_id": "B", "name": "法体の滝", "description": "落差57mの名瀑。", "md_slug": "spot_hottai_falls"}
         ]
     }
     res = client_llm.post("/describe", json=body)
