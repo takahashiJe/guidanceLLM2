@@ -25,7 +25,7 @@ def chroma_get(path: str):
 
 def get_or_create_collection(name: str) -> str:
     # create will “get or create”
-    data = chroma_post("/collections", {"name": name})
+    data = chroma_post("/collections", {"name": name, "get_or_create": True})
     return data["id"]
 
 def get_collection_count(coll_id: str) -> int:

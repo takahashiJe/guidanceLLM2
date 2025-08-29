@@ -236,7 +236,7 @@ services:
       VOICE_ZH: "zh_female_1"
       VOICE_DEFAULT: "neutral_1"
     volumes:
-      - ./packs:/packs
+      - packs:/packs
     ports: ["9104:9104"]
 
   svc-nav:
@@ -258,3 +258,4 @@ volumes:
   ollama_models:
   pgdata_static:
   chromadb_data:
+  packs:

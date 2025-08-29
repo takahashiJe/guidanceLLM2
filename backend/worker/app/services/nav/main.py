@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import os
 import uuid
+import json
+from pathlib import Path
+from datetime import datetime
 from typing import List, Literal, Optional, Dict
+from hashlib import sha1
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -104,7 +108,7 @@ def plan(payload: PlanRequest):
     segments = routing.get("segments", [])
 
     # 2) alongpoi
-    along_req = {"polyline": polyline, "segments": segments, "buffer": payload.buffers}
+    along_req = {"polyline": polyline, "segments": segments, "buffers": payload.buffers}
     along = post_along(along_req)
     along_pois = along.get("pois", [])
 
@@ -146,11 +150,11 @@ def plan(payload: PlanRequest):
     # manifest を生成
     manifest = {
         "pack_id": pack_id,
-        "language": req.language,
+        "language": payload.language,
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "route_digest": sha1(json.dumps(polyline, separators=(',',':')).encode()).hexdigest(),
         "segments": segments,
-        "assets": assets
+        "assets": [asset.model_dump() for asset in assets]
     }
     manifest_path = Path(os.environ.get("PACKS_DIR","/packs"))/pack_id/"manifest.json"
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
