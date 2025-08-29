@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple, Literal
 
-from backend.worker.app.services.routing.osrm_client import osrm_route, OsrmRouteResult
+from backend.worker.app.services.routing import osrm_client as oc
+from backend.worker.app.services.routing.osrm_client import OsrmRouteResult
 from backend.worker.app.services.routing import access_point_repo as ap_repo
 
 
 Coord = Tuple[float, float]  # (lat, lon)
-
 
 def _result_to_leg(
     mode: Literal["car", "foot"],
@@ -59,7 +59,7 @@ def build_legs_with_switch(waypoints: List[Coord]) -> List[Dict]:
         dst = waypoints[i + 1]
 
         # 1) まず car 直行を試す
-        r_car_direct = osrm_route("car", src, dst)
+        r_car_direct = oc.osrm_route("car", src, dst)
         if getattr(r_car_direct, "ok", False):
             legs.append(_result_to_leg("car", r_car_direct, i, i + 1))
             continue
@@ -67,11 +67,11 @@ def build_legs_with_switch(waypoints: List[Coord]) -> List[Dict]:
         # 2) AP 経由（car: src→AP, foot: AP→dest）
         ap = nearest_access_point(dst)
 
-        r_car_to_ap = osrm_route("car", src, ap)
+        r_car_to_ap = oc.osrm_route("car", src, ap)
         # car が失敗でもダミーとして追加（距離は 0 の可能性もある）
         legs.append(_result_to_leg("car", r_car_to_ap, i, i))  # from_idx は src、to_idx は AP 仮想点として i を再利用
 
-        r_foot_ap_to_dst = osrm_route("foot", ap, dst)
+        r_foot_ap_to_dst = oc.osrm_route("foot", ap, dst)
         legs.append(_result_to_leg("foot", r_foot_ap_to_dst, i, i + 1))
 
     return legs

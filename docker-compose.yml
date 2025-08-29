@@ -2,7 +2,6 @@ services:
   # === Vector DB ===
   chromadb:
     image: chromadb/chroma:0.6.3   # バージョンを明示推奨
-    container_name: chromadb-server
     ports:
       - "8000:8000"
     volumes:
@@ -21,7 +20,6 @@ services:
   # === Static DB (POI / access_points) ===
   static-db:
     image: postgis/postgis:16-3.4
-    container_name: static_db
     environment:
       POSTGRES_DB: static_db
       POSTGRES_USER: static_db
@@ -40,7 +38,6 @@ services:
   # 初期データ投入（POI / facilities / access_points）
   static-db-init:
     image: python:3.11-slim
-    container_name: static_db_init
     depends_on:
       static-db:
         condition: service_healthy
@@ -65,7 +62,6 @@ services:
   # === Ollama (GPU想定) ===
   ollama:
     image: ollama/ollama:latest
-    container_name: ollama
     ports:
       - "11434:11434"
     environment:
@@ -87,7 +83,6 @@ services:
   # === OSRM (car / foot) ===
   osrm-car:
     image: osrm/osrm-backend
-    container_name: osrm-car
     command: ["osrm-routed", "--algorithm", "mld", "/data/japan-latest.osrm"]
     volumes:
       - ./backend/worker/data/map/car:/data:ro
@@ -102,7 +97,6 @@ services:
 
   osrm-foot:
     image: osrm/osrm-backend
-    container_name: osrm-foot
     command: ["osrm-routed", "--algorithm", "mld", "/data/japan-latest-foot.osrm"]
     volumes:
       - ./backend/worker/data/map/foot:/data:ro
@@ -120,7 +114,6 @@ services:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
-    container_name: api-gateway
     environment:
       # --- 静的DB（POI・access_points） ---
       STATIC_DB_HOST: static-db
@@ -151,7 +144,6 @@ services:
   #   build:
   #     context: .
   #     dockerfile: ./backend/Dockerfile
-  #   container_name: celery-worker
   #   environment:
   #     CELERY_BROKER_URL: redis://redis:6379/0
   #     CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -164,7 +156,6 @@ services:
 
   redis:
     image: redis:7.2-alpine
-    container_name: redis-broker
     ports: ["6379:6379"]
     restart: unless-stopped
 

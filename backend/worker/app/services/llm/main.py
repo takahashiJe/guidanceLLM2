@@ -13,7 +13,6 @@ class SpotRef(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     md_slug: Optional[str]
-    description: Optional[str]
 
 class DescribeRequest(BaseModel):
     language: Literal["ja","en","zh"]

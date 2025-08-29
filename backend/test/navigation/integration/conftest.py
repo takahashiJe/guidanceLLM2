@@ -30,10 +30,11 @@ def client_llm():
 
 
 @pytest.fixture(scope="session")
-def client_voice(tmp_path_factory, monkeypatch):
+def client_voice(tmp_path_factory):
+    import os
     # voice サービスが保存先を参照する場合に備えて PACKS_DIR をテスト専用に設定
     packs_dir = tmp_path_factory.mktemp("packs")
-    monkeypatch.setenv("PACKS_DIR", str(packs_dir))
+    os.environ["PACKS_DIR"] = str(packs_dir)
     from backend.worker.app.services.voice.main import app
     return TestClient(app)
 

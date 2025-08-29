@@ -9,7 +9,6 @@ from pyproj import Transformer
 
 LonLat = Tuple[float, float]  # (lon, lat)
 
-
 def _proj() -> Transformer:
     # EPSG:4326 → EPSG:3857（メートル系）
     return Transformer.from_crs(4326, 3857, always_xy=True)
