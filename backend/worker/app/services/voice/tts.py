@@ -5,10 +5,39 @@ import os
 import struct
 import subprocess
 from pathlib import Path
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, Tuple, Literal
+from pydantic import BaseModel
 
 import httpx
 
+class TTSConfig(BaseModel):
+    sample_rate: int = 22050
+    format: Literal["mp3", "wav"] = "mp3"
+    # 言語別の話者ID（ENVで指定）
+    voice_ja: Optional[str] = None
+    voice_en: Optional[str] = None
+    voice_zh: Optional[str] = None
+    voice_default: Optional[str] = None
+
+    @classmethod
+    def from_env(cls) -> "TTSConfig":
+        return cls(
+            sample_rate=int(os.getenv("TTS_SAMPLE_RATE", "22050")),
+            format=os.getenv("TTS_FORMAT", "mp3"),
+            voice_ja=os.getenv("VOICE_JA"),
+            voice_en=os.getenv("VOICE_EN"),
+            voice_zh=os.getenv("VOICE_ZH"),
+            voice_default=os.getenv("VOICE_DEFAULT"),
+        )
+
+    def select_voice(self, lang: str) -> Optional[str]:
+        if lang == "ja" and self.voice_ja:
+            return self.voice_ja
+        if lang == "en" and self.voice_en:
+            return self.voice_en
+        if lang == "zh" and self.voice_zh:
+            return self.voice_zh
+        return self.voice_default
 
 # =========================
 # Public API

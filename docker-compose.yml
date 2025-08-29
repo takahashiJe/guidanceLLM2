@@ -16,6 +16,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
 
 # === Vector DBデータ投入 ===
   knowledge-init:
@@ -37,8 +38,7 @@ services:
       - ./backend:/app/backend:ro
     # “空なら投入”はスクリプト側で判定するので常に安全に実行可
     command: >
-      bash -lc "pip install --no-cache-dir requests==2.32.3 &&
-                python backend/script/ingest_knowledge.py"
+      bash -lc "pip install --no-cache-dir requests==2.32.3 && python backend/script/ingest_knowledge.py"
 
   # === Static DB (POI / access_points) ===
   static-db:
@@ -101,6 +101,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 10
+      start_period: 120s
     restart: unless-stopped
   
   # === OSRM (car / foot) ===
@@ -217,6 +218,8 @@ services:
       CHROMA_URL: http://chromadb:8000
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: Qwen3:30
+      EMBED_MODEL: mxbai-embed-large:latest
+      COLLECTION_PREFIX: guidance_
     depends_on: [chromadb, ollama]
     volumes: 
       - ./backend/worker/data:/app/backend/worker/data:ro
