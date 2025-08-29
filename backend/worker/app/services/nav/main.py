@@ -157,6 +157,7 @@ def plan(payload: PlanRequest):
         "assets": [asset.model_dump() for asset in assets]
     }
     manifest_path = Path(os.environ.get("PACKS_DIR","/packs"))/pack_id/"manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     manifest_url = f"{os.environ.get('PACKS_BASE_URL','/packs')}/{pack_id}/manifest.json"
 
