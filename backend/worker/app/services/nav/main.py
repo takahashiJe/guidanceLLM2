@@ -143,10 +143,24 @@ def plan(payload: PlanRequest):
             )
         )
 
+    # manifest を生成
+    manifest = {
+        "pack_id": pack_id,
+        "language": req.language,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "route_digest": sha1(json.dumps(polyline, separators=(',',':')).encode()).hexdigest(),
+        "segments": segments,
+        "assets": assets
+    }
+    manifest_path = Path(os.environ.get("PACKS_DIR","/packs"))/pack_id/"manifest.json"
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    manifest_url = f"{os.environ.get('PACKS_BASE_URL','/packs')}/{pack_id}/manifest.json"
+
     return PlanResponse(
         pack_id=pack_id,
         route=route_fc,
         legs=[Leg(**l) for l in legs],
         along_pois=along_pois,
         assets=assets,
+        manifest_url=manifest_url
     )

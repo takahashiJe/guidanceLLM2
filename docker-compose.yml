@@ -17,6 +17,29 @@ services:
       timeout: 10s
       retries: 3
 
+# === Vector DBデータ投入 ===
+  knowledge-init:
+    image: python:3.11-slim
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    working_dir: /app
+    environment:
+      CHROMA_URL: http://chromadb:8000
+      OLLAMA_URL: http://ollama:11434
+      KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
+      EMBED_MODEL: mxbai-embed-large:latest
+      COLLECTION_PREFIX: guidance_
+      LANGS: ja,en,zh
+    volumes:
+      - ./backend:/app/backend:ro
+    # “空なら投入”はスクリプト側で判定するので常に安全に実行可
+    command: >
+      bash -lc "pip install --no-cache-dir requests==2.32.3 &&
+                python backend/script/ingest_knowledge.py"
+
   # === Static DB (POI / access_points) ===
   static-db:
     image: postgis/postgis:16-3.4
@@ -205,6 +228,10 @@ services:
     environment:
       COQUI_DEVICE: cpu
       PACKS_DIR: /packs
+      VOICE_JA: "ja_female_1"
+      VOICE_EN: "en_female_1"
+      VOICE_ZH: "zh_female_1"
+      VOICE_DEFAULT: "neutral_1"
     volumes:
       - ./packs:/packs
     ports: ["9104:9104"]
@@ -218,6 +245,7 @@ services:
       LLM_BASE: http://svc-llm:9103
       VOICE_BASE: http://svc-voice:9104
       PACKS_DIR: /packs
+      PACKS_BASE_URL: /packs
     volumes:
       - ./packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
