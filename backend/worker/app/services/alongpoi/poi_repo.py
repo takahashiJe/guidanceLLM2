@@ -50,6 +50,8 @@ def _union_wkt(polys) -> str:
     if not polys:
         log.warning("along buffers → all invalid/empty; skip POI query")
         return None
+    for i, p in enumerate(polys):
+        log.info(f"Polygon {i} WKT for union: {p.wkt}")
     mp = unary_union(polys)  # 4326 前提
     return mp.wkt
 
@@ -78,8 +80,6 @@ def query_pois(polys) -> List[Dict]:
         eng = _get_engine()
     except Exception:
         return []
-
-    wkt = _union_wkt(polys)
 
     try:
         with eng.connect() as conn:
