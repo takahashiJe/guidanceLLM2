@@ -54,75 +54,61 @@ def health():
 @app.post("/route")
 def route(req: RouteRequest) -> RouteResponse:
     """
-    前提：
-      - req.waypoints は spot_id のみを持つ（lat/lon は来ない）
-      - routing 内で spot_id → (lat, lon) を解決し、OSRM に渡す
-      - 'current' のような動的 ID は upstream（nav）で座標化してから渡すべきなので routing では 400
-    返却：
-      - feature_collection / legs / polyline / segments を満たす RouteResponse
+    入力: RouteRequest
+      - waypoints: List[Waypoint]   # Waypoint は spot_id のみ
+      - car_to_trailhead: bool = True
+
+    処理:
+      1) spot_id 群を DB で (lon,lat) に解決（順序を保って再構成）
+      2) (lon,lat) → (lat,lon) に変換して routing ロジックへ
+      3) OSRM を叩いて legs を構築
+      4) GeoJSON / polyline / segments を組み立てて返却
+
+    出力: RouteResponse
+      - feature_collection / legs / polyline / segments
     """
 
-    # 0) バリデーション（最低 2 点必要）
+    # 0) バリデーション
     if not req.waypoints or len(req.waypoints) < 2:
         raise HTTPException(status_code=400, detail="At least two waypoints are required.")
 
-    # 1) 動的 ID（現在地など）は routing では扱えない
-    dynamic_ids = [wp.spot_id for wp in req.waypoints if (wp.spot_id or "").lower() in {"current", "here", "me"}]
-    if dynamic_ids:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Dynamic spot_id {dynamic_ids} cannot be resolved in routing. Resolve to lat/lon upstream."
-        )
+    spot_ids = []
+    for i, wp in enumerate(req.waypoints):
+        sid = (wp.spot_id or "").strip() if hasattr(wp, "spot_id") else ""
+        if not sid:
+            raise HTTPException(status_code=400, detail=f"waypoints[{i}] must have a non-empty spot_id.")
+        # 'current' 等の動的 ID は routing では扱わない（nav 側で座標に置換してから渡す）
+        if sid.lower() in {"current", "here", "me"}:
+            raise HTTPException(status_code=400, detail=f"Dynamic spot_id '{sid}' must be resolved upstream.")
+        spot_ids.append(sid)
 
-    # 2) DB 接続情報（ENV）
-    db_cfg = dict(
-        host=os.getenv("STATIC_DB_HOST", "localhost"),
-        port=int(os.getenv("STATIC_DB_PORT", "5432")),
-        db=os.getenv("STATIC_DB_NAME", "static_db"),
-        user=os.getenv("STATIC_DB_USER", "static_db"),
-        password=os.getenv("STATIC_DB_PASSWORD", "static_db"),
+    # 1) spot_id → (lon,lat) を解決
+    repo = SpotRepo()  # 引数なしでOK（ENVはspot_repo内で読む）
+    id2lonlat = repo.resolve_many(spot_ids)  # Dict[str, Tuple[float, float]]  ※(lon,lat)
+
+    # 見つからない ID を検出
+    missing = [sid for sid in spot_ids if sid not in id2lonlat]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"spot_id not found in DB: {missing}")
+
+    # 2) (lon,lat) → (lat,lon) に変換（順序を保つ）
+    waypoints_latlon: List[tuple[float, float]] = []
+    for sid in spot_ids:
+        lon, lat = id2lonlat[sid]
+        waypoints_latlon.append((lat, lon))  # logic/osrm は (lat,lon) 想定
+
+    # 3) ルート構築（car→trailhead スイッチ含む）
+    #    logic.build_legs_with_switch は:
+    #    - 引数: List[tuple[lat,lon]]
+    #    - 戻り: List[dict] (mode, from_idx, to_idx, distance, duration, geometry)
+    legs = build_legs_with_switch(waypoints_latlon)
+
+    # 4) GeoJSON / polyline / segments 生成
+    feature_collection, polyline, segments = stitch_to_geojson(legs)
+
+    return RouteResponse(
+        feature_collection=feature_collection,
+        legs=legs,
+        polyline=polyline,
+        segments=segments,
     )
-
-    # 3) spot_id → (lat, lon) 解決（順序保持）
-    spot_ids = [wp.spot_id for wp in req.waypoints]
-    if any(not sid for sid in spot_ids):
-        raise HTTPException(status_code=400, detail="All waypoints must contain a non-empty spot_id.")
-
-    repo = SpotRepo(**db_cfg)
-    try:
-        latlon_list = repo.resolve_spot_ids_to_latlon(spot_ids)  # -> List[Tuple[float, float]]
-    except KeyError as e:
-        # どの ID が見つからなかったかを明示
-        raise HTTPException(status_code=404, detail=f"spot_id not found: {str(e)}")
-
-    # 念のため None を弾く
-    if any(ll is None or len(ll) != 2 for ll in latlon_list):
-        raise HTTPException(status_code=500, detail="Failed to resolve one or more spot_ids to coordinates.")
-
-    # 4) OSRM ルーティング実行
-    osrm = OSRMClient.from_env()  # 例：OSRM エンドポイントは ENV から
-    # 期待：route() が [(lat, lon), ...], car_to_trailhead=bool を受け取り dict を返す
-    osrm_result = osrm.route(
-        coordinates=latlon_list,
-        car_to_trailhead=getattr(req, "car_to_trailhead", True)  # 互換のため
-    )
-
-    if not osrm_result:
-        raise HTTPException(status_code=502, detail="OSRM returned empty response.")
-
-    # 5) 返却整形
-    # 既に osrm_result が下記キーを持つならそのまま注入
-    expected_keys = {"feature_collection", "legs", "polyline", "segments"}
-    if expected_keys.issubset(osrm_result.keys()):
-        return RouteResponse(
-            feature_collection=osrm_result["feature_collection"],
-            legs=osrm_result["legs"],
-            polyline=osrm_result["polyline"],
-            segments=osrm_result.get("segments", []),
-        )
-
-    # あるいは専用ビルダで組み立て（サービス実装に合わせて）
-    # return build_route_response(osrm_result)
-
-    # 想定外の形なら 500
-    raise HTTPException(status_code=500, detail="Unexpected OSRM response shape.")
