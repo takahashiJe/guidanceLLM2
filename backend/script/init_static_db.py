@@ -211,10 +211,10 @@ def _to_jsonb_name(name_ja: Optional[str], name_en: Optional[str] = None, name_z
 
 SQL_UPSERT_SPOT = text(
     """
-    INSERT INTO spots (id, official_name, aliases, description, md_slug, geom)
-    VALUES (:id, :official_name::jsonb, :aliases::jsonb, :description, :md_slug,
+    INSERT INTO spots (spot_id, official_name, aliases, description, md_slug, geom)
+    VALUES (:spot_id, CAST(:official_name AS jsonb), CAST(:aliases AS jsonb), :description, :md_slug,
             ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
-    ON CONFLICT (id) DO UPDATE SET
+    ON CONFLICT (spot_id) DO UPDATE SET
         official_name = EXCLUDED.official_name,
         aliases       = EXCLUDED.aliases,
         description   = EXCLUDED.description,
@@ -265,10 +265,11 @@ def _coerce_float(v: Any) -> Optional[float]:
 
 def _guess_names(rec: Dict[str, Any]) -> Dict[str, Optional[str]]:
     # よくあるキー名に対応（存在しなければ None）
+    official_name = rec.get("official_name", {}) or {}
     return {
-        "ja": rec.get("name_ja") or rec.get("ja") or rec.get("name") or rec.get("official_name_ja"),
-        "en": rec.get("name_en") or rec.get("en") or rec.get("official_name_en"),
-        "zh": rec.get("name_zh") or rec.get("zh") or rec.get("official_name_zh"),
+        "ja": official_name.get("ja") or rec.get("name_ja") or rec.get("ja") or rec.get("name"),
+        "en": official_name.get("en") or rec.get("name_en") or rec.get("en"),
+        "zh": official_name.get("zh") or rec.get("name_zh") or rec.get("zh"),
     }
 
 
@@ -309,7 +310,7 @@ def load_spots_from_poi_json(conn: Connection, poi_json_path: Path) -> None:
         conn.execute(
             SQL_UPSERT_SPOT,
             {
-                "id": sid,
+                "spot_id": sid,
                 "official_name": json.dumps(official_name),
                 "aliases": json.dumps(aliases),
                 "description": json.dumps(desc, ensure_ascii=False),
