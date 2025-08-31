@@ -106,6 +106,11 @@ def plan(payload: PlanRequest):
 
     # 1) routing
     routing_req = {"waypoints": [w.model_dump() for w in payload.waypoints], "car_to_trailhead": True}
+    routing_req = {
+        "origin": payload.origin.model_dump(),  # origin を追加
+        "waypoints": [w.model_dump() for w in payload.waypoints],
+        "car_to_trailhead": True
+    }
     routing = post_route(routing_req)
     route_fc = routing["feature_collection"]
     legs = routing["legs"]

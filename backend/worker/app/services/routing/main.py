@@ -12,7 +12,6 @@ from backend.worker.app.services.routing.logic import build_legs_with_switch, st
 
 app = FastAPI(title="routing service")
 
-
 class Coord(BaseModel):
     lat: float
     lon: float
@@ -105,6 +104,9 @@ def route(req: RouteRequest) -> RouteResponse:
     for sid in spot_ids:
         lon, lat = id2lonlat[sid]
         waypoints_latlon.append((lat, lon))  # logic/osrm は (lat,lon) 想定
+    origin_coord = (req.origin.lat, req.origin.lon)
+    waypoints_latlon.insert(0, origin_coord)
+    waypoints_latlon.append(origin_coord)
 
     # 3) ルート構築（car→trailhead スイッチ含む）
     #    logic.build_legs_with_switch は:
