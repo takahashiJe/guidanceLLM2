@@ -9,7 +9,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="API Gateway", version="0.1.0")
 
     # 将来のAIエージェント系は別routerに切り出してここで include する想定
-    app.include_router(nav_router)
+    app.include_router(nav_router, prefix="/api")
 
     @app.get("/health")
     def health():

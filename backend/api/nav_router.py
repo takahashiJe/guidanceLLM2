@@ -11,7 +11,7 @@ from backend.api.schemas import PlanRequest, PlanResponse
 
 router = APIRouter(prefix="/nav", tags=["navigation"])
 
-NAV_BASE = os.getenv("NAV_BASE", "http://svc-nav:9101")
+NAV_BASE = os.getenv("NAV_BASE", "http://svc-nav:9100")
 REQ_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "25"))
 
 
