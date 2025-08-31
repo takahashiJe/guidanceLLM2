@@ -77,6 +77,7 @@ services:
       FACILITIES_JSON: /app/backend/worker/data/facilities.json
       ACCESS_POINTS: /app/backend/worker/data/access_points.geojson
       # 既存データがあっても挿入したい場合は 1 に（既定は 0 = 既存ありならスキップ）
+      LOAD_STATIC_JSON: "1"
       FORCE_INSERT: "1"
     volumes:
       - ./backend:/app/backend   # ← COPY せず volume で

@@ -12,6 +12,7 @@ Static DB 初期化スクリプト（PostGIS 拡張・GIST インデックス・
 from __future__ import annotations
 
 import json
+import geojson
 import os
 import sys
 from pathlib import Path
@@ -235,6 +236,15 @@ SQL_UPSERT_FACILITY = text(
     """
 )
 
+SQL_UPSERT_ACCESS_POINT = """
+INSERT INTO access_points (osm_type, osm_id, name, properties, geom)
+VALUES (:osm_type, :osm_id, :name, :properties, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
+ON CONFLICT (osm_type, osm_id) DO UPDATE SET
+    name = EXCLUDED.name,
+    properties = EXCLUDED.properties,
+    geom = EXCLUDED.geom,
+    updated_at = NOW();
+"""
 
 def _safe_id(v: Any) -> Optional[str]:
     if v is None:
@@ -338,6 +348,63 @@ def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> N
             },
         )
 
+def load_access_points_from_geojson(conn: Connection, path: Path) -> None:
+    """
+    access_points.geojson を読み込み、access_points テーブルに UPSERT する。
+    """
+    print(f"Loading access points from: {path}")
+    if not path.exists():
+        print(f"  -> File not found. Skipping.")
+        return
+
+    with path.open("r") as f:
+        data = geojson.load(f)
+
+    count = 0
+    for feature in data["features"]:
+        try:
+            props = feature.get("properties", {})
+            geom = feature.get("geometry", {})
+
+            # ジオメトリタイプがPointでなければスキップ
+            if geom.get("type") != "Point":
+                continue
+            
+            coords = geom.get("coordinates")
+            if not coords or len(coords) < 2:
+                continue
+            lon, lat = coords[0], coords[1]
+
+            # OSM IDのパース
+            osm_full_id = props.get("@id", "")
+            osm_type, osm_id_str = osm_full_id.split("/") if "/" in osm_full_id else (None, None)
+            osm_id = int(osm_id_str) if osm_id_str and osm_id_str.isdigit() else None
+            
+            if not osm_type or osm_id is None:
+                continue
+
+            name = props.get("name")
+            
+            conn.execute(
+                text(SQL_UPSERT_ACCESS_POINT),
+                {
+                    "osm_type": osm_type,
+                    "osm_id": osm_id,
+                    "name": name,
+                    "properties": json.dumps(props),
+                    "lon": lon,
+                    "lat": lat,
+                },
+            )
+            count += 1
+
+        except Exception as e:
+            # 1レコードのエラーで全体を止めない
+            print(f"  -> Skipping a record due to error: {e}")
+            continue
+            
+    print(f"  -> Upserted {count} records.")
+
 
 # -------------------------
 # main
@@ -355,15 +422,18 @@ def main() -> int:
             root = Path(__file__).resolve().parents[2]  # backend/
             default_poi = root / "worker" / "data" / "POI.json"
             default_fac = root / "worker" / "data" / "facilities.json"
+            default_ap = root / "worker" / "data" / "access_points.geojson"
 
             poi_path = Path(os.getenv("POI_JSON_PATH", str(default_poi)))
             fac_path = Path(os.getenv("FACILITIES_JSON_PATH", str(default_fac)))
+            ap_path = Path(os.getenv("ACCESS_POINTS_PATH", str(default_ap)))
 
             if poi_path.exists():
                 load_spots_from_poi_json(conn, poi_path)
             if fac_path.exists():
                 load_facilities_from_json(conn, fac_path)
-
+            if ap_path.exists():
+                load_access_points_from_geojson(conn, ap_path)
     return 0
 
 
