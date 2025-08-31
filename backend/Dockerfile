@@ -19,7 +19,7 @@ COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 
 # アプリ本体をコピー
-COPY backend /app/backend
+# COPY backend /app/backend
 # （workerの地図データなどは volume で供給する想定）
 
 EXPOSE 8080 8090

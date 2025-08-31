@@ -162,6 +162,8 @@ services:
       APP_DB_PASSWORD: app_runtime
       # --- NAVサービス ---
       NAV_BASE: http://svc-nav:9100
+    volumes:
+      - ./backend:/app/backend
     depends_on:
       static-db:
         condition: service_healthy
@@ -204,6 +206,8 @@ services:
       STATIC_DB_USER: static_db
       STATIC_DB_PASSWORD: static_db
       STATIC_DB_PORT: "5432"
+    volumes:
+      - ./backend:/app/backend
     depends_on: [osrm-car, osrm-foot, static-db]
     ports: ["9101:9101"]
 
@@ -216,6 +220,8 @@ services:
       STATIC_DB_USER: static_db
       STATIC_DB_PASSWORD: static_db
       STATIC_DB_PORT: "5432"
+    volumes:
+      - ./backend:/app/backend
     depends_on: [static-db]
     ports: ["9102:9102"]
 
@@ -231,6 +237,7 @@ services:
       COLLECTION_PREFIX: guidance_
     depends_on: [chromadb, ollama]
     volumes: 
+      - ./backend:/app/backend
       - ./backend/worker/data:/app/backend/worker/data:ro
     ports: ["9103:9103"]
 
@@ -253,6 +260,7 @@ services:
       VOICE_ZH: "zh_female_1"
       VOICE_DEFAULT: "neutral_1"
     volumes:
+      - ./backend:/app/backend
       - packs:/packs
     ports: ["9104:9104"]
 
@@ -267,6 +275,7 @@ services:
       PACKS_DIR: /packs
       PACKS_BASE_URL: /packs
     volumes:
+      - ./backend:/app/backend
       - ./packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
     ports: ["9100:9100"]
