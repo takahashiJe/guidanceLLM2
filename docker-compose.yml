@@ -88,7 +88,7 @@ services:
         echo '--- Installing dependencies...'
         pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 geojson
         echo '--- Running init script...'
-        python script/init_static_db.py
+        python -B script/init_static_db.py
       "
 
   # === Ollama (GPU想定) ===
