@@ -42,7 +42,7 @@ def _buffer_linestring_m(ls: LineString, meters: float) -> Polygon:
     to3857 = _proj().transform
     to4326 = _unproj().transform
     ls_m = transform(to3857, ls)
-    poly_m = ls_m.buffer(meters)  # meters
+    poly_m = ls_m.buffer(meters, join_style='bevel')  # meters
     poly_lonlat = transform(to4326, poly_m)
     return poly_lonlat
 
@@ -74,6 +74,14 @@ def build_mode_buffers(
         ls = LineString(coords)
         radius = buf_car_m if mode == "car" else buf_foot_m
         poly = _buffer_linestring_m(ls, radius)
+
+        print("---" * 10)
+        print(f"Original polygon generated for mode '{mode}'.")
+        print(f"Is original polygon valid? -> {poly.is_valid}")
+        # WKT形式でジオメトリを出力すると、外部ツールで可視化も可能
+        print(f"Original WKT: {poly.wkt}") 
+        print("---" * 10)
+
         polys.append(poly)
 
     # return polys
@@ -82,9 +90,22 @@ def build_mode_buffers(
     for p in raw_polys:
         if p.is_empty:
             continue
+        
+        print("!!!" * 10)
+        print("Found invalid polygon, attempting to clean...")
+
         pp = make_valid(p)
         if not pp.is_valid:
             pp = pp.buffer(0)
+        
+        print(f"Is cleaned polygon valid? -> {pp.is_valid}")
+        if not pp.is_valid:
+            print("Cleaning FAILED.")
+            print(f"Invalid WKT after cleaning: {pp.wkt}")
+        else:
+            print("Cleaning SUCCEEDED.")
+        print("!!!" * 10)
+
         if pp.is_empty or not pp.is_valid:
             continue
         cleaned.append(pp)

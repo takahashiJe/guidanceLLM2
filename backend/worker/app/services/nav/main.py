@@ -21,8 +21,6 @@ app = FastAPI(title="nav service")
 
 # ==== Schemas ====
 class Waypoint(BaseModel):
-    lat: float
-    lon: float
     spot_id: Optional[str] = None
 
 class PlanRequest(BaseModel):
@@ -80,6 +78,8 @@ def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
                     "name": row.name,
                     "description": row.description,
                     "md_slug": row.md_slug,
+                    "lat": lat,
+                    "lon": lon,
                 }
             )
         else:

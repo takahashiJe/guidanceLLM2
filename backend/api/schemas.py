@@ -18,7 +18,6 @@ class PlanRequest(BaseModel):
     Frontend → Gateway（→ nav）で共有する入力スキーマ。
     """
     language: Literal["ja", "en", "zh"]
-    origin: Coord
     return_to_origin: bool = True
     waypoints: List[SpotPick] = Field(..., min_items=1)
 
