@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from backend.api.schemas import PlanRequest, PlanResponse
 
-router = APIRouter(prefix="api/nav", tags=["navigation"])
+router = APIRouter(prefix="/api/nav", tags=["navigation"])
 
 NAV_BASE = os.getenv("NAV_BASE", "http://svc-nav:9101")
 REQ_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "25"))
