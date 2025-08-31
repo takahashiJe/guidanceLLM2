@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Dict, Iterable, Tuple
 
 from shapely.geometry import LineString, Polygon, mapping
+from shapely.validation import make_valid
 from shapely.ops import transform
 from pyproj import Transformer
 
@@ -75,4 +76,16 @@ def build_mode_buffers(
         poly = _buffer_linestring_m(ls, radius)
         polys.append(poly)
 
-    return polys
+    # return polys
+    raw_polys = polys  # 既存結果
+    cleaned = []
+    for p in raw_polys:
+        if p.is_empty:
+            continue
+        pp = make_valid(p)
+        if not pp.is_valid:
+            pp = pp.buffer(0)
+        if pp.is_empty or not pp.is_valid:
+            continue
+        cleaned.append(pp)
+    return cleaned

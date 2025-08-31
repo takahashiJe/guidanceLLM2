@@ -7,8 +7,27 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from shapely.ops import unary_union
 
+from shapely.geometry.base import BaseGeometry
+from shapely.validation import make_valid
+import logging
+
+log = logging.getLogger(__name__)
 _engine: Engine | None = None
 
+def _clean_geoms(geoms):
+    cleaned = []
+    for g in geoms:
+        if not isinstance(g, BaseGeometry):
+            continue
+        if g.is_empty:
+            continue
+        gg = make_valid(g)
+        if not gg.is_valid:
+            gg = gg.buffer(0)
+        if gg.is_empty or not gg.is_valid:
+            continue
+        cleaned.append(gg)
+    return cleaned
 
 def _conn_url() -> str:
     host = os.getenv("STATIC_DB_HOST", "static-db")
@@ -27,8 +46,10 @@ def _get_engine() -> Engine:
 
 
 def _union_wkt(polys) -> str:
+    polys = _clean_geoms(polys)
     if not polys:
-        return "MULTIPOLYGON EMPTY"
+        log.warning("along buffers → all invalid/empty; skip POI query")
+        return None
     mp = unary_union(polys)  # 4326 前提
     return mp.wkt
 
@@ -50,6 +71,9 @@ def query_pois(polys) -> List[Dict]:
     ルートバッファ（Polygon群）に交差する POI（spots + facilities）を返す。
     返却: [{"spot_id","name","lon","lat","kind"}...]
     """
+    wkt = _union_wkt(polys)
+    if not wkt:
+        return []  # ヒットなし
     try:
         eng = _get_engine()
     except Exception:
