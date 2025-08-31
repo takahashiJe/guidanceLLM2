@@ -37,7 +37,7 @@ class SpotRepo:
         # 1回のSQLで両テーブルを横断検索（SRID=4326 の POINT 前提）
         sql = text("""
             WITH target AS (
-              SELECT unnest(:ids::text[]) AS spot_id
+              SELECT unnest(:ids) AS spot_id
             ),
             s AS (
               SELECT t.spot_id, ST_X(sp.geom) AS lon, ST_Y(sp.geom) AS lat, 1 AS ord
