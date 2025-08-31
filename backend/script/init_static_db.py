@@ -225,10 +225,10 @@ SQL_UPSERT_SPOT = text(
 
 SQL_UPSERT_FACILITY = text(
     """
-    INSERT INTO facilities (id, official_name, aliases, description, md_slug, geom)
-    VALUES (:id, :official_name::jsonb, :aliases::jsonb, :description, :md_slug,
+    INSERT INTO facilities (spot_id, official_name, aliases, description, md_slug, geom)
+    VALUES (:spot_id, CAST(:official_name AS jsonb), CAST(:aliases AS jsonb), :description, :md_slug,
             ST_SetSRID(ST_MakePoint(:lon, :lat), 4326))
-    ON CONFLICT (id) DO UPDATE SET
+    ON CONFLICT (spot_id) DO UPDATE SET
         official_name = EXCLUDED.official_name,
         aliases       = EXCLUDED.aliases,
         description   = EXCLUDED.description,
@@ -330,7 +330,7 @@ def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> N
 
     count = 0 # ★追加
     for rec in data:
-        fid = _safe_id(rec.get("id") or rec.get("facility_id"))
+        fid = _safe_id(rec.get("id") or rec.get("spot_id"))
         coords = rec.get("coordinates", {})
         lat = _coerce_float(coords.get("latitude"))
         lon = _coerce_float(coords.get("longitude"))
@@ -346,7 +346,7 @@ def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> N
         conn.execute(
             SQL_UPSERT_FACILITY,
             {
-                "id": fid,
+                "spot_id": fid,
                 "official_name": json.dumps(official_name),
                 "aliases": json.dumps(aliases),
                 "description": json.dumps(desc, ensure_ascii=False) if desc else None,
