@@ -102,7 +102,8 @@ CREATE TABLE IF NOT EXISTS access_points (
     properties JSONB,
     geom GEOMETRY(Point, 4326) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_access_points_osm UNIQUE (osm_type, osm_id)
 );
 """
 
@@ -289,11 +290,13 @@ def load_spots_from_poi_json(conn: Connection, poi_json_path: Path) -> None:
     if not isinstance(data, list):
         return
 
+    count = 0 # ★追加
     for rec in data:
         # POI.json には施設も入っている可能性があるが、ここでは「基本 spot 扱い」
         sid = _safe_id(rec.get("id") or rec.get("spot_id"))
-        lat = _coerce_float(rec.get("lat"))
-        lon = _coerce_float(rec.get("lon"))
+        coords = rec.get("coordinates", {})
+        lat = _coerce_float(coords.get("latitude"))
+        lon = _coerce_float(coords.get("longitude"))
         if not (sid and lat is not None and lon is not None):
             continue
 
@@ -309,12 +312,14 @@ def load_spots_from_poi_json(conn: Connection, poi_json_path: Path) -> None:
                 "id": sid,
                 "official_name": json.dumps(official_name),
                 "aliases": json.dumps(aliases),
-                "description": desc,
+                "description": json.dumps(desc, ensure_ascii=False),
                 "md_slug": md_slug,
                 "lat": lat,
                 "lon": lon,
             },
         )
+        count += 1 # ★追加
+    print(f"  -> Upserted {count} spot records.") # ★追加
 
 
 def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> None:
@@ -322,10 +327,12 @@ def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> N
     if not isinstance(data, list):
         return
 
+    count = 0 # ★追加
     for rec in data:
         fid = _safe_id(rec.get("id") or rec.get("facility_id"))
-        lat = _coerce_float(rec.get("lat"))
-        lon = _coerce_float(rec.get("lon"))
+        coords = rec.get("coordinates", {})
+        lat = _coerce_float(coords.get("latitude"))
+        lon = _coerce_float(coords.get("longitude"))
         if not (fid and lat is not None and lon is not None):
             continue
 
@@ -341,12 +348,14 @@ def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> N
                 "id": fid,
                 "official_name": json.dumps(official_name),
                 "aliases": json.dumps(aliases),
-                "description": desc,
+                "description": json.dumps(desc, ensure_ascii=False) if desc else None,
                 "md_slug": md_slug,
                 "lat": lat,
                 "lon": lon,
             },
         )
+        count += 1 # ★追加
+    print(f"  -> Upserted {count} facility records.") # ★追加
 
 def load_access_points_from_geojson(conn: Connection, path: Path) -> None:
     """
@@ -410,31 +419,54 @@ def load_access_points_from_geojson(conn: Connection, path: Path) -> None:
 # main
 # -------------------------
 def main() -> int:
+    print("--- Starting DB initialization script ---") # ★追加
     engine = _engine()
-    with engine.begin() as conn:
-        # DDL（拡張・インデックス・ビュー）
-        apply_ddl(conn)
+    try:
+        with engine.begin() as conn:
+            print("--- DB connection successful. Applying DDL... ---") # ★追加
+            # DDL（拡張・インデックス・ビュー）
+            apply_ddl(conn)
+            print("--- DDL application finished. ---") # ★追加
 
-        # 任意: JSON 投入（必要時のみ）
-        if os.getenv("LOAD_STATIC_JSON", "0") == "1":
-            # 既定のファイルパス（存在すればロード）
-            # プロジェクト構成に合わせて調整。相対/絶対どちらでも可。
-            root = Path(__file__).resolve().parents[2]  # backend/
-            default_poi = root / "worker" / "data" / "POI.json"
-            default_fac = root / "worker" / "data" / "facilities.json"
-            default_ap = root / "worker" / "data" / "access_points.geojson"
+            load_json_env = os.getenv("LOAD_STATIC_JSON", "0")
+            print(f"--- Checking LOAD_STATIC_JSON flag: {load_json_env} ---") # ★追加
 
-            poi_path = Path(os.getenv("POI_JSON_PATH", str(default_poi)))
-            fac_path = Path(os.getenv("FACILITIES_JSON_PATH", str(default_fac)))
-            ap_path = Path(os.getenv("ACCESS_POINTS_PATH", str(default_ap)))
+            # 任意: JSON 投入（必要時のみ）
+            if load_json_env == "1":
+                # 既定のファイルパス（存在すればロード）
+                # プロジェクト構成に合わせて調整。相対/絶対どちらでも可。
+                root = Path(__file__).resolve().parents[2]  # backend/
+                default_poi = root / "worker" / "data" / "POI.json"
+                default_fac = root / "worker" / "data" / "facilities.json"
+                default_ap = root / "worker" / "data" / "access_points.geojson"
 
-            if poi_path.exists():
-                load_spots_from_poi_json(conn, poi_path)
-            if fac_path.exists():
-                load_facilities_from_json(conn, fac_path)
-            if ap_path.exists():
-                load_access_points_from_geojson(conn, ap_path)
-    return 0
+                poi_path = Path(os.getenv("POI_JSON_PATH"))
+                fac_path = Path(os.getenv("FACILITIES_JSON_PATH", str(default_fac)))
+                ap_path = Path(os.getenv("ACCESS_POINTS_PATH", str(default_ap)))
+
+                print(f"POI file path: {poi_path}") # ★追加
+                print(f"Facilities file path: {fac_path}") # ★追加
+                print(f"Access points file path: {ap_path}") # ★追加
+
+                if poi_path.exists():
+                    load_spots_from_poi_json(conn, poi_path)
+                else:
+                    print(f"File not found: {poi_path}") # ★追加
+                if fac_path.exists():
+                    load_facilities_from_json(conn, fac_path)
+                else:
+                    print(f"File not found: {fac_path}") # ★追加
+                if ap_path.exists():
+                    load_access_points_from_geojson(conn, ap_path)
+                else:
+                    print(f"File not found: {ap_path}") # ★追加
+            else:
+                print("--- Skipping data loading because LOAD_STATIC_JSON is not '1'. ---") # ★追加
+        print("--- DB initialization script finished successfully. ---") # ★追加
+        return 0
+    except Exception as e: # ★追加: エラーを明示的に出力
+        print(f"!!! AN ERROR OCCURRED: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

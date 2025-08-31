@@ -64,7 +64,7 @@ services:
     depends_on:
       static-db:
         condition: service_healthy
-    working_dir: /app
+    working_dir: /app/backend
     environment:
       PYTHONPATH: /app/backend
       STATIC_DB_HOST: static-db
@@ -73,15 +73,23 @@ services:
       STATIC_DB_USER: static_db
       STATIC_DB_PASSWORD: static_db
       # 入力ファイル（必要に応じてパス調整）
-      POI_JSON: /app/backend/worker/data/POI.json
-      FACILITIES_JSON: /app/backend/worker/data/facilities.json
-      ACCESS_POINTS: /app/backend/worker/data/access_points.geojson
+      POI_JSON_PATH: /app/backend/worker/data/POI.json
+      FACILITIES_JSON_PATH: /app/backend/worker/data/facilities.json
+      ACCESS_POINTS_PATH: /app/backend/worker/data/access_points.geojson
       # 既存データがあっても挿入したい場合は 1 に（既定は 0 = 既存ありならスキップ）
       LOAD_STATIC_JSON: "1"
       FORCE_INSERT: "1"
     volumes:
       - ./backend:/app/backend   # ← COPY せず volume で
-    command: bash -lc "sleep 10; pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 && python backend/script/init_static_db.py"
+    command: |
+      sh -c "
+        echo '--- Waiting for DB...'
+        sleep 10
+        echo '--- Installing dependencies...'
+        pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 geojson
+        echo '--- Running init script...'
+        python script/init_static_db.py
+      "
 
   # === Ollama (GPU想定) ===
   ollama:
