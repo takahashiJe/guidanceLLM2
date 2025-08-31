@@ -79,6 +79,31 @@ CREATE TABLE IF NOT EXISTS facilities (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 """
+DDL_INDEX_ACCESS_POINTS = """
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE c.relname = 'idx_access_points_geom' AND n.nspname = 'public'
+    ) THEN
+        EXECUTE 'CREATE INDEX idx_access_points_geom ON access_points USING GIST (geom)';
+    END IF;
+END$$;
+"""
+
+DDL_CREATE_TABLE_ACCESS_POINTS = """
+CREATE TABLE IF NOT EXISTS access_points (
+    id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+    osm_type TEXT,
+    osm_id BIGINT,
+    name TEXT,
+    properties JSONB,
+    geom GEOMETRY(Point, 4326) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
 
 DDL_ENABLE_POSTGIS = """
 CREATE EXTENSION IF NOT EXISTS postgis;
@@ -152,8 +177,10 @@ def apply_ddl(conn: Connection) -> None:
     conn.execute(text(DDL_ENABLE_POSTGIS))
     conn.execute(text(DDL_CREATE_TABLE_SPOTS))
     conn.execute(text(DDL_CREATE_TABLE_FACILITIES))
+    conn.execute(text(DDL_CREATE_TABLE_ACCESS_POINTS))
     conn.execute(text(DDL_INDEX_SPOTS))
     conn.execute(text(DDL_INDEX_FACILITIES))
+    conn.execute(text(DDL_INDEX_ACCESS_POINTS))
     conn.execute(text(DDL_VIEW_POI_FEATURES_V))
 
 
