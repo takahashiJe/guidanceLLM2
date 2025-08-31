@@ -112,6 +112,7 @@ def plan(payload: PlanRequest):
         "car_to_trailhead": True
     }
     routing = post_route(routing_req)
+    print(routing.keys())
     route_fc = routing["feature_collection"]
     legs_from_routing = routing["legs"]
     print("legs_from_routing: {legs_from_routing}")
