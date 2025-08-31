@@ -227,7 +227,15 @@ services:
 
   svc-voice:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104"
+    command: |
+      bash -lc "
+      set -euo pipefail;
+      echo '--- voice bootstrap ---';
+      ffmpeg -hide_banner -version || { echo 'ERROR: ffmpeg not found in PATH'; exit 1; };
+      mkdir -p /home/junta_takahashi/guidanceLLM2/packs;
+      export OMP_NUM_THREADS=1;
+      uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104
+      "
     environment:
       COQUI_DEVICE: cpu
       PACKS_DIR: /packs

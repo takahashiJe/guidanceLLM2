@@ -53,5 +53,4 @@ async def api_nav_plan(req: PlanRequest, request: Request) -> PlanResponse:
             detail = resp.text
         raise HTTPException(status_code=resp.status_code, detail={"nav_error": detail})
 
-    data = resp.json()
-    return PlanResponse.model_validate(data) if hasattr(PlanResponse, "model_validate") else PlanResponse.parse_obj(data)
+    return resp.json()

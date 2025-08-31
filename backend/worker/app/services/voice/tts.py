@@ -2,298 +2,232 @@ from __future__ import annotations
 
 import io
 import os
-import struct
 import subprocess
+import sys
+import wave
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional, Tuple, Literal
-from pydantic import BaseModel
+from typing import Optional, Literal, Dict, Any
 
-import httpx
+# Coqui TTS を優先して使う。未導入・失敗時はフォールバック。
+try:
+    from TTS.api import TTS  # type: ignore
+    _HAS_COQUI = True
+except Exception:
+    _HAS_COQUI = False
 
-class TTSConfig(BaseModel):
-    sample_rate: int = 22050
-    format: Literal["mp3", "wav"] = "mp3"
-    # 言語別の話者ID（ENVで指定）
-    voice_ja: Optional[str] = None
-    voice_en: Optional[str] = None
-    voice_zh: Optional[str] = None
-    voice_default: Optional[str] = None
+
+# -----------------------
+# 設定
+# -----------------------
+@dataclass
+class TTSConfig:
+    model_name: str
+    voice_ja: Optional[str]
+    voice_en: Optional[str]
+    voice_zh: Optional[str]
+    sample_rate: int = 22050  # フォールバック生成時の SR
 
     @classmethod
     def from_env(cls) -> "TTSConfig":
         return cls(
+            model_name=os.getenv("COQUI_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
+            voice_ja=os.getenv("VOICE_JA", None),
+            voice_en=os.getenv("VOICE_EN", None),
+            voice_zh=os.getenv("VOICE_ZH", None),
             sample_rate=int(os.getenv("TTS_SAMPLE_RATE", "22050")),
-            format=os.getenv("TTS_FORMAT", "mp3"),
-            voice_ja=os.getenv("VOICE_JA"),
-            voice_en=os.getenv("VOICE_EN"),
-            voice_zh=os.getenv("VOICE_ZH"),
-            voice_default=os.getenv("VOICE_DEFAULT"),
         )
 
     def select_voice(self, lang: str) -> Optional[str]:
-        if lang == "ja" and self.voice_ja:
+        if lang == "ja":
             return self.voice_ja
-        if lang == "en" and self.voice_en:
+        if lang == "en":
             return self.voice_en
-        if lang == "zh" and self.voice_zh:
+        if lang == "zh":
             return self.voice_zh
-        return self.voice_default
+        return None
 
-# =========================
-# Public API
-# =========================
 
-def synthesize(
-    text: str,
-    language: str,
-    voice: str,
-    *,
-    engine: Optional[Callable[[str, str, str], bytes]] = None,
-) -> bytes:
+# -----------------------
+# ランタイム（Coqui モデルのキャッシュ）
+# -----------------------
+class TTSRuntime:
+    def __init__(self, cfg: TTSConfig):
+        self.cfg = cfg
+        self._coqui_model = None  # lazy
+        self._coqui_ready = False
+
+    @property
+    def coqui_ready(self) -> bool:
+        return self._coqui_ready
+
+    def _load_coqui(self) -> None:
+        if not _HAS_COQUI:
+            self._coqui_ready = False
+            return
+        try:
+            # モデルは一度だけロード。XTTS v2 など多言語モデル想定。
+            self._coqui_model = TTS(self.cfg.model_name)
+            self._coqui_ready = True
+        except Exception:
+            # ロード失敗時はフォールバックへ
+            self._coqui_ready = False
+
+    def ensure_loaded(self) -> None:
+        if not self._coqui_ready:
+            self._load_coqui()
+
+
+# -----------------------
+# ユーティリティ
+# -----------------------
+def ensure_packs_root(packs_root: Path) -> None:
+    packs_root.mkdir(parents=True, exist_ok=True)
+
+
+def _sine_wav(duration_sec: float = 1.0, sr: int = 22050, freq: float = 440.0) -> bytes:
+    """フォールバック用の簡易WAV（1ch 16bit PCM, 正弦波）。"""
+    import math
+    n = int(duration_sec * sr)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16bit
+        wf.setframerate(sr)
+        for i in range(n):
+            val = int(32767.0 * math.sin(2.0 * math.pi * freq * (i / sr)))
+            wf.writeframesraw(val.to_bytes(2, byteorder="little", signed=True))
+    return buf.getvalue()
+
+
+def estimate_wav_duration_sec(wav_bytes: bytes) -> float:
+    with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+        frames = wf.getnframes()
+        sr = wf.getframerate()
+        if sr <= 0:
+            return 0.0
+        return float(frames) / float(sr)
+
+
+def _run_subprocess(cmd: list[str], input_bytes: Optional[bytes] = None) -> bytes:
+    p = subprocess.Popen(
+        cmd,
+        stdin=subprocess.PIPE if input_bytes is not None else None,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    out, err = p.communicate(input=input_bytes)
+    if p.returncode != 0:
+        raise RuntimeError(f"subprocess failed: {' '.join(cmd)}\n{err.decode(errors='ignore')}")
+    return out
+
+
+def ffmpeg_convert_wav_to_mp3(wav_bytes: bytes, bitrate_kbps: int = 64) -> bytes:
     """
-    テキストから音声データ(bytes)を合成して返す。
-    優先順位: engine 注入 > COQUI_HTTP_URL > ローカルCoqui > ダミーWAV
+    ffmpeg を使って WAV → MP3 に変換。
     """
-    if engine is not None:
-        data = engine(text, language, voice)
-        if not isinstance(data, (bytes, bytearray)):
-            raise TypeError("engine must return bytes")
-        return bytes(data)
-
-    http_url = os.getenv("COQUI_HTTP_URL")
-    if http_url:
-        data = _synthesize_via_http(http_url, text, language, voice)
-        if data:
-            return data
-
-    data = _synthesize_via_local_lib(text, language, voice)
-    if data:
-        return data
-
-    return _dummy_wav_bytes(duration_s=0.5, sr=16000, freq_hz=440.0)
-
-
-def save_audio(
-    pack_dir: Path,
-    spot_id: str,
-    lang: str,
-    data: bytes,
-    *,
-    preferred_format: str = "mp3",
-    bitrate_kbps: int = 64,
-) -> Tuple[str, int, float, str]:
-    """
-    音声 bytes を希望フォーマットに合わせて保存し、URL/サイズ/秒数/実フォーマットを返す。
-    - preferred_format が "mp3" のとき:
-        data が WAV なら ffmpeg で MP3(単純CBR) に変換（失敗時は WAV で保存）
-        data が MP3 ならそのまま保存
-      "wav" のときはそのまま保存。
-    """
-    pack_dir.mkdir(parents=True, exist_ok=True)
-
-    # まず data が WAV か MP3 かを判定
-    is_wav = _is_wav(data)
-    is_mp3 = _is_mp3(data)
-
-    # WAV の場合、事前に duration を計算可能
-    wav_duration = _probe_wav_duration_seconds(data) if is_wav else 0.0
-
-    if preferred_format == "mp3":
-        # すでに MP3 ならそのまま保存
-        if is_mp3:
-            filename = f"{spot_id}.{lang}.mp3"
-            out_path = pack_dir / filename
-            out_path.write_bytes(data)
-            rel_url = f"/packs/{pack_dir.name}/{filename}"
-            return rel_url, out_path.stat().st_size, wav_duration or 0.0, "mp3"
-
-        # WAV → MP3 変換を試みる
-        if is_wav:
-            mp3_bytes = _transcode_wav_to_mp3_bytes(data, bitrate_kbps=bitrate_kbps)
-            if mp3_bytes:
-                filename = f"{spot_id}.{lang}.mp3"
-                out_path = pack_dir / filename
-                out_path.write_bytes(mp3_bytes)
-                rel_url = f"/packs/{pack_dir.name}/{filename}"
-                # duration は WAV 由来を採用
-                return rel_url, out_path.stat().st_size, wav_duration or 0.0, "mp3"
-            # 変換失敗 → WAV のまま保存
-            return write_wav(pack_dir, spot_id, lang, data) + ("wav",)
-
-        # 形式不明 → そのまま mp3 拡張子で保存せず、WAVで保存して安全側に倒す
-        return write_wav(pack_dir, spot_id, lang, data) + ("wav",)
-
-    # preferred_format != "mp3" → WAV で保存
-    return write_wav(pack_dir, spot_id, lang, data) + ("wav",)
-
-
-def write_mp3(pack_dir: Path, spot_id: str, lang: str, data: bytes) -> Tuple[str, int, float]:
-    """
-    後方互換のため温存。新規コードは save_audio(...) の利用を推奨。
-    data を MP3 としてそのまま保存し、URL/サイズ/秒数(不明なら0.0) を返す。
-    """
-    pack_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{spot_id}.{lang}.mp3"
-    out_path = pack_dir / filename
-    out_path.write_bytes(data)
-    rel_url = f"/packs/{pack_dir.name}/{filename}"
-    # WAV なら秒数を読めるが、ここでは 0.0 を返す（互換のため）
-    return rel_url, out_path.stat().st_size, 0.0
-
-
-def write_wav(pack_dir: Path, spot_id: str, lang: str, data: bytes) -> Tuple[str, int, float]:
-    """
-    data を WAV として保存し、URL/サイズ/秒数を返す。
-    """
-    pack_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{spot_id}.{lang}.wav"
-    out_path = pack_dir / filename
-    out_path.write_bytes(data)
-    rel_url = f"/packs/{pack_dir.name}/{filename}"
-    dur = _probe_wav_duration_seconds(data)
-    return rel_url, out_path.stat().st_size, dur
-
-
-# =========================
-# Engines
-# =========================
-
-def _synthesize_via_http(base_url: str, text: str, language: str, voice: str) -> Optional[bytes]:
-    url = f"{base_url.rstrip('/')}/api/tts"
-    payloads = [
-        {"text": text, "speaker_id": voice, "language_id": language},
-        {"text": text, "voice": voice, "lang": language},
-        {"text": text, "speaker": voice, "language": language},
+    cmd = [
+        "ffmpeg", "-hide_banner", "-loglevel", "error",
+        "-f", "wav", "-i", "pipe:0",
+        "-b:a", f"{bitrate_kbps}k",
+        "-f", "mp3", "pipe:1",
     ]
-    headers = {"accept": "audio/wav,application/octet-stream,audio/mpeg"}
-    try:
-        with httpx.Client(timeout=30) as client:
-            for body in payloads:
-                r = client.post(url, json=body, headers=headers)
-                if r.status_code == 200 and r.content:
-                    return bytes(r.content)
-    except Exception:
-        return None
-    return None
+    return _run_subprocess(cmd, input_bytes=wav_bytes)
 
 
-def _synthesize_via_local_lib(text: str, language: str, voice: str) -> Optional[bytes]:
-    try:
-        from TTS.api import TTS  # type: ignore
-    except Exception:
-        return None
-
-    model_name = os.getenv("COQUI_MODEL")
-    if not model_name:
-        model_by_lang = {
-            "ja": "tts_models/ja/kokoro/tacotron2-DDC",
-            "en": "tts_models/en/vctk/vits",
-            "zh": "tts_models/zh-CN/baker/tacotron2-DDC",
-        }
-        model_name = model_by_lang.get(language, "tts_models/en/vctk/vits")
-
-    try:
-        tts = TTS(model_name)
-        wav, sr = tts.tts(text=text, speaker=voice if voice else None, language=language if language else None)
-        return _wav_bytes_from_float_mono(wav, sr)
-    except Exception:
-        return None
-
-
-# =========================
-# Format helpers
-# =========================
-
-def _is_wav(data: bytes) -> bool:
-    return len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WAVE"
-
-def _is_mp3(data: bytes) -> bool:
-    if len(data) < 2:
-        return False
-    if data.startswith(b"ID3"):
-        return True
-    # MPEG1 Layer III フレームシンク（簡易）
-    return data[0] == 0xFF and (data[1] & 0xE0) == 0xE0
-
-
-def _transcode_wav_to_mp3_bytes(data: bytes, bitrate_kbps: int = 64) -> Optional[bytes]:
+def try_ffprobe_duration_sec(media_bytes: bytes) -> Optional[float]:
     """
-    ffmpeg をサブプロセスで呼び出し、WAV bytes → MP3 bytes に変換。
-    ffmpeg が無い/失敗時は None。
+    ffprobe が使える場合は正確な長さを取得（使えない環境なら None）。
     """
     try:
         cmd = [
-            "ffmpeg",
-            "-f", "wav",
-            "-i", "pipe:0",
-            "-vn",
-            "-ac", "1",
-            "-b:a", f"{int(bitrate_kbps)}k",
-            "-f", "mp3",
-            "pipe:1",
+            "ffprobe", "-hide_banner", "-loglevel", "error",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            "-show_entries", "format=duration",
+            "pipe:0",
         ]
-        proc = subprocess.run(cmd, input=data, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True)
-        return proc.stdout if proc.returncode == 0 and proc.stdout else None
+        out = _run_subprocess(cmd, input_bytes=media_bytes)
+        s = out.decode().strip()
+        if not s:
+            return None
+        return max(0.0, float(s))
     except Exception:
         return None
 
 
-# =========================
-# WAV helpers
-# =========================
+# -----------------------
+# 合成本体
+# -----------------------
+def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja", "en", "zh"]) -> bytes:
+    """
+    WAV バイト列で返す（最終的な保存フォーマットは呼び出し側で ffmpeg に渡す）。
+    1) Coqui（Python API） → 2) Coqui CLI → 3) フォールバックの順で試行。
+    """
+    runtime.ensure_loaded()
 
-def _wav_bytes_from_float_mono(samples, sr: int) -> bytes:
-    import array
-    pcm = array.array("h", (max(-32767, min(32767, int(x * 32767.0))) for x in samples))
-    byte_data = pcm.tobytes()
-    return _build_wav_header_and_data(byte_data, sr=sr, num_channels=1, bits_per_sample=16)
+    # 1) Coqui Python API
+    if runtime.coqui_ready and runtime._coqui_model is not None:
+        try:
+            # XTTS v2 は多言語合成が可能。必要なら speaker_wav / speaker_id を追加。
+            # python API は基本ファイル出力なので、一旦 temp へ出してから読む。
+            import tempfile
+            with tempfile.TemporaryDirectory() as td:
+                out_path = Path(td) / "out.wav"
+                # language 引数を accept するモデルなら渡す（XTTS v2 は text_lang が必要なケースあり）
+                kwargs: Dict[str, Any] = {}
+                # 話者があれば指定（モデルによって指定方法が異なる場合あり）
+                spk = runtime.cfg.select_voice(language)
+                if spk:
+                    kwargs["speaker"] = spk
+
+                # API 差異を吸収
+                try:
+                    runtime._coqui_model.tts_to_file(
+                        text=text,
+                        file_path=str(out_path),
+                        **kwargs,
+                    )
+                except TypeError:
+                    # モデルによっては text_lang を要求
+                    runtime._coqui_model.tts_to_file(
+                        text=text,
+                        file_path=str(out_path),
+                        speaker=spk if spk else None,
+                        language=language,
+                    )
+
+                return out_path.read_bytes()
+        except Exception:
+            # 次の手段へ
+            pass
+
+    # 2) Coqui CLI（`tts` コマンド）
+    #    例: tts --text "こんにちは" --model_name tts_models/multilingual/multi-dataset/xtts_v2 --out_path out.wav
+    if shutil_which("tts"):
+        try:
+            import tempfile
+            with tempfile.TemporaryDirectory() as td:
+                out_path = Path(td) / "out.wav"
+                cmd = [
+                    "tts",
+                    "--text", text,
+                    "--model_name", runtime.cfg.model_name,
+                    "--out_path", str(out_path),
+                ]
+                # 話者指定（モデルにより有効/無効）
+                spk = runtime.cfg.select_voice(language)
+                if spk:
+                    cmd += ["--speaker_idx", spk]
+
+                _run_subprocess(cmd)
+                return out_path.read_bytes()
+        except Exception:
+            pass
+
+    # 3) フォールバック：簡易WAV（1秒）
+    return _sine_wav(duration_sec=1.0, sr=runtime.cfg.sample_rate, freq=440.0)
 
 
-def _dummy_wav_bytes(duration_s: float = 0.5, sr: int = 16000, freq_hz: float = 440.0) -> bytes:
-    import math
-    import array
-    n = int(sr * duration_s)
-    two_pi_f = 2.0 * math.pi * freq_hz
-    pcm = array.array("h", (int(32767 * math.sin(two_pi_f * t / sr)) for t in range(n)))
-    return _build_wav_header_and_data(pcm.tobytes(), sr=sr, num_channels=1, bits_per_sample=16)
-
-
-def _build_wav_header_and_data(pcm_bytes: bytes, *, sr: int, num_channels: int, bits_per_sample: int) -> bytes:
-    byte_rate = sr * num_channels * bits_per_sample // 8
-    block_align = num_channels * bits_per_sample // 8
-    subchunk2_size = len(pcm_bytes)
-    chunk_size = 36 + subchunk2_size
-    with io.BytesIO() as buf:
-        buf.write(b"RIFF")
-        buf.write(struct.pack("<I", chunk_size))
-        buf.write(b"WAVE")
-        buf.write(b"fmt ")
-        buf.write(struct.pack("<I", 16))
-        buf.write(struct.pack("<H", 1))
-        buf.write(struct.pack("<H", num_channels))
-        buf.write(struct.pack("<I", sr))
-        buf.write(struct.pack("<I", byte_rate))
-        buf.write(struct.pack("<H", block_align))
-        buf.write(struct.pack("<H", bits_per_sample))
-        buf.write(b"data")
-        buf.write(struct.pack("<I", subchunk2_size))
-        buf.write(pcm_bytes)
-        return buf.getvalue()
-
-
-def _probe_wav_duration_seconds(data: bytes) -> float:
-    try:
-        if len(data) < 44 or not data.startswith(b"RIFF") or data[8:12] != b"WAVE":
-            return 0.0
-        sr = struct.unpack("<I", data[24:28])[0]
-        num_channels = struct.unpack("<H", data[22:24])[0]
-        bps = struct.unpack("<H", data[34:36])[0]
-        data_size = struct.unpack("<I", data[40:44])[0]
-        if sr == 0 or num_channels == 0 or bps == 0:
-            return 0.0
-        bytes_per_sec = sr * num_channels * (bps // 8)
-        if bytes_per_sec == 0:
-            return 0.0
-        return float(data_size) / float(bytes_per_sec)
-    except Exception:
-        return 0.0
+def shutil_which(name: str) -> Optional[str]:
+    from shutil import which
+    return which(name)

@@ -28,7 +28,7 @@ class Waypoint(BaseModel):
 class PlanRequest(BaseModel):
     language: Literal["ja", "en", "zh"]
     waypoints: List[Waypoint]
-    buffers: dict = Field(default_factory=lambda: {"car": 300, "foot": 10})
+    buffer: dict = Field(default_factory=lambda: {"car": 300, "foot": 10})
 
 class Leg(BaseModel):
     mode: Literal["car", "foot"]
@@ -108,7 +108,7 @@ def plan(payload: PlanRequest):
     segments = routing.get("segments", [])
 
     # 2) alongpoi
-    along_req = {"polyline": polyline, "segments": segments, "buffers": payload.buffers}
+    along_req = {"polyline": polyline, "segments": segments, "buffer": payload.buffer}
     along = post_along(along_req)
     along_pois = along.get("pois", [])
 
