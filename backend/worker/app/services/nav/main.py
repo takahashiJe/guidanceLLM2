@@ -113,9 +113,31 @@ def plan(payload: PlanRequest):
     }
     routing = post_route(routing_req)
     route_fc = routing["feature_collection"]
-    legs = routing["legs"]
+    legs_from_routing = routing["legs"]
+    print("legs_from_routing: {legs_from_routing}")
     polyline = routing["polyline"]
     segments = routing.get("segments", [])
+    spot_id_to_coords = {s.spot_id: (s.lat, s.lon) for s in get_spots_by_ids([w.spot_id for w in payload.waypoints])}
+    coords_list = [
+        (payload.origin.lat, payload.origin.lon)
+    ]
+    for wp in payload.waypoints:
+        if wp.spot_id in spot_id_to_coords:
+            coords_list.append(spot_id_to_coords[wp.spot_id])
+    coords_list.append((payload.origin.lat, payload.origin.lon))
+
+    # APIスキーマに合わせた legs を生成
+    final_legs = []
+    for leg_data in legs_from_routing:
+        from_coords = coords_list[leg_data["from_idx"]]
+        to_coords = coords_list[leg_data["to_idx"]]
+        final_legs.append({
+            "mode": leg_data["mode"],
+            "from": {"lat": from_coords[0], "lon": from_coords[1]},
+            "to": {"lat": to_coords[0], "lon": to_coords[1]},
+            "distance_m": leg_data["distance"],
+            "duration_s": leg_data["duration"]
+        })
 
     # 2) alongpoi
     along_req = {"polyline": polyline, "segments": segments, "buffer": payload.buffer}
@@ -174,7 +196,7 @@ def plan(payload: PlanRequest):
     return PlanResponse(
         pack_id=pack_id,
         route=route_fc,
-        legs=[Leg(**l) for l in legs],
+        legs=final_legs,
         along_pois=along_pois,
         assets=assets,
         manifest_url=manifest_url

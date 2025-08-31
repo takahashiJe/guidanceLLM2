@@ -65,6 +65,19 @@ def _get_engine() -> Engine:
         _engine = create_engine(_conn_url(), future=True)
     return _engine
 
+def _build_geometry_collection_wkt(polys: List[BaseGeometry]) -> str | None:
+    """
+    ポリゴンのリストを GEOMETRYCOLLECTION の WKT 文字列に変換する。
+    これにより unary_union を完全に回避する。
+    """
+    valid_polygons = _clean_and_extract_polygons(polys)
+    if not valid_polygons:
+        log.warning("No valid polygons found after cleaning.")
+        return None
+    
+    # 各ポリゴンのWKT表現を抽出し、カンマで連結
+    wkt_bodies = ", ".join(p.wkt for p in valid_polygons)
+    return f"GEOMETRYCOLLECTION({wkt_bodies})"
 
 def _union_wkt(polys: List[BaseGeometry]) -> str | None:
     valid_polygons = _clean_and_extract_polygons(polys)
@@ -118,7 +131,7 @@ _SQL_QUERY = text(
 
 
 def query_pois(polys: List[BaseGeometry]) -> List[Dict]:
-    wkt = _union_wkt(polys)
+    wkt = _build_geometry_collection_wkt(polys)
     if not wkt:
         return []
     try:
