@@ -8,6 +8,7 @@ from pydantic import BaseModel, field_validator
 # logic モジュールは後で実装（integration テストで monkeypatch 前提）
 from backend.worker.app.services.routing import logic as rlogic
 from backend.worker.app.services.routing.spot_repo import SpotRepo
+from backend.worker.app.services.routing.logic import build_legs_with_switch, stitch_to_geojson
 
 app = FastAPI(title="routing service")
 
