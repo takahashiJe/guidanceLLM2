@@ -12,6 +12,11 @@ from backend.worker.app.services.routing.logic import build_legs_with_switch, st
 
 app = FastAPI(title="routing service")
 
+
+class Coord(BaseModel):
+    lat: float
+    lon: float
+
 class IncomingWaypoint(BaseModel):
     spot_id: Optional[str] = None
     lat: Optional[float] = None
@@ -26,6 +31,7 @@ class Waypoint(BaseModel):
     spot_id: Optional[str] = None
 
 class RouteRequest(BaseModel):
+    origin: Coord
     waypoints: List[Waypoint]
     car_to_trailhead: bool = True
 
@@ -57,6 +63,8 @@ def route(req: RouteRequest) -> RouteResponse:
     """
     入力: RouteRequest
       - waypoints: List[Waypoint]   # Waypoint は spot_id のみ
+      - origin: {lat,lon} 
+      - return_to_origin: bool
       - car_to_trailhead: bool = True
 
     処理:

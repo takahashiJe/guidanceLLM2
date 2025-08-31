@@ -23,8 +23,13 @@ app = FastAPI(title="nav service")
 class Waypoint(BaseModel):
     spot_id: Optional[str] = None
 
+class Coord(BaseModel):
+    lat: float
+    lon: float
+
 class PlanRequest(BaseModel):
     language: Literal["ja", "en", "zh"]
+    origin: Coord
     waypoints: List[Waypoint]
     buffer: dict = Field(default_factory=lambda: {"car": 300, "foot": 10})
 
