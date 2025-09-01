@@ -39,7 +39,8 @@ async def api_nav_plan(req: PlanRequest, request: Request) -> PlanResponse:
     headers = {"x-request-id": xrid, "content-type": "application/json"}
 
     try:
-        async with httpx.AsyncClient(timeout=REQ_TIMEOUT) as client:
+        timeout = httpx.Timeout(connect=3.0, read=180.0, write=30.0, pool=30.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(url, json=_model_to_json(req), headers=headers)
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="nav service timeout")
