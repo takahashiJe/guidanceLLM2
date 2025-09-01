@@ -7,10 +7,12 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Literal, Optional, Dict
 from hashlib import sha1
+from celery import Celery
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from backend.worker.app.services.nav.celery_app import celery_app
 from backend.worker.app.services.nav.client_routing import post_route
 from backend.worker.app.services.nav.client_alongpoi import post_along
 from backend.worker.app.services.nav.client_llm import post_describe
@@ -20,7 +22,11 @@ from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
 import logging # ファイルの先頭に追加
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="nav service")
+_llm = Celery(
+    "nav-llm-producer",
+    broker=os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"),
+    backend=os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1"),
+)
 
 # ==== Schemas ====
 class Waypoint(BaseModel):
@@ -88,13 +94,16 @@ def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
     ]
     return items
 
-# ==== Endpoints ====
-@app.get("/health")
-def health() -> dict:
-    return {"status": "ok"}
+def _call_llm_describe(llm_payload: Dict[str, Any], timeout_sec: int = 60) -> Dict[str, Any]:
+    """
+    既存の `HTTP POST /describe` 呼び出し部分を置き換える関数。
+    入出力スキーマは従来の /describe と同一（llm/main.py の Celery タスクに対応）。
+    """
+    async_res = celery_app.send_task("llm.describe", args=[llm_payload])
+    result = async_res.get()
+    return result
 
-@app.post("/plan", response_model=PlanResponse)
-def plan(payload: PlanRequest):
+def plan_impl(payload: Dict[str, Any]) -> Dict[str, Any]:
     if len(payload.waypoints) < 2:
         raise HTTPException(status_code=400, detail="waypoints must be >= 2")
 
@@ -153,7 +162,7 @@ def plan(payload: PlanRequest):
             description_dict = spot["description"]
             spot["description"] = description_dict.get(payload.language, description_dict.get("en", ""))
     print(f"NAV→LLM DEBUG: {llm_req}")
-    llm_out = post_describe(llm_req)  # {"items":[{"spot_id","text"}]}
+    llm_out = _call_llm_describe(llm_req, timeout_sec=60)  # {"items":[{"spot_id","text"}]}
 
     # 4) voice TTS（並列化は後続タスクで。まずは逐次でOK）
     voice_format = os.getenv("VOICE_FORMAT", "mp3")
@@ -206,3 +215,20 @@ def plan(payload: PlanRequest):
         assets=assets,
         manifest_url=manifest_url
     )
+
+@celery_app.task(
+    name="nav.plan",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=2,
+)
+def plan_task(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    入力・出力スキーマは既存の /plan と完全に同じ。
+    処理内容も plan_impl() にそのまま残してあり、ここから呼ぶだけ。
+    """
+    logger.info("nav.plan started")
+    out = plan_impl(payload)
+    logger.info("nav.plan done")
+    return out

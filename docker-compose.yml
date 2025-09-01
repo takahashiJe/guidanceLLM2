@@ -227,7 +227,7 @@ services:
 
   svc-llm:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "uvicorn backend.worker.app.services.llm.main:app --host 0.0.0.0 --port 9103"
+    command: bash -lc "celery -A backend.worker.app.services.llm.celery_app.celery_app worker --loglevel=debug --pool=threads --concurrency=1"
     environment:
       KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
       CHROMA_URL: http://chromadb:8000
@@ -266,7 +266,7 @@ services:
 
   svc-nav:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "uvicorn backend.worker.app.services.nav.main:app --host 0.0.0.0 --port 9100"
+    command: bash -lc "celery -A backend.worker.app.services.nav.celery_app.celery_app worker --loglevel=debug --pool=threads --concurrency=1"
     environment:
       ROUTING_BASE: http://svc-routing:9101
       ALONGPOI_BASE: http://svc-alongpoi:9102
