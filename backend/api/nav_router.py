@@ -41,8 +41,24 @@ def _model_to_json(m) -> Dict[str, Any]:
     return m.dict(by_alias=True)            # pydantic v1
 
 
+# ========== POST /api/nav/plan → タスク投入して 202 ==========
+@router.post("/plan", response_model=TaskAccepted, status_code=status.HTTP_202_ACCEPTED)
+def enqueue_nav_plan(req: PlanRequest, request: Request):
+    # nav.plan タスク投入（nav 側で定義済み）
+    async_res = celery_app.send_task("nav.plan", args=[req.model_dump(by_alias=True)], queue="nav")
+
+    # Location ヘッダ（GET の参照先）を添付
+    task_url = request.url_for("get_nav_plan_task", task_id=async_res.id)
+    headers = {"Location": str(task_url), "Cache-Control": "no-store"}
+
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        headers=headers,
+        content=TaskAccepted(task_id=async_res.id).model_dump(),
+    )
+
 # ========== GET /api/nav/plan/tasks/{task_id} → 状態照会 ==========
-@router.get("/nav/plan/tasks/{task_id}", name="get_nav_plan_task")
+@router.get("/tasks/{task_id}", name="get_nav_plan_task")
 def get_nav_plan_task(task_id: str):
     res = AsyncResult(task_id, app=celery_app)
     state = res.state

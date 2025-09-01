@@ -99,7 +99,7 @@ def _call_llm_describe(llm_payload: Dict[str, Any], timeout_sec: int = 60) -> Di
     既存の `HTTP POST /describe` 呼び出し部分を置き換える関数。
     入出力スキーマは従来の /describe と同一（llm/main.py の Celery タスクに対応）。
     """
-    async_res = celery_app.send_task("llm.describe", args=[llm_payload])
+    async_res = celery_app.send_task("llm.describe", args=[llm_payload], queue="llm")
     result = async_res.get()
     return result
 
