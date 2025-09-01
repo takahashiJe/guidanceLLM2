@@ -35,10 +35,11 @@ class PlanRequest(BaseModel):
 
 class Leg(BaseModel):
     mode: Literal["car", "foot"]
-    from_idx: int
-    to_idx: int
-    distance: float
-    duration: float
+    # Pydanticのキーワード衝突回避のため alias を使用
+    from_: Coord = Field(..., alias="from")
+    to: Coord
+    distance_m: float
+    duration_s: float
 
 class Asset(BaseModel):
     spot_id: str
@@ -51,7 +52,7 @@ class Asset(BaseModel):
 class PlanResponse(BaseModel):
     pack_id: str
     route: dict
-    legs: List[Leg]
+    legs: List[Leg]  # ここが修正後のLegを参照するようにする
     along_pois: List[dict]
     assets: List[Asset]
 
