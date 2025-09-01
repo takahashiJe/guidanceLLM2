@@ -24,9 +24,9 @@ _engine: Engine | None = None
 def _conn_url() -> str:
     host = os.getenv("STATIC_DB_HOST", "static-db")
     port = os.getenv("STATIC_DB_PORT", "5432")
-    db = os.getenv("STATIC_DB_NAME", "nav_static")
-    user = os.getenv("STATIC_DB_USER", "nav_static")
-    pwd = os.getenv("STATIC_DB_PASSWORD", "nav_static")
+    db = os.getenv("STATIC_DB_NAME", "static-db")
+    user = os.getenv("STATIC_DB_USER", "static-db")
+    pwd = os.getenv("STATIC_DB_PASSWORD", "static-db")
     return f"postgresql+psycopg2://{user}:{pwd}@{host}:{port}/{db}"
 
 
