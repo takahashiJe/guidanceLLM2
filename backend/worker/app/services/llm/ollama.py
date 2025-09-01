@@ -12,17 +12,26 @@ def generate(prompt: str, model: str | None = None, options: dict | None = None,
     Ollama /api/generate を使用して 1 ショット生成（非ストリーミング）。
     """
     model = model or DEFAULT_MODEL
-    body = {"model": model, "prompt": prompt, "stream": False}
+    body = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        "stream": False
+    }
     if options:
         body["options"] = options
 
-    url = f"{OLLAMA_URL.rstrip('/')}/api/generate"
+    url = f"{OLLAMA_URL.rstrip('/')}/api/chat"
     try:
         with httpx.Client(timeout=timeout) as client:
             r = client.post(url, json=body)
         r.raise_for_status()
         data = r.json()
-        txt = data.get("response") or ""
+        txt = data.get("message", {}).get("content") or ""
         return txt.strip()
     except Exception as e:
         print((f"発生した例外: {e}"))
