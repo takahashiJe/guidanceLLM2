@@ -112,32 +112,55 @@ def build_mode_buffers(
     return cleaned
 
 def build_mode_multilines(
-    polyline: List[LonLat],
+    polyline: List[List[float]],
     segments: List[Dict],
-) -> Dict[str, MultiLineString | None]:
+) -> Dict[str, dict | None]:
     """
-    segments の各区間を mode ごとに切り出し，car/foot の MultiLineString を返す．
+    segmentsの各区間をmodeごとに切り出し，
+    car/footのMultiLineString(GeoJSON dict)を返す．
+    ShapelyのMultiLineStringは使わない．
     """
-    # lon,lat の正規化
-    pl = [(float(lon), float(lat)) for lon, lat in polyline]
+    if not polyline or len(polyline) < 2:
+        return {"car": None, "foot": None}
 
-    car_lines: list[LineString] = []
-    foot_lines: list[LineString] = []
+    # 正規化
+    pl: List[LonLat] = [(float(lon), float(lat)) for lon, lat in polyline]
+
+    car_coords: List[List[LonLat]] = []
+    foot_coords: List[List[LonLat]] = []
 
     for seg in segments:
         mode = seg.get("mode")
         s_idx = int(seg.get("start_idx", 0))
         e_idx = int(seg.get("end_idx", 0))
-        coords = _slice_polyline(pl, s_idx, e_idx)
-        if len(coords) < 2:
+
+        # インデックスの健全化
+        n = len(pl)
+        s_idx = max(0, min(s_idx, n - 1))
+        e_idx = max(0, min(e_idx, n - 1))
+        if e_idx < s_idx:
+            s_idx, e_idx = e_idx, s_idx
+
+        coords = pl[s_idx:e_idx + 1]
+        # 連続重複点の除去（ゼロ長ライン回避）
+        dedup: List[LonLat] = []
+        prev = None
+        for c in coords:
+            if c != prev:
+                dedup.append(c)
+                prev = c
+        if len(dedup) < 2:
             continue
-        ls = LineString(coords)
+
         if mode == "car":
-            car_lines.append(ls)
+            car_coords.append(dedup)
         else:
-            foot_lines.append(ls)
+            foot_coords.append(dedup)
+
+    def to_geojson_mls(lines: List[List[LonLat]]):
+        return {"type": "MultiLineString", "coordinates": lines} if lines else None
 
     return {
-        "car":  MultiLineString(car_lines)  if car_lines  else None,
-        "foot": MultiLineString(foot_lines) if foot_lines else None,
+        "car":  to_geojson_mls(car_coords),
+        "foot": to_geojson_mls(foot_coords),
     }

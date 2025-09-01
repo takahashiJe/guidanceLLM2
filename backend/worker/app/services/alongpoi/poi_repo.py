@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import List, Dict, Iterable
+from typing import List, Dict, Iterable, Any
 import json
 
 from sqlalchemy import create_engine, text
@@ -178,10 +178,19 @@ WHERE
   ( (SELECT gg FROM foot_geog) IS NOT NULL AND ST_DWithin(p.geom::geography, (SELECT gg FROM foot_geog), :foot_m) )
 """)
 
-def _to_geojson_or_none(mls: MultiLineString | None) -> str | None:
-    if mls is None:
+def _to_geojson_or_none(geom: Any) -> str | None:
+    if geom is None:
         return None
-    return json.dumps(mapping(mls), ensure_ascii=False)
+    # すでにGeoJSON辞書ならそのままdump
+    if isinstance(geom, dict) and "type" in geom and "coordinates" in geom:
+        return json.dumps(geom, ensure_ascii=False)
+    # 念のためShapelyも許容（将来の流用に備え）
+    try:
+        from shapely.geometry import mapping as shp_mapping
+        return json.dumps(shp_mapping(geom), ensure_ascii=False)
+    except Exception:
+        # 最後の砦：想定外の型はNone扱いにして落とさない
+        return None
 
 def query_pois_near_route(
     lines: dict,  # {"car": MultiLineString|None, "foot": MultiLineString|None}
