@@ -274,6 +274,11 @@ services:
       VOICE_BASE: http://svc-voice:9104
       PACKS_DIR: /packs
       PACKS_BASE_URL: /packs
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
     volumes:
       - ./backend:/app/backend
       - ./packs:/packs
