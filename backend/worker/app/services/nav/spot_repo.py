@@ -14,6 +14,8 @@ class SpotRow:
     name: Optional[str]
     description: Optional[str]
     md_slug: Optional[str]
+    lat: Optional[float] = None
+    lon: Optional[float] = None
 
 
 _engine: Engine | None = None
@@ -50,7 +52,9 @@ def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
           id::text AS spot_id,
           name,
           description,
-          md_slug
+          md_slug,
+          lat,
+          lon
         FROM spots
         WHERE id IN :ids
         """
@@ -67,8 +71,11 @@ def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
                     name=r.get("name"),
                     description=r.get("description"),
                     md_slug=r.get("md_slug"),
+                    lat=r["lat"],
+                    lon=r["lon"]
                 )
             return out
     except Exception:
+        print(f"Error fetching spots: {e}")
         # DB 未起動などでも nav は動かしたいので、空で返す
         return {}
