@@ -26,11 +26,13 @@ def generate(prompt: str, model: str | None = None, options: dict | None = None,
         body["options"] = options
 
     url = f"{OLLAMA_URL.rstrip('/')}/api/chat"
+    print(f"DEBUG: POST {url} with body: {body}")
     try:
         with httpx.Client(timeout=timeout) as client:
             r = client.post(url, json=body)
         r.raise_for_status()
         data = r.json()
+        print(f"DEBUG: Response JSON: {data}")
         txt = data.get("message", {}).get("content") or ""
         return txt.strip()
     except Exception as e:
