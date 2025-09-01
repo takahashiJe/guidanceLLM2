@@ -75,7 +75,7 @@ def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
                     lon=r["lon"]
                 )
             return out
-    except Exception:
+    except Exception as e:
         print(f"Error fetching spots: {e}")
         # DB 未起動などでも nav は動かしたいので、空で返す
         return {}
