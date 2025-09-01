@@ -37,12 +37,13 @@ def along(payload: AlongRequest):
     if not payload.polyline:
         raise HTTPException(status_code=400, detail="polyline required")
 
-    polys = geo_ops.build_mode_buffers(
-        payload.polyline,
-        [s.model_dump() for s in payload.segments],
-        buf_car_m=payload.buffer.get("car", 300),
-        buf_foot_m=payload.buffer.get("foot", 10),
+    lines = geo_ops.build_mode_multilines(
+    payload.polyline,
+    [s.model_dump() for s in payload.segments],
     )
-    hits = query_pois_in_buffers(polys)
+    hits = poi_repo.query_pois_near_route(
+        lines,
+        car_m = payload.buffer.get("car", 300.0),
+        foot_m = payload.buffer.get("foot", 10.0),
+    )
     pois = reducer.reduce_hits_to_along_pois(hits, payload.polyline)
-    return AlongResponse(pois=pois, count=len(pois))

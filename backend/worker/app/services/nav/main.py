@@ -142,7 +142,16 @@ def plan(payload: PlanRequest):
     # 3) LLM: planned + along をユニーク化し、spots テーブルで name/description/md_slug を解決
     uniq_ids = _collect_unique_spot_ids(payload.waypoints, along_pois)
     spot_refs = _build_spot_refs(uniq_ids)
+
     llm_req = {"language": payload.language, "style": "narration", "spots": spot_refs}
+    for spot in spot_refs:
+        # description が辞書形式であることを確認
+        if isinstance(spot.get("description"), dict):
+            # payload.language (e.g., "ja") をキーにして文字列を抽出する。
+            # もし指定された言語の翻訳が存在しない場合は、英語("en")にフォールバックし、
+            # それもなければ空文字を設定してエラーを防ぐ。
+            description_dict = spot["description"]
+            spot["description"] = description_dict.get(payload.language, description_dict.get("en", ""))
     print(f"NAV→LLM DEBUG: {llm_req}")
     llm_out = post_describe(llm_req)  # {"items":[{"spot_id","text"}]}
 

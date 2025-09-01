@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Dict, Iterable, Tuple
 
-from shapely.geometry import LineString, Polygon, mapping
+from shapely.geometry import LineString, Polygon, mapping, MultiLineString
 from shapely.validation import make_valid
 from shapely.ops import transform
 from pyproj import Transformer
@@ -110,3 +110,34 @@ def build_mode_buffers(
             continue
         cleaned.append(pp)
     return cleaned
+
+def build_mode_multilines(
+    polyline: List[LonLat],
+    segments: List[Dict],
+) -> Dict[str, MultiLineString | None]:
+    """
+    segments の各区間を mode ごとに切り出し，car/foot の MultiLineString を返す．
+    """
+    # lon,lat の正規化
+    pl = [(float(lon), float(lat)) for lon, lat in polyline]
+
+    car_lines: list[LineString] = []
+    foot_lines: list[LineString] = []
+
+    for seg in segments:
+        mode = seg.get("mode")
+        s_idx = int(seg.get("start_idx", 0))
+        e_idx = int(seg.get("end_idx", 0))
+        coords = _slice_polyline(pl, s_idx, e_idx)
+        if len(coords) < 2:
+            continue
+        ls = LineString(coords)
+        if mode == "car":
+            car_lines.append(ls)
+        else:
+            foot_lines.append(ls)
+
+    return {
+        "car":  MultiLineString(car_lines)  if car_lines  else None,
+        "foot": MultiLineString(foot_lines) if foot_lines else None,
+    }

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import os
 from typing import List, Dict, Iterable
+import json
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from shapely.ops import unary_union
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Polygon, MultiPolygon, MultiLineString, mapping
 from shapely.geometry.base import BaseGeometry
 from shapely.validation import make_valid
 import logging
@@ -142,6 +143,66 @@ def query_pois(polys: List[BaseGeometry]) -> List[Dict]:
     try:
         with eng.connect() as conn:
             rows = conn.execute(_SQL_QUERY, {"wkt": wkt}).mappings().all()
+            return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+_SQL_NEARBY = text("""
+WITH car_line AS (
+  SELECT CASE WHEN :car_geojson IS NOT NULL
+              THEN ST_GeomFromGeoJSON(:car_geojson)::geometry END AS g
+),
+foot_line AS (
+  SELECT CASE WHEN :foot_geojson IS NOT NULL
+              THEN ST_GeomFromGeoJSON(:foot_geojson)::geometry END AS g
+),
+car_geog  AS (SELECT CASE WHEN g IS NOT NULL THEN g::geography END AS gg FROM car_line),
+foot_geog AS (SELECT CASE WHEN g IS NOT NULL THEN g::geography END AS gg FROM foot_line)
+SELECT
+  p.spot_id, p.name, p.lon, p.lat, p.kind,
+  LEAST(
+    COALESCE(ST_Distance(p.geom::geography, (SELECT gg FROM car_geog)),  1e15),
+    COALESCE(ST_Distance(p.geom::geography, (SELECT gg FROM foot_geog)), 1e15)
+  ) AS distance_m,
+  CASE
+    WHEN (SELECT gg FROM car_geog)  IS NOT NULL
+     AND ST_DWithin(p.geom::geography, (SELECT gg FROM car_geog),  :car_m)  THEN 'car'
+    WHEN (SELECT gg FROM foot_geog) IS NOT NULL
+     AND ST_DWithin(p.geom::geography, (SELECT gg FROM foot_geog), :foot_m) THEN 'foot'
+    ELSE NULL
+  END AS source_segment_mode
+FROM poi_features_v p
+WHERE
+  ( (SELECT gg FROM car_geog)  IS NOT NULL AND ST_DWithin(p.geom::geography, (SELECT gg FROM car_geog),  :car_m) )
+  OR
+  ( (SELECT gg FROM foot_geog) IS NOT NULL AND ST_DWithin(p.geom::geography, (SELECT gg FROM foot_geog), :foot_m) )
+""")
+
+def _to_geojson_or_none(mls: MultiLineString | None) -> str | None:
+    if mls is None:
+        return None
+    return json.dumps(mapping(mls), ensure_ascii=False)
+
+def query_pois_near_route(
+    lines: dict,  # {"car": MultiLineString|None, "foot": MultiLineString|None}
+    car_m: float,
+    foot_m: float,
+) -> List[Dict]:
+    try:
+        eng = _get_engine()
+    except Exception:
+        return []
+
+    params = {
+        "car_geojson":  _to_geojson_or_none(lines.get("car")),
+        "foot_geojson": _to_geojson_or_none(lines.get("foot")),
+        "car_m": float(car_m),
+        "foot_m": float(foot_m),
+    }
+
+    try:
+        with eng.connect() as conn:
+            rows = conn.execute(_SQL_NEARBY, params).mappings().all()
             return [dict(r) for r in rows]
     except Exception:
         return []
