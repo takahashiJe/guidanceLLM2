@@ -87,8 +87,6 @@ def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
                     "name": row.name,
                     "description": row.description,
                     "md_slug": row.md_slug,
-                    "lat": lat,
-                    "lon": lon,
                 }
             )
         else:
@@ -116,14 +114,11 @@ def plan(payload: PlanRequest):
         "car_to_trailhead": True
         }
     routing = post_route(routing_req)
-    print(f"post_route return keys: {list(routing.keys())}")
-    print(f"post_route return full content: {json.dumps(routing, ensure_ascii=False, indent=2)}")
     route_fc = routing["feature_collection"]
     legs_from_routing = routing["legs"]
-    print(f"legs_from_routing: {legs_from_routing}")
     polyline = routing["polyline"]
     segments = routing.get("segments", [])
-    spot_id_to_coords = {s.spot_id: (s.lat, s.lon) for s in get_spots_by_ids([w.spot_id for w in payload.waypoints])}
+    spot_id_to_coords = {s.spot_id: (s.lat, s.lon) for s in get_spots_by_ids([w.spot_id for w in payload.waypoints]).values()}
     coords_list = [
         (payload.origin.lat, payload.origin.lon)
     ]
