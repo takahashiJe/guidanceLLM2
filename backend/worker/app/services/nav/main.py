@@ -121,9 +121,6 @@ def plan(payload: PlanRequest):
             coords_list.append(spot_id_to_coords[wp.spot_id])
     coords_list.append((payload.origin.lat, payload.origin.lon))
 
-    print(f"DEBUG: Coords list length: {len(coords_list)}")
-    print(f"DEBUG: Received legs from routing: {legs_from_routing}")
-
     # APIスキーマに合わせた legs を生成
     final_legs = []
     for leg_data in legs_from_routing:
