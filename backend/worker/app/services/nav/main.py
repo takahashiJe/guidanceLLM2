@@ -17,6 +17,9 @@ from backend.worker.app.services.nav.client_llm import post_describe
 from backend.worker.app.services.nav.client_voice import post_synthesize
 from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
 
+import logging # ファイルの先頭に追加
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="nav service")
 
 # ==== Schemas ====
@@ -128,6 +131,9 @@ def plan(payload: PlanRequest):
         if wp.spot_id in spot_id_to_coords:
             coords_list.append(spot_id_to_coords[wp.spot_id])
     coords_list.append((payload.origin.lat, payload.origin.lon))
+
+    print(f"DEBUG: Coords list length: {len(coords_list)}")
+    print(f"DEBUG: Received legs from routing: {legs_from_routing}")
 
     # APIスキーマに合わせた legs を生成
     final_legs = []

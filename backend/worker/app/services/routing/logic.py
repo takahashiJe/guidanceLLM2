@@ -6,6 +6,8 @@ from backend.worker.app.services.routing import osrm_client as oc
 from backend.worker.app.services.routing.osrm_client import OsrmRouteResult
 from backend.worker.app.services.routing import access_point_repo as ap_repo
 
+import logging # ファイルの先頭に追加
+logger = logging.getLogger(__name__)
 
 Coord = Tuple[float, float]  # (lat, lon)
 
@@ -74,6 +76,7 @@ def build_legs_with_switch(waypoints: List[Coord]) -> List[Dict]:
         r_foot_ap_to_dst = oc.osrm_route("foot", ap, dst)
         legs.append(_result_to_leg("foot", r_foot_ap_to_dst, i + 1, i + 1))
 
+    logger.info(f"Generated legs for routing: {legs}")
     return legs
 
 
