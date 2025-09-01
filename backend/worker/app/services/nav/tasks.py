@@ -229,6 +229,7 @@ def plan_task(self, payload: Dict[str, Any]) -> Dict[str, Any]:
     処理内容も plan_impl() にそのまま残してあり、ここから呼ぶだけ。
     """
     logger.info("nav.plan started")
-    out = plan_impl(payload)
+    req = PlanRequest(**payload)
+    out = plan_impl(req)
     logger.info("nav.plan done")
     return out

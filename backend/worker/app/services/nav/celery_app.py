@@ -18,3 +18,9 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
     task_default_queue="default",
 )
+
+celery_app.autodiscover_tasks(["backend.worker.app.services.nav"], force=True)
+
+celery_app.conf.task_routes = {
+    "nav.plan": {"queue": "nav"},
+}
