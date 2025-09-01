@@ -4,7 +4,7 @@ import os
 import httpx
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
-DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "Qwen3:30")
+DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:30")
 
 
 def generate(prompt: str, model: str | None = None, options: dict | None = None, timeout: float = 60.0) -> str:
@@ -25,6 +25,7 @@ def generate(prompt: str, model: str | None = None, options: dict | None = None,
         txt = data.get("response") or ""
         return txt.strip()
     except Exception as e:
+        print((f"発生した例外: {e}"))
         # フェイルセーフ：プロンプトの頭を返す（本番ではログに出す）
         head = prompt[:200].strip()
         return f"[LLM unavailable] {head}"

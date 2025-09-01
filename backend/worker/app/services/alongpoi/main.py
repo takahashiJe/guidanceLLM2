@@ -47,3 +47,4 @@ def along(payload: AlongRequest):
         foot_m = payload.buffer.get("foot", 10.0),
     )
     pois = reducer.reduce_hits_to_along_pois(hits, payload.polyline)
+    return AlongResponse(pois=pois, count=len(pois))
