@@ -39,8 +39,8 @@ def _get_engine() -> Engine:
 
 def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
     """
-    spots テーブルから id 群を引き、 {spot_id: SpotRow} を返す。
-    想定カラム: id (PK), name, description, md_slug
+    spots テーブルから spot_id 群を引き、 {spot_id: SpotRow} を返す。
+    想定カラム: spot_id (PK), name, description, md_slug
     """
     id_list = [str(i) for i in ids if i]
     if not id_list:
@@ -49,14 +49,14 @@ def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
     sql = text(
         """
         SELECT
-          id::text AS spot_id,
-          name,
-          description,
-          md_slug,
-          lat,
-          lon
+        spot_id::text AS spot_id,
+        official_name->>'ja' AS name,
+        description,
+        md_slug,
+        ST_Y(geom) AS lat,
+        ST_X(geom) AS lon
         FROM spots
-        WHERE id IN :ids
+        WHERE spot_id IN :ids
         """
     ).bindparams(bindparam("ids", expanding=True))
 
