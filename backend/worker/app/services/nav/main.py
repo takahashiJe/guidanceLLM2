@@ -143,7 +143,7 @@ def plan(payload: PlanRequest):
     uniq_ids = _collect_unique_spot_ids(payload.waypoints, along_pois)
     spot_refs = _build_spot_refs(uniq_ids)
     llm_req = {"language": payload.language, "style": "narration", "spots": spot_refs}
-    print("NAV→LLM DEBUG: {llm_req}")
+    print(f"NAV→LLM DEBUG: {llm_req}")
     llm_out = post_describe(llm_req)  # {"items":[{"spot_id","text"}]}
 
     # 4) voice TTS（並列化は後続タスクで。まずは逐次でOK）
