@@ -76,22 +76,16 @@ def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
     spots テーブルから name/description/md_slug を解決し、
     LLM へ渡す SpotRef（dict）に整形。
     """
-    refmap = get_spots_by_ids(spot_ids)  # {id: SpotRow}
-    items: List[dict] = []
-    for sid in spot_ids:
-        row = refmap.get(sid)
-        if row:
-            items.append(
-                {
-                    "spot_id": sid,
-                    "name": row.name,
-                    "description": row.description,
-                    "md_slug": row.md_slug,
-                }
-            )
-        else:
-            # DB から取れなくても最低限 spot_id だけ渡す
-            items.append({"spot_id": sid})
+    spot_rows = get_spots_by_ids(spot_ids).values()
+    items = [
+        {
+            "spot_id": row.spot_id,
+            "name": row.name,
+            "description": row.description,
+            "md_slug": row.md_slug,
+        }
+        for row in spot_rows
+    ]
     return items
 
 # ==== Endpoints ====
@@ -152,6 +146,7 @@ def plan(payload: PlanRequest):
     uniq_ids = _collect_unique_spot_ids(payload.waypoints, along_pois)
     spot_refs = _build_spot_refs(uniq_ids)
     llm_req = {"language": payload.language, "style": "narration", "spots": spot_refs}
+    print("NAV→LLM DEBUG: {llm_req}")
     llm_out = post_describe(llm_req)  # {"items":[{"spot_id","text"}]}
 
     # 4) voice TTS（並列化は後続タスクで。まずは逐次でOK）
