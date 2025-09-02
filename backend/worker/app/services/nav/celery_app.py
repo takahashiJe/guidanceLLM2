@@ -16,7 +16,7 @@ celery_app.conf.update(
     enable_utc=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
-    task_default_queue="default",
+    task_default_queue="nav",
 )
 
 celery_app.autodiscover_tasks(["backend.worker.app.services.nav"], force=True)
