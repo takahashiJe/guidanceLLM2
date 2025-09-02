@@ -136,10 +136,10 @@ def step_alongpoi_and_llm(self, payload: dict): # 戻り値の型ヒントを削
     # 次のステップ（step_synthesize_all）にペイロードを渡すタスクのシグネチャを作成し、
     # それをLLMタスクのコールバックとして設定したチェインを返す。
     llm_task = celery_app.signature("llm.describe", args=[llm_req], queue="llm")
-    callback_task = step_synthesize_all.s(payload=payload) # `s`で部分適用
+    callback_task = step_synthesize_all.s(payload=payload).set(queue="nav")
     
-    # llm_taskが完了したら、その結果を第一引数としてcallback_taskを呼び出すチェインを返す
-    return chain(llm_task, callback_task)
+    workflow = chain(llm_task, callback_task)
+    raise self.replace(workflow)
 
 
 # --- ステップ3: 音声合成 (LLMタスクのコールバックとして実行) ---
@@ -149,18 +149,17 @@ def step_synthesize_all(self, llm_out: dict, *, payload: dict): # 戻り値の�
     payload["llm_items"] = llm_out.get("items", [])
 
     if not payload["llm_items"]:
-        # 【修正点】空の場合でも finalize のシグネチャを返す
-        return step_finalize.s(assets_results=[], payload=payload)
+        sig = step_finalize.s(assets_results=[], payload=payload).set(queue="nav")
+        raise self.replace(sig)
 
     synthesis_tasks = group(
-        step_synthesize_one.s(payload["pack_id"], payload["language"], item)
+        # ここも NAV 側で動かすので queue="nav" を明示
+        step_synthesize_one.s(payload["pack_id"], payload["language"], item).set(queue="nav")
         for item in payload["llm_items"]
     )
+    callback = step_finalize.s(payload=payload).set(queue="nav")
     
-    callback_task = step_finalize.s(payload=payload)
-    
-    # 【修正点】chordのシグネチャを返し、実行はCeleryに任せる
-    return chord(synthesis_tasks, callback_task)
+    raise self.replace(chord(synthesis_tasks, callback))
 
 
 # --- ステップ3a: 個別音声合成 ---
@@ -275,11 +274,9 @@ def plan_workflow_entrypoint(self, payload: Dict[str, Any]):
     pack_id = str(uuid.uuid4())
     payload["pack_id"] = pack_id
     
-    # 【修正点】チェインの定義を変更
     workflow = chain(
-        step_routing.s(payload),
-        step_alongpoi_and_llm.s(),
-        # step_alongpoi_and_llm が次のチェイン（LLM→synthesize→finalize）を返す
+        step_routing.s(payload).set(queue="nav"),
+        step_alongpoi_and_llm.s().set(queue="nav"),
     )
     
     # self.replace で現在のタスクをこのワークフローに置き換える
