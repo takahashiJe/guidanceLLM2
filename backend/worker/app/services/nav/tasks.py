@@ -108,7 +108,8 @@ def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
 def step_routing(self, payload: dict) -> dict:
     logger.info(f"[{self.request.id}] Step 1: Routing started")
     req = PlanRequest(**payload)
-    payload = req.model_dump(by_alias=True)
+    payload.update(req.model_dump())
+    # payload = req.model_dump(by_alias=True)
 
     routing_req = {
         "origin": req.origin.model_dump(),
