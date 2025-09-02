@@ -145,7 +145,7 @@ def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
     callback_chain = chain(
         # 修正点1: `payload` を `nav_plan` 引数として指定する
         # 修正点2: 実行キューとして `nav` を指定する
-        step_synthesize_all.s(nav_plan=payload).set(queue="nav"),
+        step_synthesize_all.s(payload=payload).set(queue="nav"),
         step_finalize.s().set(queue="nav")
     )
     # LLMタスクを投入し、完了後の処理として上記チェインを `link` で予約
@@ -160,7 +160,7 @@ def step_synthesize_all(self, llm_out: dict, payload: dict) -> dict:
     logger.info(f"[{self.request.id}] Step 3: Voice Synthesis (all) started")
     logger.info("="*30)
     logger.info("step_synthesize_all task received.")
-    logger.info(f"LLM results received: {llm_results}")
+    logger.info(f"LLM results received: {llm_out}")
     logger.info("="*30)
 
     payload["llm_items"] = llm_out.get("items", [])
