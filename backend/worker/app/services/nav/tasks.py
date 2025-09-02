@@ -143,8 +143,10 @@ def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
 
     # LLMタスク完了後に実行する後続タスク(コールバック)のチェインを定義
     callback_chain = chain(
-        step_synthesize_all.s(payload),
-        step_finalize.s()
+        # 修正点1: `payload` を `nav_plan` 引数として指定する
+        # 修正点2: 実行キューとして `nav` を指定する
+        step_synthesize_all.s(nav_plan=payload).set(queue="nav"),
+        step_finalize.s().set(queue="nav")
     )
     # LLMタスクを投入し、完了後の処理として上記チェインを `link` で予約
     _llm.send_task("llm.describe", args=[llm_req], queue="llm", link=callback_chain)
@@ -156,6 +158,11 @@ def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
 @celery_app.task(name="nav.step.synthesize_all", bind=True)
 def step_synthesize_all(self, llm_out: dict, payload: dict) -> dict:
     logger.info(f"[{self.request.id}] Step 3: Voice Synthesis (all) started")
+    logger.info("="*30)
+    logger.info("step_synthesize_all task received.")
+    logger.info(f"LLM results received: {llm_results}")
+    logger.info("="*30)
+
     payload["llm_items"] = llm_out.get("items", [])
 
     if not payload["llm_items"]:
