@@ -20,14 +20,6 @@ from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
 import logging
 logger = logging.getLogger(__name__)
 
-# LLMサービスを呼び出すためのCeleryインスタンス
-_llm = Celery(
-    "nav-llm-producer",
-    broker=os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"),
-    backend=os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1"),
-)
-_llm.conf.update(task_serializer="json", accept_content=["json"])
-
 # =================================================================
 # ==== Schemas (スキーマ定義) ====
 # =================================================================
@@ -143,7 +135,7 @@ def step_alongpoi_and_llm(self, payload: dict): # 戻り値の型ヒントを削
     # 【修正点】
     # 次のステップ（step_synthesize_all）にペイロードを渡すタスクのシグネチャを作成し、
     # それをLLMタスクのコールバックとして設定したチェインを返す。
-    llm_task = _llm.signature("llm.describe", args=[llm_req], queue="llm")
+    llm_task = celery_app.signature("llm.describe", args=[llm_req], queue="llm")
     callback_task = step_synthesize_all.s(payload=payload) # `s`で部分適用
     
     # llm_taskが完了したら、その結果を第一引数としてcallback_taskを呼び出すチェインを返す
