@@ -261,7 +261,8 @@ services:
       VOICE_DEFAULT: "neutral_1"
     volumes:
       - ./backend:/app/backend
-      - packs:/packs
+      - ./data:/app/data:ro
+      - ./packs:/packs
     ports: ["9104:9104"]
 
   svc-nav:
@@ -281,6 +282,7 @@ services:
       STATIC_DB_PASSWORD: static_db
     volumes:
       - ./backend:/app/backend
+      - ./data:/app/data:ro
       - ./packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
     ports: ["9100:9100"]
@@ -303,4 +305,3 @@ volumes:
   ollama_models:
   pgdata_static:
   chromadb_data:
-  packs:
