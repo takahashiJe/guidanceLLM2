@@ -58,32 +58,39 @@ def enqueue_nav_plan(req: PlanRequest, request: Request):
     )
 
 # ========== GET /api/nav/plan/tasks/{task_id} → 状態照会 ==========
-@router.get("/tasks/{task_id}", name="get_nav_plan_task")
+@router.get("/plan/tasks/{task_id}", name="get_nav_plan_task")
 def get_nav_plan_task(task_id: str):
     res = AsyncResult(task_id, app=celery_app)
     state = res.state
 
-    # 未完了 → 202
     if state in (states.PENDING, states.RECEIVED, states.STARTED, states.RETRY):
-        body = TaskStatus(task_id=task_id, state=state, ready=False).model_dump()
         return JSONResponse(
             status_code=status.HTTP_202_ACCEPTED,
             headers={"Cache-Control": "no-store"},
-            content=body,
+            content={"task_id": task_id, "state": state, "ready": False},
         )
 
-    # 成功 → 200 + PlanResponse
     if state == states.SUCCESS:
-        raw: Dict[str, Any] = res.result  # nav.plan の戻り（dictの想定）
+        raw = res.result
+        if not isinstance(raw, dict):
+            raise HTTPException(status_code=500, detail="task returned empty or invalid result")
         try:
-            pr = PlanResponse(**raw)  # schemas.py で検証
-        except ValidationError as e:
-            raise HTTPException(status_code=500, detail=f"invalid nav.plan result: {e.errors()}")
-        # alias（Leg.from_ → "from"）で返す
+            pr = PlanResponse(**raw)  # スキーマ検証
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"invalid nav.plan result: {e}")
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content=pr.model_dump(by_alias=True),
         )
 
-    # 失敗など → 500
-    raise HTTPException(status_code=500, detail=f"task {state.lower()}")
+    # 失敗時（FAILURE/REVOKEDなど）
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "task_id": task_id,
+            "state": state,
+            "ready": False,
+            "error": str(res.info),
+            "traceback": res.traceback,  # 本番では外してOK
+        },
+    )
