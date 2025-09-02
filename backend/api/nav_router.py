@@ -76,22 +76,44 @@ def _flatten_children(r: AsyncResult) -> list[AsyncResult]:
 
 def _deepest_descendant(r: AsyncResult) -> AsyncResult:
     """
-    chain(link, link, link...) で “次のタスク” が child としてぶら下がる想定。
-    最も深い葉（= finalize）まで辿る。
+    タスクチェーンを辿り、最終的な葉（leaf）タスクの結果オブジェクトを返す。
+    r.children は chord を使うと意図通りに動かないため、
+    より堅牢な r.parent を遡る方式に変更。
     """
-    cur = r
-    seen = set()
-    # 安全のため最大深さを制限
-    for _ in range(100):
-        if cur.id in seen:
+    # まず、現在完了している一番深い子孫を探す
+    curr = r
+    seen = {curr.id}
+    for _ in range(20): # 安全のためのループ制限
+        if not curr.children:
             break
-        seen.add(cur.id)
-        children = _flatten_children(cur)
+
+        # GroupResultは展開せず、そのまま子として扱う
+        children = curr.children
         if not children:
             break
-        # chain なので基本1本だが、万一複数あれば最後の子を優先
-        cur = children[-1]
-    return cur
+
+        next_task_result = children[0]
+        if next_task_result.id in seen:
+            break
+
+        curr = next_task_result
+        seen.add(curr.id)
+
+    # そこから、状態がSUCCESSになるまで親を遡る
+    # (chordの完了を待つため)
+    final_task = curr
+    for _ in range(20): # 安全のためのループ制限
+        if final_task.state == states.SUCCESS:
+            break
+        if not final_task.parent:
+            break
+        if final_task.parent.id in seen:
+            break
+
+        final_task = final_task.parent
+        seen.add(final_task.id)
+
+    return final_task
 
 def _as_dict_if_json_string(x: Union[str, dict]) -> Union[dict, None]:
     if isinstance(x, dict):
