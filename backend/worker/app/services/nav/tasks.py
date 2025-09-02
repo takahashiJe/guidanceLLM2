@@ -299,13 +299,19 @@ def step_synthesize_one(pack_id: str, language: str, item: dict) -> dict:
     # 戻り値の構造が違うので合わせる
     item_res = vj["items"][0] if vj.get("items") else {}
 
+    audio_url  = item_res.get("audio_url")  or item_res.get("url")
+    text_url   = item_res.get("text_url")
+    bytes_     = item_res.get("bytes")      or item_res.get("size_bytes")
+    duration_s = item_res.get("duration_s") or item_res.get("duration_sec")
+    fmt        = item_res.get("format")
+
     return {
-        "spot_id": sid,
-        "audio_url": item_res.get("url"),
-        "text_url": item_res.get("text_url"),
-        "bytes": item_res.get("size_bytes"),
-        "duration_s": item_res.get("duration_sec"),
-        "format": item_res.get("format"),
+        "spot_id":    sid,
+        "audio_url":  audio_url,
+        "text_url":   text_url,
+        "bytes":      bytes_,
+        "duration_s": duration_s,
+        "format":     fmt,
     }
 
 # --- ステップ4: 最終化 ---
@@ -328,7 +334,7 @@ def step_finalize(voice_results: list[dict], payload: dict) -> dict:
     legs = _normalize_legs(raw_legs, polyline)
 
     along_pois = payload.get("along_pois", [])
-    llm_items  = payload.get("items", [])
+    llm_items  = payload.get("llm_items", [])
 
     # assets（audio をネストへ）
     assets = _normalize_assets(voice_results, llm_items)

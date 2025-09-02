@@ -1,0 +1,11 @@
+<think>
+Okay, the user wants a narration for a tour guide in the Mt. Chokai area, specifically about the "あがりこ大王" spot. Let me start by understanding the requirements.
+
+First, the structure needs to be four parts: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. I need to avoid any speculation and keep it self-contained. Also, include a safety note about weather, footing, and wildlife without recommending excessive action.
+
+The facts given are that it's a deformed birch tree that grew from a sapling after logging. I should mention that it's a unique natural formation. The fun tidbit could be about its nickname, "大王" (great king), which might relate to its size or appearance. Safety reminder needs to mention weather, footing, and wildlife, maybe suggest staying on trails.
+
+Wait, the user said to avoid over-the-top metaphors. So I shouldn't compare it to anything too dramatic. Just state the facts clearly. Also, check if there's any unknown info. The facts provided are specific, so I don't need to mention anything else. Make sure to use the correct name "あがりこ大王" and the ID spot_001, but the output should be plain text without markdown. Let me put it all together concisely.
+</think>
+
+あがりこ大王（ID：spot_001）は、伐採後の萌芽から成長した奇形ブナです。木の歪みが特徴で、自然の力による成長の歴史が刻まれています。地元では「大王」と呼ばれ、その存在は地域の自然史を象徴する said。天候や足元の悪化に注意し、野生動物との遭遇にも配慮してご観察ください。
