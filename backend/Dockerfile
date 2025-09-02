@@ -17,6 +17,7 @@ ENV PYTHONPATH="/app"
 # 依存を先に入れてレイヤを安定化
 COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
+RUN mkdir -p /packs && chmod 777 /packs
 
 # アプリ本体をコピー
 # COPY backend /app/backend

@@ -1,0 +1,27 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at a specific spot, 道の駅象潟. The structure needs to follow four parts: intro, key facts, fun tidbit, and safety reminder. Also, they mentioned to avoid speculation and keep it self-contained.
+
+First, I need to make sure I understand the facts provided. The POI description says it's a roadside station with an ocean view hot spring, local products, and a restaurant. The key points are the view, the availability of local goods, and the restaurant. 
+
+For the intro, I should start with a welcoming statement. Maybe something like "ようこそ、道の駅象潟へ。" Then mention the main attraction: the view of the Japan Sea and the hot spring. 
+
+Next, the key facts. I need to include the hot spring, local products, and the restaurant. Also, maybe mention the location near the mountain, since it's around Mt. Chokai. Wait, the spot is in the Mt. Chokai area, so maybe add that it's a convenient stop for visitors. 
+
+The fun tidbit should be something interesting but not too obscure. Maybe that it's a popular spot for both locals and tourists, or that the restaurant serves local cuisine. Wait, the facts mention the restaurant is part of the station, so maybe the fun fact is that you can enjoy local dishes there. 
+
+Safety reminder: the user specified to mention weather, footing, and wildlife. So I need to add a line about checking the weather, being cautious with the ground, and avoiding wildlife areas. But avoid recommending specific actions, just a reminder. 
+
+Now, check the constraints. Keep it around 200-300 characters. Use plain text, no markdown. Avoid overused metaphors. Make sure the place names are correct. 
+
+Let me draft the intro: "ようこそ、道の駅象潟へ。日本海を望む展望温泉が人気の観光スポットです。" Then key facts: "地元の特産品や海産物を購入できるほか、レストランも併設されています。" Fun tidbit: "足元の注意が必要な山道を望む眺めもおすすめです。" Safety reminder: "天候や足元、野生動物への配慮が必要です。" 
+
+Wait, the fun tidbit might need to be more engaging. Maybe mention that it's a great place to relax after a hike. But the user said to avoid speculation, so maybe stick to the given info. 
+
+Let me check the structure again. Intro, key facts, fun tidbit, safety. Also, the safety part needs to mention weather, footing, wildlife. 
+
+Putting it all together, making sure it's concise and within the length. Let me count the characters. The example response is around 200-300 characters. 
+
+Final check: no markdown, plain text, correct place names, no speculation. Okay, that should work.
+</think>
+
+ようこそ、道の駅象潟へ。日本海を望む展望温泉が人気の観光スポットです。地元の特産品や海産物を購入できるほか、レストランも併設されています。足元の注意が必要な山道を望む眺めもおすすめです。天候や足元、野生動物への配慮が必要です。

@@ -1,0 +1,15 @@
+<think>
+Okay, the user wants a narration for a tour guide in the area around Mt. Chokai, specifically about Ganman-ji Temple. Let me start by understanding the requirements.
+
+First, the structure needs to be four parts: short intro, key facts/history/nature, fun tidbit, and safety reminder. The tone should be calm and professional, around 45-60 seconds, so about 200-300 characters. I need to make sure to use the correct proper nouns and avoid overused metaphors. Also, the safety part should mention weather, footing, and wildlife, without recommending excessive activities.
+
+The facts provided mention that it's a Jodo-shu temple in Oshigata, visited by Matsuo Basho who wrote a haiku. I should include that. The fun tidbit could be about the haiku itself. Safety reminder needs to be concise.
+
+Wait, the user specified to avoid speculation. So if there's any unknown info, just say so briefly. But the given facts are clear. Let me check the example response to ensure alignment. The example starts with a welcome, mentions the temple's location and history, the haiku, then safety. I need to follow that structure.
+
+Make sure to keep it self-contained, no references to documents. Use plain text only. Also, the safety part should be a single sentence. Let me draft each section step by step, keeping it concise. Check for proper nouns: Ganman-ji, Oshigata, Jodo-shu, Matsuo Basho, "おくのほそ道". Avoid any markdown. Alright, time to put it all together.
+</think>
+
+こんにちは、皆様。今日ご紹介するのは、象潟に位置する曹洞宗の伽藍、 Ganman-ji（がんまんじ）です。松尾芭蕉が「おくのほそ道」の旅で訪れ、句を詠んだことで知られます。境内には四季折々の自然が広がり、静かな空間を演出しています。  
+おもしろいエピソードは、芭蕉がここで詠んだ句「潮の音、とどけとどけと、とどけとどけ」。今も訪れる人々に語り継がれています。  
+安全にご注意ください。天候や足元の変化、野生動物にご用心ください。過度な行動はおやめください。

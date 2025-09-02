@@ -254,7 +254,7 @@ services:
       "
     environment:
       COQUI_DEVICE: cpu
-      PACKS_DIR: /packs
+      PACKS_ROOT: /packs
       VOICE_JA: "ja_female_1"
       VOICE_EN: "en_female_1"
       VOICE_ZH: "zh_female_1"
@@ -262,7 +262,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data:ro
-      - ./packs:/packs
+      - /var/www/packs:/packs
     ports: ["9104:9104"]
 
   svc-nav:
@@ -283,7 +283,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data:ro
-      - ./packs:/packs
+      - /var/www/packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
     ports: ["9100:9100"]
   
