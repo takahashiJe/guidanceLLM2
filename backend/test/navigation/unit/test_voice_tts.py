@@ -1,20 +1,59 @@
-from pathlib import Path
-from backend.worker.app.services.voice import tts
+import io
+import os
+import shutil
+import wave
 
-def test_tts_synthesize__di_engine_returns_bytes():
-    # synthesize は engine DI を受け取り、その戻りを bytes として返す前提
-    def fake_engine(text, language, voice):
-        return b"\x00\x01\x02\x03"
-    data = tts.synthesize("hello", "ja", "guide_female_1", engine=fake_engine)
-    assert isinstance(data, (bytes, bytearray))
-    assert len(data) > 0
+import pytest
 
-def test_write_mp3__creates_file_and_returns_meta(tmp_path: Path):
-    data = b"\x00\x01\x02\x03\x04\x05"
-    rel_url, nbytes, duration = tts.write_mp3(tmp_path, "A", "ja", data)
-    # ファイルが作成され、メタが返る
-    assert rel_url.endswith("/A.ja.mp3")
-    out_path = tmp_path / "A.ja.mp3"
-    assert out_path.exists() and out_path.is_file()
-    assert nbytes == len(data)
-    assert isinstance(duration, float) and duration >= 0.0
+# テスト対象：低レベルTTSユーティリティ
+from backend.worker.app.services.voice.tts import (
+    TTSConfig,
+    TTSRuntime,
+    synthesize_wav_bytes,
+    estimate_wav_duration_sec,
+    ffmpeg_convert_wav_to_mp3,
+    shutil_which,
+)
+
+
+def _make_runtime():
+    cfg = TTSConfig.from_env()
+    return TTSRuntime(cfg)
+
+
+def test_synthesize_wav_bytes_returns_wav():
+    rt = _make_runtime()
+    wav = synthesize_wav_bytes(rt, text="テスト音声です。", language="ja")
+    # WAVヘッダ存在
+    assert isinstance(wav, (bytes, bytearray))
+    assert len(wav) > 44
+    # duration算出できる
+    dur = estimate_wav_duration_sec(wav)
+    assert dur >= 0.0
+
+
+@pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="ffmpeg not available in test env")
+def test_ffmpeg_convert_wav_to_mp3_success_when_ffmpeg_exists():
+    rt = _make_runtime()
+    wav = synthesize_wav_bytes(rt, text="mp3変換テストです。", language="ja")
+    mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=64)
+    # mp3はWAVより小さくなるとは限らないが、バイト列として有効かを見る
+    assert isinstance(mp3, (bytes, bytearray))
+    assert len(mp3) > 0
+
+
+def test_estimate_wav_duration_sec_valid():
+    # 1ch/16bit/22050Hzで約0.5秒のWAVを即席生成
+    sr = 22050
+    dur_sec = 0.5
+    n = int(sr * dur_sec)
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sr)
+        wf.writeframes(b"\x00\x00" * n)
+
+    est = estimate_wav_duration_sec(buf.getvalue())
+    assert 0.45 <= est <= 0.55

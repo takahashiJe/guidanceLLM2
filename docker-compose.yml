@@ -64,7 +64,7 @@ services:
     depends_on:
       static-db:
         condition: service_healthy
-    working_dir: /app
+    working_dir: /app/backend
     environment:
       PYTHONPATH: /app/backend
       STATIC_DB_HOST: static-db
@@ -73,14 +73,23 @@ services:
       STATIC_DB_USER: static_db
       STATIC_DB_PASSWORD: static_db
       # 入力ファイル（必要に応じてパス調整）
-      POI_JSON: /app/backend/worker/data/POI.json
-      FACILITIES_JSON: /app/backend/worker/data/facilities.json
-      ACCESS_POINTS: /app/backend/worker/data/access_points.geojson
+      POI_JSON_PATH: /app/backend/worker/data/POI.json
+      FACILITIES_JSON_PATH: /app/backend/worker/data/facilities.json
+      ACCESS_POINTS_PATH: /app/backend/worker/data/access_points.geojson
       # 既存データがあっても挿入したい場合は 1 に（既定は 0 = 既存ありならスキップ）
+      LOAD_STATIC_JSON: "1"
       FORCE_INSERT: "1"
     volumes:
       - ./backend:/app/backend   # ← COPY せず volume で
-    command: bash -lc "sleep 10; pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 && python backend/script/init_static_db.py"
+    command: |
+      sh -c "
+        echo '--- Waiting for DB...'
+        sleep 10
+        echo '--- Installing dependencies...'
+        pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 geojson
+        echo '--- Running init script...'
+        python -B script/init_static_db.py
+      "
 
   # === Ollama (GPU想定) ===
   ollama:
@@ -90,7 +99,7 @@ services:
     environment:
       - OLLAMA_KEEP_ALIVE=24h
       # 開発でモデルを固定したい場合は環境変数を持たせておく（pullは下の sidecar）
-      - OLLAMA_DEFAULT_MODEL=qwen3:30b
+      - OLLAMA_DEFAULT_MODEL=qwen3:8b
       - OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
     volumes:
       - ollama_models:/root/.ollama
@@ -153,6 +162,8 @@ services:
       APP_DB_PASSWORD: app_runtime
       # --- NAVサービス ---
       NAV_BASE: http://svc-nav:9100
+    volumes:
+      - ./backend:/app/backend
     depends_on:
       static-db:
         condition: service_healthy
@@ -195,6 +206,8 @@ services:
       STATIC_DB_USER: static_db
       STATIC_DB_PASSWORD: static_db
       STATIC_DB_PORT: "5432"
+    volumes:
+      - ./backend:/app/backend
     depends_on: [osrm-car, osrm-foot, static-db]
     ports: ["9101:9101"]
 
@@ -207,27 +220,38 @@ services:
       STATIC_DB_USER: static_db
       STATIC_DB_PASSWORD: static_db
       STATIC_DB_PORT: "5432"
+    volumes:
+      - ./backend:/app/backend
     depends_on: [static-db]
     ports: ["9102:9102"]
 
   svc-llm:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "uvicorn backend.worker.app.services.llm.main:app --host 0.0.0.0 --port 9103"
+    command: bash -lc "celery -A backend.worker.app.services.llm.celery_app.celery_app worker --loglevel=debug --pool=threads --concurrency=1 -Q llm"
     environment:
       KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
       CHROMA_URL: http://chromadb:8000
       OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: Qwen3:30
+      OLLAMA_MODEL: qwen3:8b
       EMBED_MODEL: mxbai-embed-large:latest
       COLLECTION_PREFIX: guidance_
     depends_on: [chromadb, ollama]
     volumes: 
+      - ./backend:/app/backend
       - ./backend/worker/data:/app/backend/worker/data:ro
     ports: ["9103:9103"]
 
   svc-voice:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104"
+    command: |
+      bash -lc "
+      set -euo pipefail;
+      echo '--- voice bootstrap ---';
+      ffmpeg -hide_banner -version || { echo 'ERROR: ffmpeg not found in PATH'; exit 1; };
+      mkdir -p /home/junta_takahashi/guidanceLLM2/packs;
+      export OMP_NUM_THREADS=1;
+      uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104
+      "
     environment:
       COQUI_DEVICE: cpu
       PACKS_DIR: /packs
@@ -236,12 +260,13 @@ services:
       VOICE_ZH: "zh_female_1"
       VOICE_DEFAULT: "neutral_1"
     volumes:
+      - ./backend:/app/backend
       - packs:/packs
     ports: ["9104:9104"]
 
   svc-nav:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "uvicorn backend.worker.app.services.nav.main:app --host 0.0.0.0 --port 9100"
+    command: bash -lc "celery -A backend.worker.app.services.nav.celery_app.celery_app worker --loglevel=debug --pool=threads --concurrency=1 -Q nav"
     environment:
       ROUTING_BASE: http://svc-routing:9101
       ALONGPOI_BASE: http://svc-alongpoi:9102
@@ -249,10 +274,30 @@ services:
       VOICE_BASE: http://svc-voice:9104
       PACKS_DIR: /packs
       PACKS_BASE_URL: /packs
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
     volumes:
+      - ./backend:/app/backend
       - ./packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
     ports: ["9100:9100"]
+  
+  # --- Frontend (開発用) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      # ホストの5173番ポートをコンテナの5173番に接続 (Viteのデフォルト)
+      - "5173:5173" 
+    volumes:
+      # ソースコードの変更を即時反映させる
+      - ./frontend:/app
+      # node_modulesはホストと共有しない(パフォーマンスと環境差異のため)
+      - /app/node_modules
 
 volumes:
   ollama_models:

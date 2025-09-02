@@ -99,3 +99,35 @@ class Facility(Base):
         Index("idx_facilities_tags_gin", "tags", postgresql_using="gin"),
         # md_slug の部分ユニークは Alembic で作成（後述）
     )
+
+class AccessPoint(Base):
+    """
+    アクセスポイント（主に駐車場）の情報を格納するテーブル。
+    GeoJSONからインポートされることを想定。
+    """
+    __tablename__ = "access_points"
+
+    # 主キー: 自動採番の整数ID
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+
+    # OpenStreetMap由来のID
+    osm_id = Column(BigInteger, index=True)
+    osm_type = Column(Text, index=True) # "way", "node" など
+
+    # 名称 (NULLを許容)
+    name = Column(Text, nullable=True)
+
+    # その他の属性を格納するJSONBカラム
+    properties = Column(JSONB)
+
+    # 位置情報: PostGISのGeometry型 (POINT, SRID=4326)
+    geom = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
+
+    # 監査列
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        # 空間インデックス (最寄り検索を高速化)
+        Index("idx_access_points_geom", "geom", postgresql_using="gist"),
+    )

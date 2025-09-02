@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import List, Dict, Iterable, Tuple
 
-from shapely.geometry import LineString, Polygon, mapping
+from shapely.geometry import LineString, Polygon, mapping, MultiLineString
+from shapely.validation import make_valid
 from shapely.ops import transform
 from pyproj import Transformer
 
@@ -41,7 +42,7 @@ def _buffer_linestring_m(ls: LineString, meters: float) -> Polygon:
     to3857 = _proj().transform
     to4326 = _unproj().transform
     ls_m = transform(to3857, ls)
-    poly_m = ls_m.buffer(meters)  # meters
+    poly_m = ls_m.buffer(meters, join_style='bevel')  # meters
     poly_lonlat = transform(to4326, poly_m)
     return poly_lonlat
 
@@ -73,6 +74,93 @@ def build_mode_buffers(
         ls = LineString(coords)
         radius = buf_car_m if mode == "car" else buf_foot_m
         poly = _buffer_linestring_m(ls, radius)
+
+        print("---" * 10)
+        print(f"Original polygon generated for mode '{mode}'.")
+        print(f"Is original polygon valid? -> {poly.is_valid}")
+        # WKT形式でジオメトリを出力すると、外部ツールで可視化も可能
+        print(f"Original WKT: {poly.wkt}") 
+        print("---" * 10)
+
         polys.append(poly)
 
-    return polys
+    # return polys
+    raw_polys = polys  # 既存結果
+    cleaned = []
+    for p in raw_polys:
+        if p.is_empty:
+            continue
+        
+        print("!!!" * 10)
+        print("Found invalid polygon, attempting to clean...")
+
+        pp = make_valid(p)
+        if not pp.is_valid:
+            pp = pp.buffer(0)
+        
+        print(f"Is cleaned polygon valid? -> {pp.is_valid}")
+        if not pp.is_valid:
+            print("Cleaning FAILED.")
+            print(f"Invalid WKT after cleaning: {pp.wkt}")
+        else:
+            print("Cleaning SUCCEEDED.")
+        print("!!!" * 10)
+
+        if pp.is_empty or not pp.is_valid:
+            continue
+        cleaned.append(pp)
+    return cleaned
+
+def build_mode_multilines(
+    polyline: List[List[float]],
+    segments: List[Dict],
+) -> Dict[str, dict | None]:
+    """
+    segmentsの各区間をmodeごとに切り出し，
+    car/footのMultiLineString(GeoJSON dict)を返す．
+    ShapelyのMultiLineStringは使わない．
+    """
+    if not polyline or len(polyline) < 2:
+        return {"car": None, "foot": None}
+
+    # 正規化
+    pl: List[LonLat] = [(float(lon), float(lat)) for lon, lat in polyline]
+
+    car_coords: List[List[LonLat]] = []
+    foot_coords: List[List[LonLat]] = []
+
+    for seg in segments:
+        mode = seg.get("mode")
+        s_idx = int(seg.get("start_idx", 0))
+        e_idx = int(seg.get("end_idx", 0))
+
+        # インデックスの健全化
+        n = len(pl)
+        s_idx = max(0, min(s_idx, n - 1))
+        e_idx = max(0, min(e_idx, n - 1))
+        if e_idx < s_idx:
+            s_idx, e_idx = e_idx, s_idx
+
+        coords = pl[s_idx:e_idx + 1]
+        # 連続重複点の除去（ゼロ長ライン回避）
+        dedup: List[LonLat] = []
+        prev = None
+        for c in coords:
+            if c != prev:
+                dedup.append(c)
+                prev = c
+        if len(dedup) < 2:
+            continue
+
+        if mode == "car":
+            car_coords.append(dedup)
+        else:
+            foot_coords.append(dedup)
+
+    def to_geojson_mls(lines: List[List[LonLat]]):
+        return {"type": "MultiLineString", "coordinates": lines} if lines else None
+
+    return {
+        "car":  to_geojson_mls(car_coords),
+        "foot": to_geojson_mls(foot_coords),
+    }

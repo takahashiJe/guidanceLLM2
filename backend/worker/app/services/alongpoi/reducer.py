@@ -51,12 +51,17 @@ def reduce_hits_to_along_pois(hits: List[Dict], polyline: List[List[float]]) -> 
                 best_d = d
                 best_idx = i
 
+        distance_m = float(h.get("distance_m", dist_m))  # SQLの値があれば優先
         out.append(
             {
                 "spot_id": h.get("spot_id"),
                 "name": h.get("name"),
+                "lon": float(h.get("lon")) if "lon" in h else None,
+                "lat": float(h.get("lat")) if "lat" in h else None,
+                "kind": h.get("kind"),
                 "leg_index": int(best_idx),
-                "distance_from_route_m": float(dist_m),
+                "distance_m": distance_m,
+                "source_segment_mode": h.get("source_segment_mode"),
             }
         )
 
