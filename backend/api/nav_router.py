@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
+import json
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ValidationError
-from celery.result import AsyncResult
+from celery.result import AsyncResult, GroupResult
 from celery import states
 
 from backend.api.celery_app import celery_app
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/nav", tags=["navigation"])
 
 NAV_BASE = os.getenv("NAV_BASE", "http://svc-nav:9100")
 REQ_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "25"))
+INCOMPLETE = {states.PENDING, states.RECEIVED, states.STARTED, states.RETRY}
 
 class TaskAccepted(BaseModel):
     task_id: str
@@ -58,39 +60,109 @@ def enqueue_nav_plan(req: PlanRequest, request: Request):
     )
 
 # ========== GET /api/nav/plan/tasks/{task_id} → 状態照会 ==========
+def _flatten_children(r: AsyncResult) -> list[AsyncResult]:
+    """
+    r.children は None / list[AsyncResult] / list[GroupResult] が混在し得る。
+    GroupResult は .results で展開する。
+    """
+    out: list[AsyncResult] = []
+    ch = getattr(r, "children", None) or []
+    for c in ch:
+        if isinstance(c, GroupResult):
+            out.extend(c.results or [])
+        else:
+            out.append(c)
+    return out
+
+def _deepest_descendant(r: AsyncResult) -> AsyncResult:
+    """
+    chain(link, link, link...) で “次のタスク” が child としてぶら下がる想定。
+    最も深い葉（= finalize）まで辿る。
+    """
+    cur = r
+    seen = set()
+    # 安全のため最大深さを制限
+    for _ in range(100):
+        if cur.id in seen:
+            break
+        seen.add(cur.id)
+        children = _flatten_children(cur)
+        if not children:
+            break
+        # chain なので基本1本だが、万一複数あれば最後の子を優先
+        cur = children[-1]
+    return cur
+
+def _as_dict_if_json_string(x: Union[str, dict]) -> Union[dict, None]:
+    if isinstance(x, dict):
+        return x
+    if isinstance(x, str):
+        try:
+            v = json.loads(x)
+            return v if isinstance(v, dict) else None
+        except Exception:
+            return None
+    return None
+
 @router.get("/plan/tasks/{task_id}", name="get_nav_plan_task")
 def get_nav_plan_task(task_id: str):
-    res = AsyncResult(task_id, app=celery_app)
-    state = res.state
+    """
+    ポーリング: 親(nav.plan)のIDでもOK。チェインの末端(finalize)までフォローして結果(dict)を返す。
+    未完了なら 202、成功なら 200 + PlanResponse、失敗なら 500。
+    """
+    root = AsyncResult(task_id, app=celery_app)
 
-    if state in (states.PENDING, states.RECEIVED, states.STARTED, states.RETRY):
+    # 1) 未完了なら 202
+    if root.state in INCOMPLETE:
         return JSONResponse(
             status_code=status.HTTP_202_ACCEPTED,
             headers={"Cache-Control": "no-store"},
-            content={"task_id": task_id, "state": state, "ready": False},
+            content={"task_id": task_id, "state": root.state, "ready": False},
         )
 
-    if state == states.SUCCESS:
-        raw = res.result
-        if not isinstance(raw, dict):
-            raise HTTPException(status_code=500, detail="task returned empty or invalid result")
-        try:
-            pr = PlanResponse(**raw)  # スキーマ検証
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"invalid nav.plan result: {e}")
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content=pr.model_dump(by_alias=True),
-        )
+    # 2) SUCCESS だが result が dict でないケースに備える
+    #    - nav.plan がチェインを投げっぱなし→自分の result が None
+    #    - JSON文字列で返ってきた
+    raw = root.result
+    doc = _as_dict_if_json_string(raw)
 
-    # 失敗時（FAILURE/REVOKEDなど）
+    if doc is None:
+        # FINALIZE（チェインの末端）を辿ってそこから結果を取得
+        leaf = _deepest_descendant(root)
+
+        if leaf.id != root.id:
+            # 末端の状態で再判定
+            if leaf.state in INCOMPLETE:
+                return JSONResponse(
+                    status_code=status.HTTP_202_ACCEPTED,
+                    headers={"Cache-Control": "no-store"},
+                    content={"task_id": task_id, "state": leaf.state, "ready": False},
+                )
+            if leaf.state == states.FAILURE:
+                return JSONResponse(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    content={
+                        "task_id": task_id,
+                        "state": leaf.state,
+                        "ready": False,
+                        "error": str(leaf.info),
+                        "traceback": leaf.traceback,
+                    },
+                )
+            # leaf SUCCESS の場合に dict or JSON文字列かを評価
+            doc = _as_dict_if_json_string(leaf.result)
+
+    if doc is None:
+        # ここまで来て dict にならない＝タスク側の戻り値が不正
+        raise HTTPException(status_code=500, detail="task returned empty or invalid result")
+
+    # 3) スキーマ検証 → 200で返す（alias考慮）
+    try:
+        pr = PlanResponse(**doc)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"invalid nav.plan result: {e}")
+
     return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "task_id": task_id,
-            "state": state,
-            "ready": False,
-            "error": str(res.info),
-            "traceback": res.traceback,  # 本番では外してOK
-        },
+        status_code=status.HTTP_200_OK,
+        content=pr.model_dump(by_alias=True),
     )
