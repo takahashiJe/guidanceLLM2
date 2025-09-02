@@ -1,0 +1,11 @@
+<think>
+Okay, let's tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically for the Nika-ho City, Shōgata Local History Museum. The facts mention it's a museum showcasing the history and culture of the Shōgata region, once called "Higashi no Matsushima" (East Matsushima). 
+
+First, I need to structure the narration into four parts: intro, key facts, fun tidbit, and safety reminder. The style should be calm and informative, around 200-300 characters. Avoid any speculation, so I'll stick to the given facts. 
+
+For the intro, maybe start by welcoming visitors to the museum. Then mention the main points about the history and the nickname. The fun tidbit could be about the nickname comparison to Matsushima, which is a famous bay. Safety reminder needs to include weather, footing, and wildlife without recommending excessive actions. 
+
+I should check if all the required elements are covered. Make sure not to use any markdown and keep it plain text. Also, ensure that the local name is correctly written as にかほ市 象潟郷土資料館. Avoid overusing metaphors. Let me put it all together concisely.
+</think>
+
+にかほ市 象潟郷土資料館へようこそ。この博物館では、象潟地域の歴史や文化を学べます。かつて「東の松島」と称され、自然と人々の暮らしの変遷が紹介されています。館内には、地域の伝統 craft や地元の風物詩も展示。足元の湿気や天候に注意し、野生動物との遭遇には配慮を。ごゆっくりお楽しみください。

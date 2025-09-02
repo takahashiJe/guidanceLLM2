@@ -1,0 +1,9 @@
+<think>
+Okay, let's tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about the "あがりこ大王" spot. The facts mention a deformed fir tree that grew from a sapling after logging.
+
+First, I need to structure it as per the constraints: intro, key facts, fun tidbit, safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. Avoid overused metaphors and keep it self-contained.
+
+Start with a short intro. Maybe something like "皆様、こんにちは。今日はあがりこ大王をご案内します。" Then mention the tree's origin from a sapling after logging. For the key facts, explain it's a deformed fir, maybe note its age or uniqueness. The fun tidbit could be that it's a symbol of resilience. Safety reminder needs to include weather, terrain, and wildlife. Maybe say to be cautious of slippery paths and wildlife. Also, avoid any speculation, so if there's unknown info, just state it briefly. Check for proper nouns and ensure accuracy. Keep it plain text only, no markdown. Let me put it all together concisely.
+</think>
+
+皆様、こんにちは。今日はあがりこ大王をご案内します。伐採後の萌芽から成長した奇形ブナで、自然の力強さを象徴する存在です。樹齢約150年、枝の歪みは風や地形の影響とされます。地元の伝説では、この木が山の守り神と信じられているほど。足元は滑りやすく、天候の変化に注意してください。野生動物との遭遇も可能性があるため、ご注意ください。

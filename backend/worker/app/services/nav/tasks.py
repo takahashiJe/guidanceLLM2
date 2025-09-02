@@ -87,6 +87,124 @@ def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
     ]
     return items
 
+# === 座標ユーティリティ ===
+def _lonlat_to_coord(ll):
+    # polylineの各点は [lon, lat] なので注意
+    if not isinstance(ll, (list, tuple)) or len(ll) != 2:
+        return None
+    lon, lat = ll
+    return {"lat": float(lat), "lon": float(lon)}
+
+def _idx_to_coord(polyline, idx):
+    try:
+        return _lonlat_to_coord(polyline[int(idx)])
+    except Exception:
+        return None
+
+# === legs 正規化（from/to 座標付与） ===
+def _normalize_legs(raw_legs: list, polyline: list) -> list:
+    """
+    raw_legs がすでに from/to（lat/lon）を持っていたらパススルー。
+    from_idx/to_idx しか無ければ polyline から取り出して付与。
+    距離/時間は distance_m|distance, duration_s|duration を吸収。
+    """
+    out = []
+    for lg in (raw_legs or []):
+        mode = lg.get("mode", "car")
+
+        # 1) 既に from/to 座標を持っている場合
+        from_coord = lg.get("from") or lg.get("from_")
+        to_coord   = lg.get("to")
+
+        if isinstance(from_coord, dict) and "lat" in from_coord and "lon" in from_coord \
+           and isinstance(to_coord, dict) and "lat" in to_coord and "lon" in to_coord:
+            dist = lg.get("distance_m", lg.get("distance"))
+            dur  = lg.get("duration_s", lg.get("duration"))
+            out.append({
+                "mode": mode,
+                "from": {"lat": float(from_coord["lat"]), "lon": float(from_coord["lon"])},
+                "to":   {"lat": float(to_coord["lat"]),   "lon": float(to_coord["lon"])},
+                "distance_m": float(dist) if dist is not None else 0.0,
+                "duration_s": float(dur)  if dur  is not None else 0.0,
+            })
+            continue
+
+        # 2) from_idx/to_idx 型（既存実装）→ polyline から座標解決
+        fidx = lg.get("from_idx")
+        tidx = lg.get("to_idx")
+        f = _idx_to_coord(polyline, fidx) if fidx is not None else None
+        t = _idx_to_coord(polyline, tidx) if tidx is not None else None
+
+        # 3) 万一 list で [lon,lat] が来た場合の救済
+        if f is None and isinstance(from_coord, (list, tuple)) and len(from_coord) == 2:
+            f = _lonlat_to_coord(from_coord)
+        if t is None and isinstance(to_coord, (list, tuple)) and len(to_coord) == 2:
+            t = _lonlat_to_coord(to_coord)
+
+        dist = lg.get("distance_m", lg.get("distance"))
+        dur  = lg.get("duration_s", lg.get("duration"))
+
+        out.append({
+            "mode": mode,
+            "from": f or {"lat": 0.0, "lon": 0.0},
+            "to":   t or {"lat": 0.0, "lon": 0.0},
+            "distance_m": float(dist) if dist is not None else 0.0,
+            "duration_s": float(dur)  if dur  is not None else 0.0,
+        })
+    return out
+
+# === assets 正規化（audio をネスト化） ===
+def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[dict]:
+    text_by_spot = {x.get("spot_id"): x.get("text", "") for x in (llm_items or [])}
+    assets = []
+    for vr in (voice_results or []):
+        sid = vr.get("spot_id")
+        if not sid:
+            continue
+        url = vr.get("url") or vr.get("audio_url")
+        size = vr.get("size_bytes") or vr.get("bytes")
+        dur  = vr.get("duration_sec") or vr.get("duration_s")
+        fmt  = vr.get("format")
+        assets.append({
+            "spot_id": sid,
+            "text": text_by_spot.get(sid, ""),
+            "audio": {
+                "url": url,
+                "size_bytes": size,
+                "duration_sec": dur,
+                "format": fmt,
+            }
+        })
+    return assets
+
+# === manifest.json の書き出し（NAV 側でも残す） ===
+def _write_manifest(pack_id: str, language: str, route_fc: dict,
+                    polyline: list, segments: list, legs: list,
+                    along_pois: list, assets: list) -> None:
+    root = Path(os.getenv("PACKS_ROOT") or os.getenv("PACKS_DIR") or "/packs")
+    pack_dir = (root / pack_id)
+    try:
+        pack_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "pack_id": pack_id,
+            "language": language,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "route": route_fc,
+            "polyline_len": len(polyline or []),
+            "segments": segments,
+            "legs": legs,
+            "along_pois": along_pois,
+            "assets": assets,  # audio.url など最終形を保存
+        }
+        p = pack_dir / "manifest.json"
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        logger.info("NAV wrote manifest: %s", str(p))
+    except Exception:
+        logger.exception("NAV failed to write manifest.json for pack_id=%s", pack_id)
+
 # =================================================================
 # ==== Celery Workflow Tasks (ワークフローを構成するタスク群) ====
 # =================================================================
@@ -191,80 +309,48 @@ def step_synthesize_one(pack_id: str, language: str, item: dict) -> dict:
     }
 
 # --- ステップ4: 最終化 ---
-@celery_app.task(name="nav.step.finalize", bind=True)
-def step_finalize(self, assets_results: list, payload: dict) -> dict:
-    # このタスクの中身は変更なしでOK
-    logger.info(f"[{self.request.id}] Step 4: Finalize started")
-    llm_items_map = {item['spot_id']: item for item in payload.get("llm_items", [])}
-    
-    final_assets = []
-    for asset_result in assets_results:
-        spot_id = asset_result["spot_id"]
-        text_content = llm_items_map.get(spot_id, {}).get("text", "")
-        
-        audio_data = None
-        if asset_result.get("audio_url"):
-            audio_data = {
-                "url": asset_result["audio_url"],
-                "size_bytes": asset_result["bytes"],
-                "duration_sec": asset_result["duration_s"],
-                "format": asset_result["format"],
-            }
-
-        final_assets.append({
-            "spot_id": spot_id,
-            "text": text_content,
-            "audio": audio_data,
-        })
-    payload["assets"] = final_assets
+@celery_app.task(name="nav.step.finalize")
+def step_finalize(voice_results: list[dict], payload: dict) -> dict:
+    """
+    voice の戻りを assets にネスト化しつつ、
+    legs に from/to 座標を付与し、manifest.json も生成・保存する。
+    """
     pack_id = payload["pack_id"]
-    
-    waypoints = [Waypoint(**w) for w in payload.get("waypoints", [])]
-    spot_ids_for_coords = [w.spot_id for w in waypoints if w.spot_id]
-    spot_id_to_coords = {s.spot_id: (s.lat, s.lon) for s in get_spots_by_ids(spot_ids_for_coords).values()}
-    
-    coords_list = [(payload["origin"]["lat"], payload["origin"]["lon"])]
-    for wp in waypoints:
-        if wp.spot_id in spot_id_to_coords:
-            coords_list.append(spot_id_to_coords[wp.spot_id])
-    if payload.get('return_to_origin', True):
-        coords_list.append((payload["origin"]["lat"], payload["origin"]["lon"]))
+    language = payload.get("language", "ja")
 
-    final_legs = []
-    for leg_data in payload["routing_result"]["legs"]:
-        from_idx, to_idx = leg_data.get("from_idx", 0), leg_data.get("to_idx", 1)
-        if from_idx < len(coords_list) and to_idx < len(coords_list):
-            from_coords, to_coords = coords_list[from_idx], coords_list[to_idx]
-            final_legs.append({
-                "mode": leg_data["mode"], "from": {"lat": from_coords[0], "lon": from_coords[1]},
-                "to": {"lat": to_coords[0], "lon": to_coords[1]},
-                "distance_m": leg_data["distance"], "duration_s": leg_data["duration"]
-            })
+    routing = payload["routing_result"]
+    route_fc = routing["feature_collection"]
+    polyline = routing["polyline"]
+    segments = routing["segments"]
 
-    polyline = payload["routing_result"]["polyline"]
-    segments = payload["routing_result"].get("segments", [])
-    manifest = {
-        "pack_id": pack_id, "language": payload["language"],
-        "generated_at": datetime.utcnow().isoformat() + "Z",
-        "route_digest": sha1(json.dumps(polyline, separators=(',',':')).encode()).hexdigest(),
-        "segments": segments, "assets": payload["assets"]
-    }
-    manifest_path = Path(os.environ.get("PACKS_DIR","/packs")) / pack_id / "manifest.json"
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    # legs は indices ベースのことがあるため、ここで座標付与して最終形へ
+    raw_legs = routing.get("legs", [])
+    legs = _normalize_legs(raw_legs, polyline)
 
-    response_data = {
+    along_pois = payload.get("along_pois", [])
+    llm_items  = payload.get("items", [])
+
+    # assets（audio をネストへ）
+    assets = _normalize_assets(voice_results, llm_items)
+
+    # manifest.json を NAV 側でも残す（従来の仕様踏襲）
+    _write_manifest(pack_id, language, route_fc, polyline, segments, legs, along_pois, assets)
+
+    # フロント返却（ゲートウェイの PlanResponse と互換）
+    resp = {
         "pack_id": pack_id,
-        "route": payload["routing_result"]["feature_collection"],
+        "route": route_fc,
         "polyline": polyline,
         "segments": segments,
-        "legs": final_legs,
-        "along_pois": payload["along_pois"],
-        "assets": payload["assets"],
+        "legs": legs,
+        "along_pois": along_pois,
+        "assets": assets,
+        # extra は許容される設定（schemas.py: extra="allow"）
+        "language": language,
+        "manifest_url": f"/packs/{pack_id}/manifest.json",
     }
-    
-    logger.info(f"[{self.request.id}] Workflow finished successfully.")
-    return response_data
+    logger.info("[%s] Workflow finished successfully.", step_finalize.request.id)
+    return resp
 
 # =================================================================
 # ==== Workflow Entrypoint Task (APIから呼び出されるタスク) ====

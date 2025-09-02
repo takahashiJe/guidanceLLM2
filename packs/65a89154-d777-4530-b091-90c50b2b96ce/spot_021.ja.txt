@@ -1,0 +1,19 @@
+<think>
+Okay, let me tackle this query. The user wants a narration for a tour guide in Japanese about Ganmangu Shrine. First, I need to make sure I understand all the requirements.
+
+The structure needs to be four parts: intro, key facts, fun tidbit, and safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. I have to avoid overusing metaphors and keep it factual. Also, mention the safety aspects like weather, terrain, and wildlife.
+
+Starting with the intro: "Welcome to Ganmangu Shrine, located in Ohashi." Then the key facts: it's a Jodo-shu temple, visited by Matsuo Basho, and the haiku he wrote. The fun tidbit could be that the haiku is a famous one. For safety, mention weather, footing, and wildlife, advising caution.
+
+Wait, the facts say it's in Ohashi, but the POI description says it's in Ohashi? Wait, the POI description says "象潟にある曹洞宗の寺院" which is "a temple of the Soto school located in Ohashi". So the shrine is in Ohashi. But the spot ID is spot_021. Need to make sure the name is correct. Also, the user might have a typo in the name? Or maybe it's a different name. Wait, the user wrote " Ganmangu Shrine" which is 蚶満寺. So the POI description says it's in Ohashi. So the intro should mention Ohashi.
+
+Also, the user specified to avoid speculation. So if there's any unknown, just say so. But in this case, the facts are given. The safety reminder needs to be one sentence, mentioning weather, terrain, and wildlife, without recommending excessive actions.
+
+Let me check the character count. The example response is around 250 characters. Let me structure it step by step.
+
+Intro: 欢迎 to Ganmangu Shrine, located in Ohashi. Key facts: Jodo-shu temple, visited by Basho, haiku. Fun tidbit: the haiku is famous. Safety: check weather, watch footing, be cautious of wildlife.
+
+Now, translate that into Japanese, keeping it concise. Make sure the names are correct. Also, the safety part needs to be a single sentence. Let me put it all together.
+</think>
+
+こんにちは、甘満寺へようこそ。象潟にある曹洞宗の寺院で、松尾芭蕉が「おくのほそ道」の旅で訪れ、句を詠んだことで知られています。芭蕉が残した句は、今も多くの人々に愛されています。足元には湿気による滑りやすさに注意し、天候の変化に備えてください。また、自然の中に生息する動物に配慮し、静かな心で参拝されることをおすすめします。

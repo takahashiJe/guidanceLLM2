@@ -1,0 +1,13 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the "あがりこ大王" spot. The facts provided are about a deformed bamboo that grew from a seed after logging. 
+
+First, I need to structure the narration according to the given constraints: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. I have to avoid excessive metaphors and stick to the facts.
+
+Starting with the intro, maybe something like welcoming visitors to the area and introducing the spot. Then the key facts: the bamboo grew from a seed after logging, so mention the logging history and its growth. The fun tidbit could be that it's called "大王" because of its unique shape, maybe a local story. For safety, mention weather, terrain, and wildlife, advising caution without recommending specific actions.
+
+Need to check if all the facts are covered. The user said to avoid speculation, so if there's any unknown, just say so briefly. Since the facts are given, I can use those. Also, ensure that the safety reminder is concise and includes all three elements: weather, footing, wildlife. 
+
+Make sure not to reference any external documents. Use plain text only. Let me draft each part step by step, keeping the language simple and natural in Japanese. Check the character count to stay within the limit. Avoid any markdown formatting. Let me put it all together now.
+</think>
+
+皆様、こんにちは。あがりこ大王へようこそ。このスポットは、かつての伐採後に芽生えた奇形ブナが育った場所です。木は自然の力で成長し、今もその姿を保っています。地元では「大王」と呼ばれ、独特の形が話題に。ただし、足元の滑りやすさや天候の変化に注意が必要です。野生動物もいるため、ご注意ください。安全第一でご観光ください。
