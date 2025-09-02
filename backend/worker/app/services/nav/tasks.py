@@ -207,7 +207,28 @@ def step_synthesize_one(pack_id: str, language: str, item: dict) -> dict:
 @celery_app.task(name="nav.step.finalize", bind=True)
 def step_finalize(self, assets_results: list, payload: dict) -> dict:
     logger.info(f"[{self.request.id}] Step 4: Finalize started")
-    payload["assets"] = assets_results
+    llm_items_map = {item['spot_id']: item for item in payload.get("llm_items", [])}
+    
+    final_assets = []
+    for asset_result in assets_results:
+        spot_id = asset_result["spot_id"]
+        text_content = llm_items_map.get(spot_id, {}).get("text", "")
+        
+        audio_data = None
+        if asset_result.get("audio_url"):
+            audio_data = {
+                "url": asset_result["audio_url"],
+                "size_bytes": asset_result["bytes"],
+                "duration_sec": asset_result["duration_s"],
+                "format": asset_result["format"],
+            }
+
+        final_assets.append({
+            "spot_id": spot_id,
+            "text": text_content,
+            "audio": audio_data,
+        })
+    payload["assets"] = final_assets
     pack_id = payload["pack_id"]
     
     waypoints = [Waypoint(**w) for w in payload.get("waypoints", [])]
@@ -245,13 +266,19 @@ def step_finalize(self, assets_results: list, payload: dict) -> dict:
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
     manifest_url = f"{os.environ.get('PACKS_BASE_URL','/packs')}/{pack_id}/manifest.json"
 
-    response = PlanResponse(
-        pack_id=pack_id, route=payload["routing_result"]["feature_collection"],
-        legs=final_legs, along_pois=payload["along_pois"],
-        assets=[Asset(**a) for a in payload["assets"]], manifest_url=manifest_url,
-    )
+    response_data = {
+        "pack_id": pack_id,
+        "route": payload["routing_result"]["feature_collection"],
+        "polyline": polyline,
+        "segments": segments,
+        "legs": final_legs,
+        "along_pois": payload["along_pois"],
+        "assets": payload["assets"],
+    }
+    
     logger.info(f"[{self.request.id}] Workflow finished successfully.")
-    return response.model_dump(by_alias=True)
+    # pydanticモデルでの検証はAPI側で行うので、ここでは辞書を返す
+    return response_data
 
 # =================================================================
 # ==== Workflow Entrypoint Task (APIから呼び出されるタスク) ====

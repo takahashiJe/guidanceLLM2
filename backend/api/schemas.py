@@ -38,15 +38,20 @@ class AlongPoi(BaseModel):
     lon: float
     lat: float
     kind: Literal["spot", "facility"]
+    md_slug: Optional[str] = None
+    description: Optional[str] = None
 
+
+class Audio(BaseModel):
+    url: str
+    size_bytes: int
+    duration_sec: float
+    format: Literal["mp3", "wav"]
 
 class Asset(BaseModel):
     spot_id: str
-    audio_url: Optional[str] = None
-    text_url: Optional[str] = None
-    bytes: Optional[int] = None
-    duration_s: Optional[float] = None
-    # 将来: format: Optional[Literal["mp3","wav"]] = None
+    text: str # text_urlからtextに変更
+    audio: Optional[Audio] = None
 
 
 class PlanResponse(BaseModel):
@@ -55,6 +60,8 @@ class PlanResponse(BaseModel):
     """
     pack_id: str
     route: Dict[str, Any]          # GeoJSON FeatureCollection
+    polyline: List[List[float]]
+    segments: List[Dict[str, Any]]
     legs: List[Leg]
     along_pois: List[AlongPoi]
     assets: List[Asset]

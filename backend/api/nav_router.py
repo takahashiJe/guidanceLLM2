@@ -77,43 +77,34 @@ def _flatten_children(r: AsyncResult) -> list[AsyncResult]:
 def _deepest_descendant(r: AsyncResult) -> AsyncResult:
     """
     タスクチェーンを辿り、最終的な葉（leaf）タスクの結果オブジェクトを返す。
-    r.children は chord を使うと意図通りに動かないため、
-    より堅牢な r.parent を遡る方式に変更。
+    chordを使った場合、直接の子孫にはGroupResultが入るため、単純な再帰では追跡できない。
+    ここでは、チェーンの末端が "nav.step.finalize" であることを前提とし、
+    すべての子孫を辿って該当タスクを探す。
     """
-    # まず、現在完了している一番深い子孫を探す
-    curr = r
-    seen = {curr.id}
-    for _ in range(20): # 安全のためのループ制限
-        if not curr.children:
-            break
+    queue = [r]
+    visited = {r.id}
+    
+    while queue:
+        current_task = queue.pop(0)
+        
+        # finalizeタスクが見つかったら、それが最終タスク
+        if current_task.name == 'nav.step.finalize':
+            return current_task
 
-        # GroupResultは展開せず、そのまま子として扱う
-        children = curr.children
-        if not children:
-            break
-
-        next_task_result = children[0]
-        if next_task_result.id in seen:
-            break
-
-        curr = next_task_result
-        seen.add(curr.id)
-
-    # そこから、状態がSUCCESSになるまで親を遡る
-    # (chordの完了を待つため)
-    final_task = curr
-    for _ in range(20): # 安全のためのループ制限
-        if final_task.state == states.SUCCESS:
-            break
-        if not final_task.parent:
-            break
-        if final_task.parent.id in seen:
-            break
-
-        final_task = final_task.parent
-        seen.add(final_task.id)
-
-    return final_task
+        if current_task.children:
+            for child in current_task.children:
+                # GroupResultの場合は、そのコールバック(chordのボディ部)を追跡対象にする
+                if isinstance(child, GroupResult) and child.parent:
+                    if child.parent.id not in visited:
+                        queue.append(child.parent)
+                        visited.add(child.parent.id)
+                # 通常のタスクの場合
+                elif isinstance(child, AsyncResult) and child.id not in visited:
+                    queue.append(child)
+                    visited.add(child.id)
+                    
+    # finalizeが見つからなかった場合、元のタスクを返す
+    return r
 
 def _as_dict_if_json_string(x: Union[str, dict]) -> Union[dict, None]:
     if isinstance(x, dict):
