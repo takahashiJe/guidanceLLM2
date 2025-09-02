@@ -151,7 +151,7 @@ def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
 
 # --- ステップ3: 音声合成 (LLMタスクのコールバックとして実行) ---
 @celery_app.task(name="nav.step.synthesize_all", bind=True)
-def step_synthesize_all(self, llm_out: dict, payload: dict) -> None:
+def step_synthesize_all(self, llm_out: dict, *, payload: dict) -> None:
     logger.info(f"[{self.request.id}] Step 3: Voice Synthesis Chord triggered")
     payload["llm_items"] = llm_out.get("items", [])
 
