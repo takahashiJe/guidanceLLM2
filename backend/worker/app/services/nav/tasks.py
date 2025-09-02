@@ -27,6 +27,11 @@ _llm = Celery(
     backend=os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1"),
 )
 
+_llm.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+)
+
 # =================================================================
 # ==== Schemas (スキーマ定義) ====
 # =================================================================
@@ -112,6 +117,7 @@ def step_routing(self, payload: dict) -> dict:
     }
     routing = post_route(routing_req)
     payload["routing_result"] = routing
+    print(f"【pack_id DEBUG】ステップ1：payload[pack_id]={payload['pack_id']}")
     return payload
 
 # --- ステップ2: 周辺POI検索 & LLMタスクの発行 ---
@@ -253,6 +259,7 @@ def step_finalize(self, assets_results: list, payload: dict) -> dict:
 def plan_workflow_entrypoint(self, payload: Dict[str, Any]):
     pack_id = str(uuid.uuid4())
     payload["pack_id"] = pack_id
+    print(f"【pack_id DEBUG】ステップ0：payload[pack_id]={payload['pack_id']}")
     
     # ワークフローを短縮化。残りはlinkによるコールバックが処理する。
     workflow = chain(
