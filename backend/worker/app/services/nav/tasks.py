@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Literal, Optional, Dict
 from hashlib import sha1
-from celery import Celery, chain, group
+from celery import Celery, chain, group, chord
 
 from pydantic import BaseModel, Field
 
@@ -141,44 +141,41 @@ def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
     
     logger.debug(f"NAV->LLM DEBUG: {llm_req}")
 
-    # LLMタスク完了後に実行する後続タスク(コールバック)のチェインを定義
-    callback_chain = chain(
-        # 修正点1: `payload` を `nav_plan` 引数として指定する
-        # 修正点2: 実行キューとして `nav` を指定する
-        step_synthesize_all.s(payload=payload).set(queue="nav"),
-        step_finalize.s().set(queue="nav")
-    )
+    # step_synthesize_allがchord経由でfinalizeを呼ぶので、ここでのchainは不要
+    callback_task = step_synthesize_all.s(payload=payload).set(queue="nav")
     # LLMタスクを投入し、完了後の処理として上記チェインを `link` で予約
-    _llm.send_task("llm.describe", args=[llm_req], queue="llm", link=callback_chain)
+    _llm.send_task("llm.describe", args=[llm_req], queue="llm", link=callback_task)
     
     # このタスクの役目はここまで。後続処理はlinkに任せる。
     return
 
 # --- ステップ3: 音声合成 (LLMタスクのコールバックとして実行) ---
 @celery_app.task(name="nav.step.synthesize_all", bind=True)
-def step_synthesize_all(self, llm_out: dict, payload: dict) -> dict:
-    logger.info(f"[{self.request.id}] Step 3: Voice Synthesis (all) started")
-    logger.info("="*30)
-    logger.info("step_synthesize_all task received.")
-    logger.info(f"LLM results received: {llm_out}")
-    logger.info("="*30)
-
+def step_synthesize_all(self, llm_out: dict, payload: dict) -> None:
+    logger.info(f"[{self.request.id}] Step 3: Voice Synthesis Chord triggered")
     payload["llm_items"] = llm_out.get("items", [])
 
+    # llm_itemsが空なら、すぐにfinalizeを呼んで終了
     if not payload["llm_items"]:
-        payload["assets"] = []
-        return payload
+        # step_finalizeは結果リストを第一引数に取るので空リストを渡す
+        step_finalize.delay(assets_results=[], payload=payload)
+        return
 
+    # Chordのヘッダー：並列実行される個別の音声合成タスクのグループ
     synthesis_tasks = group(
         step_synthesize_one.s(payload["pack_id"], payload["language"], item)
         for item in payload["llm_items"]
     )
     
-    result_group = synthesis_tasks.apply_async()
-    assets_results = result_group.get(timeout=300)
-    
-    payload["assets"] = assets_results
-    return payload
+    # Chordのコールバック（ボディ）：ヘッダーのタスク結果が第一引数に渡される
+    # payloadは第二引数として渡すように.s()で部分適用しておく
+    callback_task = step_finalize.s(payload=payload).set(queue="nav")
+
+    # Chordを定義して実行
+    chord(synthesis_tasks)(callback_task)
+
+    # このタスクの役目はChordを起動することなので、戻り値はなし
+    return
 
 # --- ステップ3a: 個別音声合成 ---
 @celery_app.task(name="nav.step.synthesize_one")
@@ -201,8 +198,9 @@ def step_synthesize_one(pack_id: str, language: str, item: dict) -> dict:
 
 # --- ステップ4: 最終化 ---
 @celery_app.task(name="nav.step.finalize", bind=True)
-def step_finalize(self, payload: dict) -> dict:
+def step_finalize(self, assets_results: list, payload: dict) -> dict:
     logger.info(f"[{self.request.id}] Step 4: Finalize started")
+    payload["assets"] = assets_results
     pack_id = payload["pack_id"]
     
     waypoints = [Waypoint(**w) for w in payload.get("waypoints", [])]
