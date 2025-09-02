@@ -1,49 +1,258 @@
 from __future__ import annotations
 
-from typing import List, Literal, Optional
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+import os
+import uuid
+import json
+from pathlib import Path
+from datetime import datetime
+from typing import List, Literal, Optional, Dict
+from hashlib import sha1
+from celery import Celery, chain, group
 
-from backend.worker.app.services.llm import generator, prompt
-from backend.worker.app.services.llm.celery_app import celery_app
+from pydantic import BaseModel, Field
 
-app = FastAPI(title="llm service")
+from backend.worker.app.services.nav.celery_app import celery_app
+from backend.worker.app.services.nav.client_routing import post_route
+from backend.worker.app.services.nav.client_alongpoi import post_along
+from backend.worker.app.services.nav.client_voice import post_synthesize
+from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
 
-class SpotRef(BaseModel):
+import logging
+logger = logging.getLogger(__name__)
+
+# LLMサービスを呼び出すためのCeleryインスタンス
+_llm = Celery(
+    "nav-llm-producer",
+    broker=os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"),
+    backend=os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1"),
+)
+
+# =================================================================
+# ==== Schemas (スキーマ定義) ====
+# =================================================================
+class Waypoint(BaseModel):
+    spot_id: Optional[str] = None
+
+class Coord(BaseModel):
+    lat: float
+    lon: float
+
+class PlanRequest(BaseModel):
+    language: Literal["ja", "en", "zh"]
+    origin: Coord
+    waypoints: List[Waypoint]
+    return_to_origin: bool = True
+    buffer: dict = Field(default_factory=lambda: {"car": 300, "foot": 10})
+
+class Leg(BaseModel):
+    mode: Literal["car", "foot"]
+    from_: Coord = Field(..., alias="from")
+    to: Coord
+    distance_m: float
+    duration_s: float
+
+class Asset(BaseModel):
     spot_id: str
-    name: Optional[str] = None
-    description: Optional[str] = None
-    md_slug: Optional[str] = None
+    audio_url: Optional[str] = None
+    text_url: Optional[str] = None
+    bytes: Optional[int] = None
+    duration_s: Optional[float] = None
+    format: Optional[Literal["mp3","wav"]] = None
 
-class DescribeRequest(BaseModel):
-    language: Literal["ja","en","zh"]
-    spots: List[SpotRef]
-    style: str = "narration"
+class PlanResponse(BaseModel):
+    pack_id: str
+    route: dict
+    legs: List[Leg]
+    along_pois: List[dict]
+    assets: List[Asset]
+    manifest_url: str
 
-class DescribeItem(BaseModel):
-    spot_id: str
-    text: str
+# =================================================================
+# ==== Helpers (ヘルパー関数) ====
+# =================================================================
+def _collect_unique_spot_ids(waypoints: List[Waypoint], along_pois: List[dict]) -> List[str]:
+    planned = [w.spot_id for w in waypoints if w.spot_id and w.spot_id != "current"]
+    along = [p.get("spot_id") for p in along_pois if p.get("spot_id")]
+    uniq: List[str] = []
+    seen = set()
+    for sid in planned + along:
+        if sid not in seen:
+            seen.add(sid)
+            uniq.append(sid)
+    return uniq
 
-class DescribeResponse(BaseModel):
-    items: List[DescribeItem]
+def _build_spot_refs(spot_ids: List[str]) -> List[dict]:
+    spot_rows = get_spots_by_ids(spot_ids).values()
+    items = [
+        {
+            "spot_id": row.spot_id,
+            "name": row.name,
+            "description": row.description,
+            "md_slug": row.md_slug,
+        }
+        for row in spot_rows
+    ]
+    return items
 
-def describe_impl(payload: DescribeRequest) -> DescribeResponse:
-    items: list[DescribeItem] = []
-    for s in payload.spots:
-        # 既存処理：コンテキスト収集 → プロンプト生成 → LLM生成
-        ctx = generator.retrieve_context(s.spot_id, payload.language)
-        ptxt = prompt.build_prompt(s.model_dump(), ctx, payload.language, payload.style)
-        text = generator.generate_text(ptxt)
-        items.append(DescribeItem(spot_id=s.spot_id, text=text))
-    return DescribeResponse(items=items)
+# =================================================================
+# ==== Celery Workflow Tasks (ワークフローを構成するタスク群) ====
+# =================================================================
 
-@celery_app.task(name="llm.describe", bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=2)
-def describe_task(self, payload: dict) -> dict:
-    """
-    Celery からは JSON(dict) が渡されるので、Pydantic で復元して同じ処理を実行。
-    戻り値も JSON(dict)（DescribeResponse と同じ形）で返す。
-    """
-    req = DescribeRequest(**payload)
-    res = describe_impl(req)
-    # Celery の result_serializer='json' に合わせて Python dict にして返す
-    return res.model_dump()
+# --- ステップ1: 経路検索 ---
+@celery_app.task(name="nav.step.routing", bind=True)
+def step_routing(self, payload: dict) -> dict:
+    logger.info(f"[{self.request.id}] Step 1: Routing started")
+    req = PlanRequest(**payload)
+    payload = req.model_dump(by_alias=True)
+
+    routing_req = {
+        "origin": req.origin.model_dump(),
+        "waypoints": [w.model_dump() for w in req.waypoints],
+        "car_to_trailhead": True
+    }
+    routing = post_route(routing_req)
+    payload["routing_result"] = routing
+    return payload
+
+# --- ステップ2: 周辺POI検索 & LLMタスクの発行 ---
+@celery_app.task(name="nav.step.alongpoi_and_trigger_llm", bind=True)
+def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
+    logger.info(f"[{self.request.id}] Step 2: AlongPOI & Trigger LLM started")
+    # AlongPOIの処理
+    routing_result = payload["routing_result"]
+    along_req = {
+        "polyline": routing_result["polyline"],
+        "segments": routing_result.get("segments", []),
+        "buffer": payload["buffer"]
+    }
+    along = post_along(along_req)
+    payload["along_pois"] = along.get("pois", [])
+
+    # LLMタスクの準備
+    waypoints = [Waypoint(**w) for w in payload["waypoints"]]
+    uniq_ids = _collect_unique_spot_ids(waypoints, payload["along_pois"])
+    spot_refs = _build_spot_refs(uniq_ids)
+
+    llm_req = {"language": payload["language"], "style": "narration", "spots": spot_refs}
+    for spot in spot_refs:
+        if isinstance(spot.get("description"), dict):
+            description_dict = spot["description"]
+            spot["description"] = description_dict.get(payload["language"], description_dict.get("en", ""))
+    
+    logger.debug(f"NAV->LLM DEBUG: {llm_req}")
+
+    # LLMタスク完了後に実行する後続タスク(コールバック)のチェインを定義
+    callback_chain = chain(
+        step_synthesize_all.s(payload),
+        step_finalize.s()
+    )
+    # LLMタスクを投入し、完了後の処理として上記チェインを `link` で予約
+    _llm.send_task("llm.describe", args=[llm_req], queue="llm", link=callback_chain)
+    
+    # このタスクの役目はここまで。後続処理はlinkに任せる。
+    return
+
+# --- ステップ3: 音声合成 (LLMタスクのコールバックとして実行) ---
+@celery_app.task(name="nav.step.synthesize_all", bind=True)
+def step_synthesize_all(self, llm_out: dict, payload: dict) -> dict:
+    logger.info(f"[{self.request.id}] Step 3: Voice Synthesis (all) started")
+    payload["llm_items"] = llm_out.get("items", [])
+
+    if not payload["llm_items"]:
+        payload["assets"] = []
+        return payload
+
+    synthesis_tasks = group(
+        step_synthesize_one.s(payload["pack_id"], payload["language"], item)
+        for item in payload["llm_items"]
+    )
+    
+    result_group = synthesis_tasks.apply_async()
+    assets_results = result_group.get(timeout=300)
+    
+    payload["assets"] = assets_results
+    return payload
+
+# --- ステップ3a: 個別音声合成 ---
+@celery_app.task(name="nav.step.synthesize_one")
+def step_synthesize_one(pack_id: str, language: str, item: dict) -> dict:
+    sid = item["spot_id"]
+    logger.info(f"Executing voice synthesis for spot: {sid}")
+    voice_req = {
+        "language": language, "voice": "guide_female_1", "text": item["text"],
+        "spot_id": sid, "pack_id": pack_id,
+        "format": os.getenv("VOICE_FORMAT", "mp3"),
+        "bitrate_kbps": int(os.getenv("VOICE_BITRATE_KBPS", "64")),
+        "save_text": (os.getenv("VOICE_SAVE_TEXT", "1") == "1"),
+    }
+    vj = post_synthesize(voice_req)
+    asset = Asset(
+        spot_id=sid, audio_url=vj.get("audio_url"), text_url=vj.get("text_url"),
+        bytes=vj.get("bytes"), duration_s=vj.get("duration_s"), format=vj.get("format"),
+    )
+    return asset.model_dump()
+
+# --- ステップ4: 最終化 ---
+@celery_app.task(name="nav.step.finalize", bind=True)
+def step_finalize(self, payload: dict) -> dict:
+    logger.info(f"[{self.request.id}] Step 4: Finalize started")
+    pack_id = payload["pack_id"]
+    
+    waypoints = [Waypoint(**w) for w in payload.get("waypoints", [])]
+    spot_ids_for_coords = [w.spot_id for w in waypoints if w.spot_id]
+    spot_id_to_coords = {s.spot_id: (s.lat, s.lon) for s in get_spots_by_ids(spot_ids_for_coords).values()}
+    
+    coords_list = [(payload["origin"]["lat"], payload["origin"]["lon"])]
+    for wp in waypoints:
+        if wp.spot_id in spot_id_to_coords:
+            coords_list.append(spot_id_to_coords[wp.spot_id])
+    if payload.get('return_to_origin', True):
+        coords_list.append((payload["origin"]["lat"], payload["origin"]["lon"]))
+
+    final_legs = []
+    for leg_data in payload["routing_result"]["legs"]:
+        from_idx, to_idx = leg_data.get("from_idx", 0), leg_data.get("to_idx", 1)
+        if from_idx < len(coords_list) and to_idx < len(coords_list):
+            from_coords, to_coords = coords_list[from_idx], coords_list[to_idx]
+            final_legs.append({
+                "mode": leg_data["mode"], "from": {"lat": from_coords[0], "lon": from_coords[1]},
+                "to": {"lat": to_coords[0], "lon": to_coords[1]},
+                "distance_m": leg_data["distance"], "duration_s": leg_data["duration"]
+            })
+
+    polyline = payload["routing_result"]["polyline"]
+    segments = payload["routing_result"].get("segments", [])
+    manifest = {
+        "pack_id": pack_id, "language": payload["language"],
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "route_digest": sha1(json.dumps(polyline, separators=(',',':')).encode()).hexdigest(),
+        "segments": segments, "assets": payload["assets"]
+    }
+    manifest_path = Path(os.environ.get("PACKS_DIR","/packs")) / pack_id / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    manifest_url = f"{os.environ.get('PACKS_BASE_URL','/packs')}/{pack_id}/manifest.json"
+
+    response = PlanResponse(
+        pack_id=pack_id, route=payload["routing_result"]["feature_collection"],
+        legs=final_legs, along_pois=payload["along_pois"],
+        assets=[Asset(**a) for a in payload["assets"]], manifest_url=manifest_url,
+    )
+    logger.info(f"[{self.request.id}] Workflow finished successfully.")
+    return response.model_dump(by_alias=True)
+
+# =================================================================
+# ==== Workflow Entrypoint Task (APIから呼び出されるタスク) ====
+# =================================================================
+@celery_app.task(name="nav.plan", bind=True)
+def plan_workflow_entrypoint(self, payload: Dict[str, Any]):
+    pack_id = str(uuid.uuid4())
+    payload["pack_id"] = pack_id
+    
+    # ワークフローを短縮化。残りはlinkによるコールバックが処理する。
+    workflow = chain(
+        step_routing.s(payload),
+        step_alongpoi_and_trigger_llm.s(),
+    )
+    
+    raise self.replace(workflow)

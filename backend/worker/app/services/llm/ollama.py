@@ -7,7 +7,7 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:30b")
 
 
-def generate(prompt: str, model: str | None = None, options: dict | None = None, timeout: float = 60.0) -> str:
+def generate(prompt: str, model: str | None = None, options: dict | None = None, timeout: float = 300.0) -> str:
     """
     Ollama /api/generate を使用して 1 ショット生成（非ストリーミング）。
     """
