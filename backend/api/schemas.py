@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
-
+try:
+    # pydantic v2
+    from pydantic import ConfigDict
+    _V2 = True
+except Exception:
+    _V2 = False
 
 class Coord(BaseModel):
     lat: float
@@ -52,16 +57,26 @@ class Asset(BaseModel):
     spot_id: str
     text: str # text_urlからtextに変更
     audio: Optional[Audio] = None
+    format: Optional[str]
 
+class SegmentIndex(BaseModel):
+    mode: Literal["car", "foot"]
+    start_idx: int
+    end_idx: int
 
 class PlanResponse(BaseModel):
-    """
-    nav → Gateway → Frontend で共有する出力スキーマ。
-    """
     pack_id: str
-    route: Dict[str, Any]          # GeoJSON FeatureCollection
+    route: Dict[str, Any]
     polyline: List[List[float]]
-    segments: List[Dict[str, Any]]
+    segments: List[SegmentIndex]
+
     legs: List[Leg]
     along_pois: List[AlongPoi]
     assets: List[Asset]
+
+    # ★ 将来の追加キーを落とさない（polyline/segments未定義の版でも安全）
+    if _V2:
+        model_config = ConfigDict(extra="allow")
+    else:
+        class Config:
+            extra = "allow"
