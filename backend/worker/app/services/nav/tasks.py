@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from backend.worker.app.services.nav.celery_app import celery_app
 from backend.worker.app.services.nav.client_routing import post_route
 from backend.worker.app.services.nav.client_alongpoi import post_along
-from backend.worker.app.services.nav.client_voice import post_synthesize
+from backend.worker.app.services.nav.client_voice import post_synthesize_and_save
 from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
 
 import logging
@@ -26,11 +26,7 @@ _llm = Celery(
     broker=os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"),
     backend=os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/1"),
 )
-
-_llm.conf.update(
-    task_serializer="json",
-    accept_content=["json"],
-)
+_llm.conf.update(task_serializer="json", accept_content=["json"])
 
 # =================================================================
 # ==== Schemas (スキーマ定義) ====
@@ -109,7 +105,6 @@ def step_routing(self, payload: dict) -> dict:
     logger.info(f"[{self.request.id}] Step 1: Routing started")
     req = PlanRequest(**payload)
     payload.update(req.model_dump())
-    # payload = req.model_dump(by_alias=True)
 
     routing_req = {
         "origin": req.origin.model_dump(),
@@ -118,14 +113,12 @@ def step_routing(self, payload: dict) -> dict:
     }
     routing = post_route(routing_req)
     payload["routing_result"] = routing
-    print(f"【pack_id DEBUG】ステップ1：payload[pack_id]={payload['pack_id']}")
     return payload
 
-# --- ステップ2: 周辺POI検索 & LLMタスクの発行 ---
-@celery_app.task(name="nav.step.alongpoi_and_trigger_llm", bind=True)
-def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
-    logger.info(f"[{self.request.id}] Step 2: AlongPOI & Trigger LLM started")
-    # AlongPOIの処理
+# --- ステップ2: 周辺POI検索 & LLMタスクの**シグネチャを返す** ---
+@celery_app.task(name="nav.step.alongpoi_and_llm", bind=True)
+def step_alongpoi_and_llm(self, payload: dict): # 戻り値の型ヒントを削除
+    logger.info(f"[{self.request.id}] Step 2: AlongPOI & LLM started")
     routing_result = payload["routing_result"]
     along_req = {
         "polyline": routing_result["polyline"],
@@ -135,7 +128,6 @@ def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
     along = post_along(along_req)
     payload["along_pois"] = along.get("pois", [])
 
-    # LLMタスクの準備
     waypoints = [Waypoint(**w) for w in payload["waypoints"]]
     uniq_ids = _collect_unique_spot_ids(waypoints, payload["along_pois"])
     spot_refs = _build_spot_refs(uniq_ids)
@@ -145,67 +137,72 @@ def step_alongpoi_and_trigger_llm(self, payload: dict) -> None:
         if isinstance(spot.get("description"), dict):
             description_dict = spot["description"]
             spot["description"] = description_dict.get(payload["language"], description_dict.get("en", ""))
-    
+
     logger.debug(f"NAV->LLM DEBUG: {llm_req}")
 
-    # step_synthesize_allがchord経由でfinalizeを呼ぶので、ここでのchainは不要
-    callback_task = step_synthesize_all.s(payload=payload).set(queue="nav")
-    # LLMタスクを投入し、完了後の処理として上記チェインを `link` で予約
-    _llm.send_task("llm.describe", args=[llm_req], queue="llm", link=callback_task)
+    # 【修正点】
+    # 次のステップ（step_synthesize_all）にペイロードを渡すタスクのシグネチャを作成し、
+    # それをLLMタスクのコールバックとして設定したチェインを返す。
+    llm_task = _llm.signature("llm.describe", args=[llm_req], queue="llm")
+    callback_task = step_synthesize_all.s(payload=payload) # `s`で部分適用
     
-    # このタスクの役目はここまで。後続処理はlinkに任せる。
-    return
+    # llm_taskが完了したら、その結果を第一引数としてcallback_taskを呼び出すチェインを返す
+    return chain(llm_task, callback_task)
+
 
 # --- ステップ3: 音声合成 (LLMタスクのコールバックとして実行) ---
 @celery_app.task(name="nav.step.synthesize_all", bind=True)
-def step_synthesize_all(self, llm_out: dict, *, payload: dict) -> None:
+def step_synthesize_all(self, llm_out: dict, *, payload: dict): # 戻り値の型ヒントを削除
     logger.info(f"[{self.request.id}] Step 3: Voice Synthesis Chord triggered")
     payload["llm_items"] = llm_out.get("items", [])
 
-    # llm_itemsが空なら、すぐにfinalizeを呼んで終了
     if not payload["llm_items"]:
-        # step_finalizeは結果リストを第一引数に取るので空リストを渡す
-        step_finalize.delay(assets_results=[], payload=payload)
-        return
+        # 【修正点】空の場合でも finalize のシグネチャを返す
+        return step_finalize.s(assets_results=[], payload=payload)
 
-    # Chordのヘッダー：並列実行される個別の音声合成タスクのグループ
     synthesis_tasks = group(
         step_synthesize_one.s(payload["pack_id"], payload["language"], item)
         for item in payload["llm_items"]
     )
     
-    # Chordのコールバック（ボディ）：ヘッダーのタスク結果が第一引数に渡される
-    # payloadは第二引数として渡すように.s()で部分適用しておく
-    callback_task = step_finalize.s(payload=payload).set(queue="nav")
+    callback_task = step_finalize.s(payload=payload)
+    
+    # 【修正点】chordのシグネチャを返し、実行はCeleryに任せる
+    return chord(synthesis_tasks, callback_task)
 
-    # Chordを定義して実行
-    chord(synthesis_tasks)(callback_task)
-
-    # このタスクの役目はChordを起動することなので、戻り値はなし
-    return
 
 # --- ステップ3a: 個別音声合成 ---
 @celery_app.task(name="nav.step.synthesize_one")
 def step_synthesize_one(pack_id: str, language: str, item: dict) -> dict:
     sid = item["spot_id"]
     logger.info(f"Executing voice synthesis for spot: {sid}")
+    # 【重要】/synthesize_and_save を呼び出すように修正
     voice_req = {
-        "language": language, "voice": "guide_female_1", "text": item["text"],
-        "spot_id": sid, "pack_id": pack_id,
-        "format": os.getenv("VOICE_FORMAT", "mp3"),
+        "pack_id": pack_id,
+        "language": language,
+        "items": [{"spot_id": sid, "text": item["text"]}],
+        "preferred_format": os.getenv("VOICE_FORMAT", "mp3"),
         "bitrate_kbps": int(os.getenv("VOICE_BITRATE_KBPS", "64")),
         "save_text": (os.getenv("VOICE_SAVE_TEXT", "1") == "1"),
     }
-    vj = post_synthesize(voice_req)
-    asset = Asset(
-        spot_id=sid, audio_url=vj.get("audio_url"), text_url=vj.get("text_url"),
-        bytes=vj.get("bytes"), duration_s=vj.get("duration_s"), format=vj.get("format"),
-    )
-    return asset.model_dump()
+    # post_synthesize から post_synthesize_and_save に変更
+    vj = post_synthesize_and_save(voice_req)
+    # 戻り値の構造が違うので合わせる
+    item_res = vj["items"][0] if vj.get("items") else {}
+
+    return {
+        "spot_id": sid,
+        "audio_url": item_res.get("url"),
+        "text_url": item_res.get("text_url"),
+        "bytes": item_res.get("size_bytes"),
+        "duration_s": item_res.get("duration_sec"),
+        "format": item_res.get("format"),
+    }
 
 # --- ステップ4: 最終化 ---
 @celery_app.task(name="nav.step.finalize", bind=True)
 def step_finalize(self, assets_results: list, payload: dict) -> dict:
+    # このタスクの中身は変更なしでOK
     logger.info(f"[{self.request.id}] Step 4: Finalize started")
     llm_items_map = {item['spot_id']: item for item in payload.get("llm_items", [])}
     
@@ -264,7 +261,6 @@ def step_finalize(self, assets_results: list, payload: dict) -> dict:
     manifest_path = Path(os.environ.get("PACKS_DIR","/packs")) / pack_id / "manifest.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
-    manifest_url = f"{os.environ.get('PACKS_BASE_URL','/packs')}/{pack_id}/manifest.json"
 
     response_data = {
         "pack_id": pack_id,
@@ -277,7 +273,6 @@ def step_finalize(self, assets_results: list, payload: dict) -> dict:
     }
     
     logger.info(f"[{self.request.id}] Workflow finished successfully.")
-    # pydanticモデルでの検証はAPI側で行うので、ここでは辞書を返す
     return response_data
 
 # =================================================================
@@ -287,12 +282,13 @@ def step_finalize(self, assets_results: list, payload: dict) -> dict:
 def plan_workflow_entrypoint(self, payload: Dict[str, Any]):
     pack_id = str(uuid.uuid4())
     payload["pack_id"] = pack_id
-    print(f"【pack_id DEBUG】ステップ0：payload[pack_id]={payload['pack_id']}")
     
-    # ワークフローを短縮化。残りはlinkによるコールバックが処理する。
+    # 【修正点】チェインの定義を変更
     workflow = chain(
         step_routing.s(payload),
-        step_alongpoi_and_trigger_llm.s(),
+        step_alongpoi_and_llm.s(),
+        # step_alongpoi_and_llm が次のチェイン（LLM→synthesize→finalize）を返す
     )
     
+    # self.replace で現在のタスクをこのワークフローに置き換える
     raise self.replace(workflow)

@@ -60,20 +60,6 @@ def enqueue_nav_plan(req: PlanRequest, request: Request):
     )
 
 # ========== GET /api/nav/plan/tasks/{task_id} → 状態照会 ==========
-def _flatten_children(r: AsyncResult) -> list[AsyncResult]:
-    """
-    r.children は None / list[AsyncResult] / list[GroupResult] が混在し得る。
-    GroupResult は .results で展開する。
-    """
-    out: list[AsyncResult] = []
-    ch = getattr(r, "children", None) or []
-    for c in ch:
-        if isinstance(c, GroupResult):
-            out.extend(c.results or [])
-        else:
-            out.append(c)
-    return out
-
 def _deepest_descendant(r: AsyncResult) -> AsyncResult:
     """
     タスクチェーンを辿り、最終的な葉（leaf）タスクの結果オブジェクトを返す。
@@ -84,27 +70,35 @@ def _deepest_descendant(r: AsyncResult) -> AsyncResult:
     queue = [r]
     visited = {r.id}
     
+    # 見つかった中で最も深い（新しい）タスクを保持しておく
+    latest_task = r
+
     while queue:
         current_task = queue.pop(0)
+        latest_task = current_task
         
         # finalizeタスクが見つかったら、それが最終タスク
         if current_task.name == 'nav.step.finalize':
             return current_task
 
-        if current_task.children:
+        if hasattr(current_task, 'children') and current_task.children:
             for child in current_task.children:
+                task_to_add = None
                 # GroupResultの場合は、そのコールバック(chordのボディ部)を追跡対象にする
-                if isinstance(child, GroupResult) and child.parent:
-                    if child.parent.id not in visited:
-                        queue.append(child.parent)
-                        visited.add(child.parent.id)
+                if isinstance(child, GroupResult):
+                    if child.parent and child.parent.id not in visited:
+                        task_to_add = child.parent
                 # 通常のタスクの場合
-                elif isinstance(child, AsyncResult) and child.id not in visited:
-                    queue.append(child)
-                    visited.add(child.id)
+                elif isinstance(child, AsyncResult):
+                     if child.id not in visited:
+                        task_to_add = child
+                
+                if task_to_add:
+                    queue.append(task_to_add)
+                    visited.add(task_to_add.id)
                     
-    # finalizeが見つからなかった場合、元のタスクを返す
-    return r
+    # finalizeが見つからなかった場合、探索で見つかった最も深いタスクを返す
+    return latest_task
 
 def _as_dict_if_json_string(x: Union[str, dict]) -> Union[dict, None]:
     if isinstance(x, dict):
