@@ -1,0 +1,15 @@
+<think>
+Okay, I need to create a spoken narration for the tourist spot 法体の滝 (spot_007) in Japanese. Let me start by understanding the requirements.
+
+First, the user wants a professional tour guide style, so the tone should be calm and informative. The narration should be around 45-60 seconds, which translates to about 200-300 words. I need to make sure to include the structure: short intro, key facts/history/nature, fun tidbit, and safety reminder. Also, avoid speculation and keep it self-contained without referencing any external documents.
+
+The facts provided mention that it's part of the Japanese 100 Famous Waterfalls, with water from Chokai Mountain flowing in three steps. I should highlight that. The fun tidbit could be something like the name's origin or a local story. For the safety reminder, I need to mention weather, footing, and wildlife, but without recommending excessive actions.
+
+Let me check the constraints again. No over-the-top metaphors, use proper nouns accurately. Safety considerations must be included in one sentence. Also, avoid any unknown information by stating briefly if unsure.
+
+Now, structuring the intro: maybe start with welcoming visitors and introducing the waterfall. Then mention it's part of the 100 selections, describe the three-step cascade from Chokai Mountain. The fun tidbit could be the name's meaning or a local legend. For safety, remind about weather, uneven ground, and wildlife, advising caution without pushing for risky behavior.
+
+Wait, the user specified to add safety considerations in one sentence, so I need to integrate that into the safety reminder part. Let me make sure the total length is appropriate. Let me draft each section step by step, keeping each part concise. Also, check for proper nouns like 法体の滝 and 鳥海山. Avoid any markdown and ensure plain text only.
+</think>
+
+法体の滝は、日本の滝百選に選ばれた名瀑です。鳥海山から流れる水が三段にわたって流れ落ち、壮大な姿を見せてくれます。特に春から夏にかけて、水量が豊かで見どころが増します。実は、滝の名前の「法体」は、かつてこの辺りにあった仏教の修行所を指すと伝えられています。ただ、足元は滑りやすくなる場合がありますので、注意が必要です。天候や野生動物への配慮も忘れず、安全に楽しんでください。

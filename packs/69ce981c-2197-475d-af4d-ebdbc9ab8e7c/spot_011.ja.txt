@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration for the visitor guide at 道の駅象潟. Let me start by understanding the requirements. The user wants a narration in Japanese, with a calm guide tone, around 45-60 seconds, so about 200-300 characters. The structure should include a short intro, key facts, a fun tidbit, and a safety reminder. Also, I have to avoid speculation and keep it self-contained without referencing any documents.
+
+First, the intro should be brief. Maybe start with welcoming visitors to the area. Then mention the key facts: the view of the Japan Sea, the onsen, local products, and the restaurant. The fun tidbit could be about the name "象潟" and its relation to the area's history or geography. For the safety reminder, I need to mention weather, footing, and wildlife, but without recommending excessive actions. 
+
+Wait, the facts say it's a viewpoint onsen, local specialties, and a restaurant. The fun tidbit: the name "象潟" – maybe it's related to the area's name, like "象" meaning elephant, but I should check if that's accurate. Alternatively, maybe it's a local legend or something. But since I can't speculate, I should stick to what's known. The name might be from the local language, but if I don't know, I should say so. Wait, the user said to avoid speculation and if unknown, mention briefly. So if I'm unsure about the name's origin, I should say something like "the name '象潟' may have historical significance."
+
+Safety reminder: weather changes quickly, so check forecasts. Watch your step on uneven paths. Be cautious of wildlife, though specific animals aren't mentioned. Maybe just a general note about wildlife.
+
+Putting it all together: Start with a welcome, mention the onsen and views, the local products and restaurant. Then the fun fact about the name. Safety tips about weather, footing, and wildlife. Keep each part concise. Make sure to use the correct terms and avoid overused metaphors. Also, check the character count to stay within the limit. Let me draft it now.
+</think>
+
+道の駅象潟へようこそ。日本海を望む展望温泉が人気のスポットです。地元の特産品や海産物を購入でき、レストランも併設されています。名称の「象潟」は、地元の歴史や自然に由来する可能性があります。天候の急変や足元の滑りやすさにご注意ください。野生動物に遭遇する可能性もあるため、周囲を確認しながら行動してください。
