@@ -288,18 +288,18 @@ services:
     ports: ["9100:9100"]
   
   # --- Frontend (開発用) ---
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      # ホストの5173番ポートをコンテナの5173番に接続 (Viteのデフォルト)
-      - "5173:5173" 
-    volumes:
-      # ソースコードの変更を即時反映させる
-      - ./frontend:/app
-      # node_modulesはホストと共有しない(パフォーマンスと環境差異のため)
-      - /app/node_modules
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     # ホストの5173番ポートをコンテナの5173番に接続 (Viteのデフォルト)
+  #     - "5173:5173" 
+  #   volumes:
+  #     # ソースコードの変更を即時反映させる
+  #     - ./frontend:/app
+  #     # node_modulesはホストと共有しない(パフォーマンスと環境差異のため)
+  #     - /app/node_modules
 
 volumes:
   ollama_models:

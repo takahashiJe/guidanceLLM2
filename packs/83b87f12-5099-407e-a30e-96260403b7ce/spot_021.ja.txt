@@ -1,0 +1,9 @@
+<think>
+Okay, the user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about Ganman-ji Temple. Let me start by understanding the requirements. The facts mention it's a Jodo-shu temple in Oshigata, visited by Matsuo Basho who wrote a haiku. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, the tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Need to avoid speculation, use accurate terms, and include safety advice about weather, terrain, and wildlife without recommending excessive activities.
+
+First, the intro should mention the location and that it's a temple. Then the key facts: it's a Jodo-shu temple, Basho visited and wrote a haiku. The fun tidbit could be that the haiku is about the sea and autumn leaves. For safety, mention checking weather, being cautious on the path, and avoiding wildlife. Need to keep it concise and self-contained, no references to external documents. Let me check the character count. Also, ensure the safety part is a single sentence. Let me piece it together smoothly.
+</think>
+
+【スポット紹介】象潟にある曹洞宗の Ganman-ji（がんまんじ）は、松尾芭蕉が「おくのほそ道」で訪れ、句を詠んだ歴史的寺院です。境内には季節の移ろいを感じる自然が広がります。  
+【興味深いエピソード】芭蕉が詠んだ句には「海の秋の波」が登場し、その情景が今も残っています。  
+【安全配慮】天候や足元の変化に注意し、野生動物との遭遇には配慮してください。

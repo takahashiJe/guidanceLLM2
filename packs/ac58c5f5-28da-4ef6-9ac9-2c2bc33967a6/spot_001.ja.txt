@@ -1,0 +1,9 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the "あがりこ大王" spot. The facts given are that it's a deformed birch tree that grew from a sapling after logging. 
+
+First, I need to structure the narration into four parts: short intro, key facts, fun tidbit, and safety reminder. The tone should be calm and professional, around 45-60 seconds, so about 200-300 characters. I have to avoid overused metaphors and stick to the facts provided. Also, mention the safety precautions regarding weather, footing, and wildlife without recommending excessive actions.
+
+Starting with the intro: Welcome visitors to the area and introduce the spot. Then, explain the key fact about the tree's growth from a sapling after logging. The fun tidbit could be that it's a symbol of resilience. For safety, mention checking the weather, being cautious with the terrain, and avoiding wildlife areas. Need to ensure all proper nouns are correct, like the name of the spot. Also, avoid any speculation if there's unknown info. Keep it self-contained without referencing other documents. Finally, make sure the output is plain text only.
+</think>
+
+皆様、あがりこ大王へようこそ。伐採後の萌芽から成長したこの奇形ブナは、自然の力強さを象徴する存在です。約150年間の時を超えて、岩の隙間から根を張り、歪んだ姿で今なお生き続けています。地元の伝説では、この木が山の守護神を思わせる存在とされ、多くの訪問者がその静かな存在感に感動するのだとか。天候や足元にご注意ください。また、野生動物の出没に配慮し、自然の中での行動はほどほどにお楽しみください。

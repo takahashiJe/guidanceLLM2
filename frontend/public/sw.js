@@ -1,22 +1,28 @@
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+const APP_CACHE = 'app-shell-v1';
+const APP_ASSETS = [
+  '/', '/index.html',
+  '/favicon.ico',
+];
 
-async function prefetch(urls) {
-  const cache = await caches.open("packs");
-  // まとめて取れない場合もあるので逐次
-  for (const u of urls || []) {
-    try { await cache.add(u); } catch (e) { /* 個別失敗は無視 */ }
-  }
-}
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(APP_CACHE).then(c => c.addAll(APP_ASSETS)));
+});
 
-self.addEventListener("message", async (e) => {
-  const { type, payload } = e.data || {};
-  if (type === "PREFETCH_ASSETS") {
-    try {
-      await prefetch(payload?.urls || []);
-      e.ports[0]?.postMessage({ ok: true, count: (payload?.urls || []).length });
-    } catch {
-      e.ports[0]?.postMessage({ ok: false, count: 0 });
-    }
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== APP_CACHE).map(k => caches.delete(k)))
+    )
+  );
+});
+
+// ルートや静的はキャッシュ優先、APIや /packs/ はページ側で制御する方針
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  const isApp = url.origin === location.origin && !url.pathname.startsWith('/back/');
+  if (isApp) {
+    e.respondWith(
+      caches.match(e.request).then(r => r || fetch(e.request))
+    );
   }
 });

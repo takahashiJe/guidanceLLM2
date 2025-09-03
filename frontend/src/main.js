@@ -1,20 +1,11 @@
-import { createApp } from "vue";
-import { createPinia } from "pinia";
-import App from "./App.vue";
-import { router } from "./router";
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import router from './router'
+import App from './App.vue'
+import './assets/base.css'
+import './assets/main.css'
 
-// ベースCSSの読み込み
-import "./assets/base.css";
-import "./assets/main.css";
-
-const app = createApp(App);
-
-// 状態管理（Pinia）
-const pinia = createPinia();
-app.use(pinia);
-
-// ルーティング
-app.use(router);
-
-// マウント
-app.mount("#app");
+const app = createApp(App)
+app.use(createPinia())
+app.use(router)
+app.mount('#app')
