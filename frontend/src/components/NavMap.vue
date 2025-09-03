@@ -1,67 +1,77 @@
-<!-- src/components/NavMap.vue -->
 <template>
-  <div ref="mapEl" class="w-full h-full"></div>
+  <div ref="mapEl" class="leaflet"></div>
 </template>
 
-<script>
+<script setup>
+import { ref, watch, onMounted } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-export default {
-  name: 'NavMap',
-  props: {
-    plan: { type: Object, default: null },
-  },
-  setup(props) {
-    const mapEl = ref(null)
-    let map, routeLayer, marker
+const props = defineProps({
+  route: { type: Object, default: null },        // GeoJSON FeatureCollection
+  along: { type: Array,  default: () => [] },    // POI 配列
+  userPos: { type: Object, default: () => ({ lat: 0, lon: 0 }) },
+  proximityRadius: { type: Number, default: 250 }
+})
 
-    function ensureMap() {
-      if (map) return
-      map = L.map(mapEl.value)
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '&copy; OpenStreetMap'
-      }).addTo(map)
-      routeLayer = L.geoJSON().addTo(map)
-      marker = L.circleMarker([39.22, 139.90], { radius: 6 }).addTo(map)
-      map.setView([39.22, 139.90], 11)
-    }
+const mapEl = ref(null)
+let map, routeLayer, userMarker, radiusCircle, poiLayer
 
-    function drawPlan() {
-      if (!map || !props.plan?.route) return
-      routeLayer.clearLayers()
-      routeLayer.addData(props.plan.route)
-      try {
-        map.fitBounds(routeLayer.getBounds(), { padding: [20, 20] })
-      } catch(_) {}
-    }
+function ensureMap () {
+  if (map) return
+  map = L.map(mapEl.value, { zoomControl: true })
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map)
 
-    // 現在地を更新（ナビ用途）
-    function updateCurrentPosition() {
-      if (!navigator.geolocation) return
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const { latitude, longitude } = pos.coords
-        marker.setLatLng([latitude, longitude])
-      })
-    }
+  // 初期中心
+  map.setView([props.userPos.lat, props.userPos.lon], 12)
 
-    onMounted(() => {
-      ensureMap()
-      drawPlan()
-      updateCurrentPosition()
-      // ゆるく現在地更新
-      const id = setInterval(updateCurrentPosition, 5000)
-      onUnmounted(() => clearInterval(id))
-    })
+  routeLayer = L.geoJSON(null, { style: { weight: 5, opacity: 0.9 } }).addTo(map)
+  poiLayer   = L.layerGroup().addTo(map)
+  userMarker = L.marker([props.userPos.lat, props.userPos.lon]).addTo(map)
+  radiusCircle = L.circle([props.userPos.lat, props.userPos.lon], {
+    radius: props.proximityRadius
+  }).addTo(map)
+}
 
-    watch(() => props.plan, drawPlan, { deep: true })
-
-    return { mapEl }
+function drawRoute () {
+  routeLayer.clearLayers()
+  if (props.route) {
+    routeLayer.addData(props.route)
+    try {
+      map.fitBounds(routeLayer.getBounds(), { padding: [20, 20] })
+    } catch {}
   }
 }
+
+function drawPOIs () {
+  poiLayer.clearLayers()
+  if (!props.along?.length) return
+  props.along.forEach(p => {
+    L.marker([p.lat, p.lon]).addTo(poiLayer).bindPopup(p.name || p.spot_id)
+  })
+}
+
+function updateUser () {
+  if (!map) return
+  userMarker.setLatLng([props.userPos.lat, props.userPos.lon])
+  radiusCircle.setLatLng([props.userPos.lat, props.userPos.lon])
+  radiusCircle.setRadius(props.proximityRadius)
+}
+
+onMounted(() => {
+  ensureMap()
+  drawRoute()
+  drawPOIs()
+  updateUser()
+})
+
+watch(() => props.route, drawRoute, { deep: true })
+watch(() => props.along, drawPOIs, { deep: true })
+watch(() => [props.userPos, props.proximityRadius], updateUser, { deep: true })
 </script>
 
 <style scoped>
-/* 端末全画面で見やすいように */
-:host, .w-full.h-full, div[ref="mapEl"] { height: 100%; }
+.leaflet { width: 100%; height: 100%; }
 </style>
