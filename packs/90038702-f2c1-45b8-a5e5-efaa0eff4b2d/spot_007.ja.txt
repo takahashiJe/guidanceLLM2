@@ -1,0 +1,11 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 法体の滝 (spot_007). The facts mention it's part of the Japanese 100 Waterfalls selection, with water from Bird's Mountain cascading in three steps. 
+
+First, I need to structure the narration into four parts: short intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid overused metaphors and keep it self-contained without referencing external documents.
+
+Starting with the intro: Greet the visitors and mention the waterfall's status as one of Japan's top 100. Then, describe the three-tier cascade from Bird's Mountain. For the fun tidbit, maybe mention the name's origin, like "Hōtei" being a Bodhisattva, which adds a cultural touch. Safety reminder needs to include weather, footing, and wildlife, without recommending excessive activities. 
+
+Check for any unknowns—since the facts provided are limited, I shouldn't speculate beyond what's given. Make sure all proper nouns are correct, like 鳥海山 (Toriyama-san). Keep the language simple and natural, avoiding complex sentences. Let me piece it together now, ensuring each section flows smoothly and meets the constraints.
+</think>
+
+こんにちは、法体の滝へようこそ。日本の滝百選に選ばれたこの名瀑は、鳥海山から流れる水が三段にわたって流れ落ちる様子が壮観です。特に春から秋の時期は、透明な水流が岩の上を滑るように落ちる姿が目立ちます。ちなみに、滝の名前の「法体」は仏教の菩薩「法蔵」と関係するといわれています。足元は滑りやすくなる場合がありますので、軽装でのご来訪はお避けください。天候や野生動物への配慮もお忘れなく。

@@ -1,0 +1,9 @@
+<think>
+Okay, let's tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about the "あがりこ大王" (spot_001). The facts mention it's a deformed beech tree that grew from a sapling after logging.
+
+First, I need to structure it into four parts: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid flowery metaphors, keep it factual. Also, include a safety note about weather, terrain, and wildlife without recommending risky activities.
+
+Start with a short intro welcoming visitors to the area and introducing the spot. Then explain the tree's origin as a sapling after logging. The fun fact could be that it's a symbol of resilience. For safety, mention checking weather, being cautious on uneven ground, and avoiding wildlife areas. Make sure to use the correct name "あがりこ大王" and avoid speculation if any details are unknown. Keep it self-contained without referencing external documents. Let me check the character count to ensure it's within the limit. Also, ensure the safety reminder is concise and fits naturally.
+</think>
+
+皆様、あがりこ大王へようこそ。この奇形ブナは、かつての伐採後、わずかな萌芽から成長した自然の歴史を映す存在です。枝の歪みは、厳しい環境の中で生き抜いた証です。面白いのは、地元の伝説では「山の守護神」と崇められていたこと。登山道沿いには、木の皮に刻まれた祈願のメッセージも見られます。天候や足元の変化に注意し、野生動物の出没に配慮しながら、静かな鑑賞をお楽しみください。

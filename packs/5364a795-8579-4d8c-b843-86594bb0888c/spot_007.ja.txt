@@ -1,0 +1,11 @@
+<think>
+Okay, I need to create a spoken narration for the tourist guide about 法体の滝 (spot_007). Let me start by understanding the user's requirements. The user wants a narration in Japanese with a calm guide tone, around 45-60 seconds, which translates to about 200-300 characters. The structure should include a short intro, key facts/history/nature, a fun tidbit, and a safety reminder. Also, I need to mention safety considerations regarding weather, footing, and wildlife, without recommending excessive actions.
+
+First, the intro should be brief. Maybe start with welcoming visitors to the area and introducing the waterfall. Then, the key facts: it's part of the Japan's 100 Famous Waterfalls, and the water from Chokai Mountain flows in three steps. The fun tidbit could be that the name "Hōtei no Taki" relates to the Buddhist deity Hōtei, which is a nice cultural touch. For safety, mention weather changes, unstable footing, and wildlife, advising to stay on paths and check conditions.
+
+I need to make sure not to use any speculation. If there's any unknown info, just say so briefly. Also, keep it self-contained without referencing any documents. Let me check the facts again. The POI description says it's part of Japan's 100 Famous Waterfalls, and the water from Chokai Mountain flows in three steps. The name Hōtei no Taki is linked to the deity. Safety: weather, footing, wildlife. Avoid over-the-top recommendations.
+
+Now, structure each part. Intro: Welcome and mention the waterfall. Key facts: Japan's 100, three steps. Fun tidbit: name origin. Safety: weather, footing, wildlife. Keep it concise. Let me draft in Japanese, ensuring the tone is calm and informative. Check for any markdown and ensure plain text. Also, confirm the characters are within the limit. Let me count the characters. The example provided by the user is around 200-300 characters. Let me make sure each part is covered without exceeding the limit.
+</think>
+
+皆様、法体の滝へようこそ。日本の滝百選に選ばれたこの名瀑は、鳥海山から流れる水が三段にわたって流れ落ちる様子が壮観です。滝の名前は仏教の「法体」に由来し、伝説にも彩られています。ただし、天候の変化や足元の滑りやすさ、野生動物の出没に注意が必要です。滝壺や岩場は立ち入り禁止ですので、安全に楽しんでください。

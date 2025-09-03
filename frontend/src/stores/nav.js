@@ -1,167 +1,127 @@
 // src/stores/nav.js
 import { defineStore } from 'pinia';
 import { openDB } from 'idb';
-import { createPlan, fetchPlanTask } from '@/lib/api';
+import { createPlan, pollPlan } from '@/lib/api';
 
 const DB_NAME = 'navpacks';
-const DB_STORE = 'plans';
+const DB_VER = 1;
+const STORE   = 'plans';
 
 async function getDB() {
-  return openDB(DB_NAME, 1, {
+  return openDB(DB_NAME, DB_VER, {
     upgrade(db) {
-      if (!db.objectStoreNames.contains(DB_STORE)) {
-        db.createObjectStore(DB_STORE, { keyPath: 'pack_id' });
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE);
       }
-    },
+    }
   });
-}
-
-function haversine(a, b) {
-  const R = 6371000;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(b.lat - a.lat);
-  const dLon = toRad(b.lon - a.lon);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const x = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(x));
-}
-
-async function playFromCacheOrNetwork(url, packId) {
-  const cache = await caches.open(`packs-${packId}`);
-  const cached = await cache.match(url);
-  const src = cached ? URL.createObjectURL(await cached.blob()) : url;
-  const audio = new Audio(src);
-  try { await audio.play(); } catch (_) {}
 }
 
 export const useNavStore = defineStore('nav', {
   state: () => ({
+    // UI入力保持
     lang: 'ja',
-    waypoints: [],
-    taskId: null,
+    origin: { lat: 39.2201, lon: 139.9006 },
+    waypointIds: [],
+
+    // 実行・結果
     plan: null,
-    watchingId: null,
-    triggered: new Set(),
-    proximityMeters: 250,
+    packId: null,
     polling: false,
-    pollLog: [],
+    ready: false,
+    error: null,
   }),
   getters: {
-    packId: (s) => s.plan?.pack_id || null,
+    hasPlan: (s) => !!s.plan,
   },
   actions: {
-    setLang(l) { this.lang = l; },
-    setWaypoints(list) { this.waypoints = list; },
-
-    async submitPlan(origin) {
-      console.log('[nav] submitPlan origin=', origin, 'lang=', this.lang, 'wps=', this.waypoints);
-      if (!this.waypoints.length) throw new Error('waypoints is empty');
-      const payload = {
-        language: this.lang,
-        origin,
-        return_to_origin: true,
-        waypoints: this.waypoints.map(id => ({ spot_id: id })),
-      };
-      const res = await createPlan(payload);
-      this.taskId = res.task_id;
-      console.log('[nav] taskId=', this.taskId);
-      // 自動でポーリング開始
-      this.pollUntilReady().catch(err => {
-        console.error('[nav] poll error:', err);
-        this.pollLog.push(`ERROR: ${err.message || err}`);
-      });
-      return res;
+    // ====== UI設定系 ======
+    setLang(lang) {
+      // サーバは "ja" | "en" | "zh"
+      const m = { ja: 'ja', en: 'en', zh: 'zh', 'zh-CN': 'zh', cn: 'zh' };
+      this.lang = m[lang] || 'ja';
     },
-
-    async pollUntilReady(intervalMs = 1500, timeoutMs = 120000) {
-      if (!this.taskId) throw new Error('taskId is empty');
-      const start = Date.now();
-      this.polling = true;
-      this.pollLog = [];
-      console.log('[nav] start polling taskId=', this.taskId);
-
-      while (true) {
-        const { status, body } = await fetchPlanTask(this.taskId);
-        this.pollLog.push(`status=${status} ${new Date().toLocaleTimeString()}`);
-        console.log('[nav] poll status', status, body ? '(body received)' : '');
-
-        if (status === 200) {
-          this.plan = body;
-          const db = await getDB();
-          await db.put(DB_STORE, body);
-          await this.prefetchAssets();
-          this.polling = false;
-          console.log('[nav] READY pack=', this.plan?.pack_id);
-          return body;
-        }
-
-        if (status === 500) {
-          this.polling = false;
-          throw new Error(`plan failed: ${JSON.stringify(body)}`);
-        }
-
-        if (Date.now() - start > timeoutMs) {
-          this.polling = false;
-          throw new Error('plan polling timeout');
-        }
-
-        await new Promise(r => setTimeout(r, intervalMs));
+    setOrigin({ lat, lon }) {
+      const latNum = Number(lat);
+      const lonNum = Number(lon);
+      if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+        this.origin = { lat: latNum, lon: lonNum };
       }
     },
-
-    async prefetchAssets() {
-      if (!this.plan?.assets?.length) return;
-      const packId = this.packId;
-      const cache = await caches.open(`packs-${packId}`);
-      console.log('[nav] prefetch assets for pack', packId);
-      await Promise.all(
-        this.plan.assets
-          .map(a => a?.audio?.url)
-          .filter(Boolean)
-          .map(u => cache.add(new Request(u, { mode: 'same-origin' })))
-      );
-      console.log('[nav] prefetch done');
+    setWaypoints(ids) {
+      this.waypointIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
     },
 
-    async restorePlan(packId) {
+    // ====== Plan 反映系 ======
+    setPlan(plan) {
+      this.plan = plan;
+      this.packId = plan?.pack_id || null;
+      this.ready = !!plan;
+      this.error = null;
+    },
+    clearPlan() {
+      this.plan = null;
+      this.packId = null;
+      this.ready = false;
+      this.error = null;
+    },
+
+    // ====== IndexedDB ======
+    async savePlanToDB(plan) {
       const db = await getDB();
-      const plan = await db.get(DB_STORE, packId);
-      if (plan) this.plan = plan;
+      await db.put(STORE, plan, plan.pack_id);
+    },
+    async loadPlanFromDB(packId) {
+      const db = await getDB();
+      const plan = await db.get(STORE, packId);
+      if (plan) this.setPlan(plan);
       return plan;
     },
 
-    startProximityWatcher() {
+    // ====== プリフェッチ ======
+    async prefetchAssets() {
       if (!this.plan) return;
-      if (this.watchingId) navigator.geolocation.clearWatch(this.watchingId);
-
-      const onPos = async (pos) => {
-        const cur = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        const allSpots = [ ...(this.plan.along_pois || []) ];
-        for (const s of allSpots) {
-          if (!s?.spot_id || this.triggered.has(s.spot_id)) continue;
-          const d = haversine(cur, { lat: s.lat, lon: s.lon });
-          if (d <= this.proximityMeters) {
-            const asset = this.plan.assets.find(a => a.spot_id === s.spot_id);
-            if (asset?.audio?.url) {
-              this.triggered.add(s.spot_id);
-              await playFromCacheOrNetwork(asset.audio.url, this.packId);
-            }
-          }
-        }
-      };
-
-      const onErr = (e) => { console.warn('[nav] geolocation error', e); };
-      this.watchingId = navigator.geolocation.watchPosition(onPos, onErr, {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 10000,
-      });
+      const cache = await caches.open(`packs-${this.packId}`);
+      const urls = (this.plan.assets || [])
+        .map(a => a?.audio?.url)
+        .filter(Boolean);
+      await Promise.all(urls.map(u => cache.add(new Request(u, { mode: 'no-cors' }))));
     },
 
-    stopProximityWatcher() {
-      if (this.watchingId) navigator.geolocation.clearWatch(this.watchingId);
-      this.watchingId = null;
+    // ====== 送信ワンストップ ======
+    async submitPlan(payload) {
+      // payload は PlanRequest 形式に正規化して送る（PlanView側でも正規化するが念のためここでも型を保証）
+      const req = {
+        language: (payload?.language || this.lang),
+        origin: {
+          lat: Number(payload?.origin?.lat ?? this.origin.lat),
+          lon: Number(payload?.origin?.lon ?? this.origin.lon),
+        },
+        return_to_origin: Boolean(
+          payload?.return_to_origin ?? true
+        ),
+        waypoints: (payload?.waypoints || this.waypointIds || [])
+          .map(w => (typeof w === 'string' ? { spot_id: w } : w))
+          .filter(x => x && x.spot_id),
+      };
+
+      this.error = null;
+      this.polling = true;
+      this.ready = false;
+      try {
+        const { task_id } = await createPlan(req);
+        const plan = await pollPlan(task_id, () => {});
+        this.setPlan(plan);
+        await this.savePlanToDB(plan);
+        await this.prefetchAssets();
+        this.ready = true;
+        return plan;
+      } catch (e) {
+        this.error = e;
+        throw e;
+      } finally {
+        this.polling = false;
+      }
     },
   },
 });

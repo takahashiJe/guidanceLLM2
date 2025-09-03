@@ -1,64 +1,87 @@
 <!-- src/components/PlanForm.vue -->
 <template>
-  <form class="form" @submit.prevent="onSubmit">
-    <div class="row">
+  <form @submit.prevent="submit">
+    <div class="field">
       <label>言語</label>
-      <select v-model="lang">
+      <select v-model="language">
         <option value="ja">日本語</option>
         <option value="en">English</option>
-        <option value="zh">中文</option>
+        <option value="zh">中文（普通话）</option>
       </select>
     </div>
 
-    <div class="row">
-      <label>スポットID（カンマ区切り）</label>
-      <input v-model="waypointsCsv" placeholder="spot_001,spot_007" />
+    <div class="field">
+      <label>出発地（緯度）</label>
+      <input type="number" step="0.000001" v-model.number="origin.lat" />
+    </div>
+    <div class="field">
+      <label>出発地（経度）</label>
+      <input type="number" step="0.000001" v-model.number="origin.lon" />
     </div>
 
-    <div class="row">
-      <label>出発位置</label>
-      <div class="row-inline">
-        <input v-model.number="origin.lat" type="number" step="0.000001" placeholder="lat" />
-        <input v-model.number="origin.lon" type="number" step="0.000001" placeholder="lon" />
-        <button type="button" @click="useCurrent">現在地</button>
+    <div class="field">
+      <label>スポット（順番どおり選択 / 仮UI）</label>
+      <div class="spots">
+        <label v-for="s in spots" :key="s.id" class="chip">
+          <input type="checkbox" :value="s.id" v-model="selected" />
+          {{ s.label }}
+        </label>
       </div>
+      <small>上から順に巡ります（A→B→C）。</small>
     </div>
 
-    <button class="primary" type="submit">プラン作成</button>
+    <button class="primary" :disabled="submitting || selected.length === 0">
+      {{ submitting ? '送信中…' : 'ルート作成' }}
+    </button>
   </form>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useNavStore } from '@/stores/nav'
+import { ref, onMounted } from 'vue';
 
-const nav = useNavStore()
-const lang = ref(nav.lang)
-const waypointsCsv = ref('')
-const origin = ref({ lat: 39.2201, lon: 139.9006 })
+const props = defineProps({
+  submitting: { type: Boolean, default: false }
+});
 
-async function useCurrent() {
-  try {
-    const pos = await new Promise((res, rej) =>
-      navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true })
-    )
-    origin.value = { lat: pos.coords.latitude, lon: pos.coords.longitude }
-  } catch (_) {}
+const language = ref('ja');
+const origin = ref({ lat: 39.2201, lon: 139.9006 });
+
+const spots = [
+  { id: 'spot_001', label: 'あがりこ大王' },
+  { id: 'spot_007', label: '法体の滝' },
+  { id: 'spot_011', label: '道の駅象潟' },
+  { id: 'spot_014', label: '象潟郷土資料館' },
+  { id: 'spot_021', label: '蚶満寺' },
+];
+const selected = ref(['spot_001', 'spot_007']); // デフォルト例
+
+function geolocate() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition((pos) => {
+    origin.value.lat = Number(pos.coords.latitude.toFixed(6));
+    origin.value.lon = Number(pos.coords.longitude.toFixed(6));
+  });
 }
 
-async function onSubmit() {
-  nav.setLang(lang.value)
-  const ids = waypointsCsv.value.split(',').map(s => s.trim()).filter(Boolean)
-  nav.setWaypoints(ids)
-  await nav.submitPlan(origin.value)
-  // ポーリングは親で実行
+onMounted(() => geolocate());
+
+const emit = defineEmits(['submit']);
+function submit() {
+  const waypoints = selected.value.slice(); // 並び順をそのまま送る
+  emit('submit', {
+    language: language.value,
+    origin: { lat: Number(origin.value.lat), lon: Number(origin.value.lon) },
+    waypoints, // [ "spot_001", ... ]
+  });
 }
 </script>
 
 <style scoped>
-.form { padding: 12px; display: grid; gap: 12px; }
-.row { display: grid; gap: 6px; }
-.row-inline { display: flex; gap: 6px; }
-.primary { padding: 10px 12px; font-size: 16px; }
-input, select, button { font-size: 16px; }
+.field { margin-bottom: 12px; display: grid; gap: 6px; }
+.spots { display:flex; flex-wrap:wrap; gap:8px; }
+.chip { border:1px solid #ddd; border-radius:14px; padding:6px 10px; }
+.primary {
+  width:100%; padding:12px; border:none; border-radius:8px;
+  background:#0066ff; color:#fff; font-size:16px;
+}
 </style>

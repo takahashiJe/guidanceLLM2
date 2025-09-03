@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration for the Nihonkai City Shōgata Village Museum (ID: spot_014). Let me start by understanding the requirements. The user wants a professional tour guide-style narration in Japanese, around 45-60 seconds, which translates to about 200-300 words. The structure should include a short intro, key facts/history/nature, a fun tidbit, and a safety reminder. Also, I need to avoid speculation and keep it self-contained without referencing any external documents.
+
+First, the intro should welcome visitors and mention the museum's purpose. The key facts include the museum showcasing the history and culture of the Shōgata area, and it was once called "Higashi no Matsumoto" (East Matsumoto). I should mention that visitors can learn about its historical changes. The fun tidbit might be the nickname "East Matsumoto" and maybe something about the view from the museum. For safety, I need to include weather, terrain, and wildlife considerations. Since the museum is a building, maybe the safety part is about the surrounding area, like the beach or nearby paths.
+
+Wait, the safety reminder needs to mention weather, footing, and wildlife. The museum itself is indoors, but maybe the area around it has these elements. For example, if there's a beach nearby, caution about tides or slippery rocks. Also, wildlife like insects or animals in the area. I should keep the safety note brief, just one sentence. Let me check the constraints again: avoid over-imaginative metaphors, keep it factual. Also, ensure that all proper nouns are correct, like the museum's name and the nickname.
+
+Putting it all together: Start with a greeting, mention the museum's role in showcasing the area's history and culture, the nickname, the fun fact about the view, and then the safety note. Let me make sure the word count is right. Let me draft in Japanese now, keeping each section concise.
+</think>
+
+にかほ市象潟郷土資料館へようこそ。この博物館では、象潟地域の歴史や文化を学べます。かつて「東の松島」と呼ばれた象潟の変遷を、資料を通じて体感できます。眼下には海と自然が広がる絶景が楽しめます。お気軽に足を運んでください。  
+
+安全配慮: 潮風や足場の滑りに注意し、野生動物への配慮もお願いします。

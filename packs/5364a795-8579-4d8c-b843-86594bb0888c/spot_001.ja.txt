@@ -1,0 +1,22 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the あがりこ大王 spot. The facts provided mention a deformed birch tree that grew from a seedling after logging. 
+
+First, I need to structure the narration into four parts: intro, key facts, fun tidbit, and safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. 
+
+Starting with the intro, I should greet the visitors and mention the spot. Then, explain the key fact about the tree's growth from a seedling after logging. The fun tidbit could be that it's a natural phenomenon, maybe the tree's unique shape. For safety, mention weather, terrain, and wildlife. Avoid speculation, so if there's anything unknown, just say so briefly. Also, keep it self-contained without referencing any documents.
+
+Wait, the user specified to avoid overusing metaphors. So I need to stick to factual descriptions. The tree is a "奇形ブナ" which means deformed or strangely shaped birch. Maybe mention how it's a symbol of resilience. 
+
+For the safety part, remind them to check the weather, watch their steps, and be cautious of wildlife. Don't recommend excessive activities. Make sure to use the correct place names and avoid any guesses. 
+
+Let me check the character count. The example response is around 200 characters. Let me draft each section concisely. 
+
+Intro: あがりこ大王へようこそ。  
+Key facts: 伐採後の萌芽から成長した奇形ブナ。  
+Fun tidbit: その特徴的な姿は、自然の力によるもの。  
+Safety: 天候や足元に注意し、野生動物にも配慮してください。  
+
+That should cover all parts. Now, combine them smoothly in Japanese, keeping it natural and within the constraints.
+</think>
+
+あがりこ大王へようこそ。このスポットは、伐採後の萌芽から成長した奇形ブナです。木の歪んだ形は、自然の力によるものです。木の特徴的な姿は、地域の歴史と自然の営みを象徴しています。天候や足元に注意し、野生動物にも配慮してください。過度な近づきは避けてください。

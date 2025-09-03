@@ -1,68 +1,70 @@
 // src/lib/api.js
-const BASE = '/back/api';
+const BACK_BASE = '/back';              // Nginxで /back → APIゲートウェイにリバースプロキシ
+const API_BASE  = `${BACK_BASE}/api`;
 
-function log(...args) {
-  // 最小限のロガー
-  try { console.log('[api]', ...args); } catch (_) {}
-}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-export async function createPlan(payload) {
-  const url = `${BASE}/nav/plan`;
-  log('POST', url, payload);
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
-    body: JSON.stringify(payload),
-  });
-  log('POST status', res.status);
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`createPlan failed: ${res.status} ${txt}`);
-  }
-  const json = await res.json();
-  log('POST body', json);
-  return json;
-}
-
-export async function fetchPlanTask(taskId) {
-  const url = `${BASE}/nav/plan/tasks/${encodeURIComponent(taskId)}?ts=${Date.now()}`;
-  log('GET', url);
-  const res = await fetch(url, {
+async function apiFetch(path, opts = {}) {
+  const url = `${API_BASE}${path}`;
+  const init = {
     method: 'GET',
-    cache: 'no-store',
-    headers: {
-      'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-    },
-  });
-  log('GET status', res.status);
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  };
+  console.debug('[api]', init.method, path);
 
-  if (res.status === 200) {
-    try {
-      const body = await res.json();
-      log('GET body(200)', body);
-      return { status: 200, body };
-    } catch (e) {
-      const txt = await res.text().catch(() => '');
-      throw new Error(`fetchPlanTask JSON parse failed: ${e?.message || e}\n${txt}`);
-    }
+  const res = await fetch(url, init);
+  const txt = await res.text();
+  let body;
+  try { body = txt ? JSON.parse(txt) : {}; } catch { body = txt; }
+
+  console.debug('[api]', init.method, 'status', res.status);
+  if (res.status >= 400 && res.status !== 202) {
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status;
+    err.body = body;
+    throw err;
   }
-
-  if (res.status === 500) {
-    let body = null;
-    try { body = await res.json(); } catch (_) {
-      const txt = await res.text().catch(() => '');
-      body = { detail: txt || 'server error' };
-    }
-    log('GET body(500)', body);
-    return { status: 500, body };
-  }
-
-  // 202/303/その他
-  let body = null;
-  try { body = await res.json(); } catch (_) {}
-  log(`GET body(${res.status})`, body);
   return { status: res.status, body };
 }
+
+/** POST /nav/plan → { task_id } (202) */
+export async function createPlan(payload) {
+  const { status, body } = await apiFetch('/nav/plan', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (status !== 202) throw new Error(`unexpected status ${status}`);
+  if (!body?.task_id) throw new Error('no task_id');
+  return body; // { task_id }
+}
+
+/** GET /nav/plan/tasks/:id を 200になるまでポーリングし、PlanResponse を返す */
+export async function pollPlan(taskId, onTick) {
+  let attempt = 0;
+  while (true) {
+    const { status, body } = await apiFetch(
+      `/nav/plan/tasks/${encodeURIComponent(taskId)}?ts=${Date.now()}`
+    );
+
+    if (status === 200) return body;       // 最終レスポンス
+    if (status === 202) {                  // 進捗
+      onTick && onTick({ attempt, state: body?.state, ready: body?.ready === true });
+      await sleep(Math.min(1500 + attempt * 200, 3000));
+      attempt++;
+      continue;
+    }
+    if (status === 500) {
+      const err = new Error('Server error');
+      err.body = body;
+      throw err;
+    }
+    const err = new Error(`Unexpected status ${status}`);
+    err.body = body;
+    throw err;
+  }
+}
+
+// 互換用エイリアス（既存コード対策）
+export const fetchPlanResult = pollPlan;
+export const fetchPlanTask   = pollPlan;

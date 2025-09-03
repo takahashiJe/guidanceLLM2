@@ -1,80 +1,86 @@
+<!-- src/views/PlanView.vue -->
 <template>
-  <section class="panel">
-    <h2>プラン作成</h2>
-    <form @submit.prevent="submit">
-      <div class="row">
-        <label>言語</label>
-        <select v-model="language">
-          <option value="ja">日本語</option>
-          <option value="en">English</option>
-          <option value="zh">中文</option>
-        </select>
-      </div>
+  <div class="page">
+    <header class="bar">
+      <h1>ナビ計画</h1>
+    </header>
 
-      <div class="row">
-        <label>出発地（lat, lon）</label>
-        <div class="h">
-          <input v-model.number="origin.lat" type="number" step="0.000001" placeholder="lat" />
-          <input v-model.number="origin.lon" type="number" step="0.000001" placeholder="lon" />
-        </div>
-      </div>
-
-      <div class="row">
-        <label>スポット（順序）</label>
-        <small>例: spot_001,spot_007</small>
-        <input v-model="spotLine" placeholder="spot_001,spot_007" />
-      </div>
-
-      <button class="btn" :disabled="submitting">{{ submitting ? '送信中…' : 'プラン作成' }}</button>
-    </form>
-  </section>
+    <main class="content">
+      <PlanForm @submit="onSubmit" :submitting="submitting" />
+      <p v-if="error" class="error">エラー: {{ errorMsg }}</p>
+    </main>
+  </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useNavStore } from '@/stores/nav'
-import { createPlan, pollPlan } from '@/lib/api'
+import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useNavStore } from '@/stores/nav';
+import PlanForm from '@/components/PlanForm.vue';
 
-const router = useRouter()
-const nav = useNavStore()
+const router = useRouter();
+const nav = useNavStore();
 
-const language = ref('ja')
-const origin   = ref({ lat: 39.2201, lon: 139.9006 })
-const spotLine = ref('spot_001,spot_007')
-const submitting = ref(false)
+const submitting = ref(false);
+const error = ref(null);
+const errorMsg = computed(() => (error.value?.message || '不明なエラー'));
 
-async function submit () {
-  submitting.value = true
+function normalizePayload(v) {
+  // v: { language, origin:{lat|lng|lon}, waypoints:[string|{spot_id}] }
+  const lang = (v?.language || 'ja');
+  const lat = Number(v?.origin?.lat);
+  // フォームが lng を出すことがあるので lon 優先で fallback lng
+  const lon = Number(
+    v?.origin?.lon ?? v?.origin?.lng
+  );
+  const waypoints = (v?.waypoints || [])
+    .map(w => (typeof w === 'string' ? { spot_id: w } : w))
+    .filter(x => x && x.spot_id);
+
+  return {
+    language: ['ja','en','zh'].includes(lang) ? lang : (lang === 'zh-CN' || lang === 'cn' ? 'zh' : 'ja'),
+    origin: { lat, lon },
+    return_to_origin: true,
+    waypoints,
+  };
+}
+
+async function onSubmit(formValue) {
+  error.value = null;
+  submitting.value = true;
   try {
-    const waypoints = spotLine.value.split(',').map(s => ({ spot_id: s.trim() })).filter(w => w.spot_id)
-    const req = {
-      language: language.value,
-      origin: origin.value,
-      return_to_origin: true,
-      waypoints
-    }
-    const { task_id } = await createPlan(req)
+    // UI状態にも反映（戻って来たときの再編集用）
+    nav.setLang(formValue.language);
+    nav.setOrigin({
+      lat: Number(formValue?.origin?.lat),
+      lon: Number(formValue?.origin?.lon ?? formValue?.origin?.lng),
+    });
+    nav.setWaypoints(formValue.waypoints);
 
-    // ポーリング → 200 になったら store に格納して /nav へ
-    const result = await pollPlan(task_id, (tick) => {
-      // 進捗が必要ならここで表示可能
-    })
-    nav.setPlan(result) // store に保存
-    router.replace('/nav')
+    // サーバ用にスキーマ正規化
+    const payload = normalizePayload(formValue);
+
+    // 送信ワンストップ
+    await nav.submitPlan(payload);
+
+    // 完了後に /nav へ
+    router.push('/nav');
   } catch (e) {
-    console.error('[plan] submit error', e)
-    alert('プラン作成に失敗しました')
+    console.error('[plan] submit error', e, e?.body);
+    // 422 のときはサーバの detail も表示
+    if (e?.status === 422 && e?.body?.detail) {
+      e.message = '入力が不正です: ' + JSON.stringify(e.body.detail);
+    }
+    error.value = e;
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 </script>
 
 <style scoped>
-.panel { display: grid; gap: 14px; }
-.row { display: grid; gap: 6px; }
-.row .h { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-input, select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
-.btn { padding: 12px; border: 1px solid #ddd; border-radius: 10px; background:#0ea5e9; color:#fff; }
+.page { display: flex; flex-direction: column; height: 100dvh; }
+.bar { padding: 12px; border-bottom: 1px solid #eee; }
+.content { padding: 12px; }
+.error { color: #c00; margin-top: 8px; word-break: break-all; }
 </style>
