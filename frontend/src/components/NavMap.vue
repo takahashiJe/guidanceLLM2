@@ -1,66 +1,67 @@
 <!-- src/components/NavMap.vue -->
 <template>
-  <div ref="mapRef" class="map"></div>
+  <div ref="mapEl" class="w-full h-full"></div>
 </template>
 
-<script setup>
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+<script>
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-const props = defineProps({
-  plan: { type: Object, required: false, default: null },
-})
+export default {
+  name: 'NavMap',
+  props: {
+    plan: { type: Object, default: null },
+  },
+  setup(props) {
+    const mapEl = ref(null)
+    let map, routeLayer, marker
 
-const mapRef = ref(null)
-let map, geoLayer, poiLayer
+    function ensureMap() {
+      if (map) return
+      map = L.map(mapEl.value)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap'
+      }).addTo(map)
+      routeLayer = L.geoJSON().addTo(map)
+      marker = L.circleMarker([39.22, 139.90], { radius: 6 }).addTo(map)
+      map.setView([39.22, 139.90], 11)
+    }
 
-function renderPlan(plan) {
-  if (!map || !plan) return
-  // 既存のレイヤをクリア
-  if (geoLayer) { geoLayer.remove(); geoLayer = null }
-  if (poiLayer) { poiLayer.remove(); poiLayer = null }
+    function drawPlan() {
+      if (!map || !props.plan?.route) return
+      routeLayer.clearLayers()
+      routeLayer.addData(props.plan.route)
+      try {
+        map.fitBounds(routeLayer.getBounds(), { padding: [20, 20] })
+      } catch(_) {}
+    }
 
-  // 経路（GeoJSON）
-  if (plan.route) {
-    geoLayer = L.geoJSON(plan.route, {
-      style: { weight: 5 }
-    }).addTo(map)
-    try {
-      map.fitBounds(geoLayer.getBounds(), { padding: [20, 20] })
-    } catch (_) {}
-  }
+    // 現在地を更新（ナビ用途）
+    function updateCurrentPosition() {
+      if (!navigator.geolocation) return
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords
+        marker.setLatLng([latitude, longitude])
+      })
+    }
 
-  // 沿道POI
-  if (Array.isArray(plan.along_pois)) {
-    poiLayer = L.layerGroup(
-      plan.along_pois.map(p =>
-        L.marker([p.lat, p.lon]).bindPopup(`<b>${p.name || p.spot_id}</b>`)
-      )
-    ).addTo(map)
+    onMounted(() => {
+      ensureMap()
+      drawPlan()
+      updateCurrentPosition()
+      // ゆるく現在地更新
+      const id = setInterval(updateCurrentPosition, 5000)
+      onUnmounted(() => clearInterval(id))
+    })
+
+    watch(() => props.plan, drawPlan, { deep: true })
+
+    return { mapEl }
   }
 }
-
-onMounted(() => {
-  if (!mapRef.value) return
-  map = L.map(mapRef.value, { zoomControl: true }).setView([39.22, 139.90], 12)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap',
-  }).addTo(map)
-
-  renderPlan(props.plan)
-})
-
-onBeforeUnmount(() => {
-  if (map) map.remove()
-})
-
-watch(() => props.plan, (p) => {
-  renderPlan(p)
-})
 </script>
 
 <style scoped>
-.map { width: 100%; height: calc(100vh - 140px); }
+/* 端末全画面で見やすいように */
+:host, .w-full.h-full, div[ref="mapEl"] { height: 100%; }
 </style>

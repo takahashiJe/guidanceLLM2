@@ -1,44 +1,51 @@
+<!-- src/views/NavView.vue -->
 <template>
-  <main class="h-[100dvh] flex flex-col">
-    <!-- 上部バー：プランへ戻る -->
-    <header class="p-3 border-b flex items-center gap-2 bg-white/90">
-      <button @click="toPlan" class="px-3 py-1 rounded border text-sm">
-        ← プランへ
-      </button>
-      <div class="font-bold text-base flex-1 text-center">ナビ</div>
-      <div class="text-[11px] text-gray-500" v-if="packId">
-        pack: {{ shortPack }}
+  <div class="h-screen flex flex-col">
+    <header class="p-3 flex items-center gap-2">
+      <button class="px-3 py-2 rounded bg-gray-200" @click="goPlan">プランへ</button>
+      <div class="ml-2 text-sm text-gray-600">
+        半径 {{ store.proximityMeters }} m（近接監視: 常時ON）
+      </div>
+      <div class="ml-auto text-xs text-gray-500" v-if="store.packId">
+        pack: {{ store.packId }}
       </div>
     </header>
 
-    <!-- 地図 -->
-    <section class="flex-1">
-      <NavMap />
-    </section>
-  </main>
+    <div class="flex-1 min-h-0">
+      <NavMap :plan="store.plan" />
+    </div>
+  </div>
 </template>
 
-<script setup>
-import { computed, onMounted, onBeforeUnmount } from 'vue'
+<script>
+import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNavStore } from '@/stores/nav'
 import NavMap from '@/components/NavMap.vue'
 
-const store = useNavStore()
-const router = useRouter()
+export default {
+  name: 'NavView',
+  components: { NavMap },
+  setup() {
+    const router = useRouter()
+    const store  = useNavStore()
 
-const packId = computed(() => store.packId)
-const shortPack = computed(() => (packId.value ? packId.value.slice(0, 8) : ''))
+    function goPlan() {
+      router.push('/plan')
+    }
 
-function toPlan() {
-  router.push({ name: 'plan' })
+    onMounted(() => {
+      // ナビ画面に入ったら常に近接監視ON
+      store.startProximityWatcher()
+    })
+    onUnmounted(() => {
+      store.stopProximityWatcher()
+    })
+
+    return { store, goPlan }
+  }
 }
-
-// 「常にON」— 画面に入ったら開始、離脱したら停止
-onMounted(() => {
-  store.startProximityWatcher()
-})
-onBeforeUnmount(() => {
-  store.stopProximityWatcher()
-})
 </script>
+
+<style scoped>
+</style>

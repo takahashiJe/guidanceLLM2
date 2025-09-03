@@ -1,98 +1,55 @@
+<!-- src/views/PlanView.vue -->
 <template>
-  <main class="p-3 space-y-4">
-    <h1 class="text-xl font-bold">ナビプラン作成</h1>
+  <div class="p-3">
+    <header class="flex items-center gap-2 mb-3">
+      <h1 class="text-xl font-semibold">周遊プラン</h1>
+      <router-link class="ml-auto px-3 py-2 rounded bg-gray-200" to="/nav">ナビへ</router-link>
+    </header>
 
-    <section class="space-y-3">
-      <div class="flex items-center gap-2">
-        <label class="w-28">言語</label>
-        <select v-model="lang" class="border rounded px-2 py-1 w-full">
-          <option value="ja">日本語</option>
-          <option value="en">English</option>
-          <option value="zh">中文</option>
-        </select>
-      </div>
+    <!-- 既存の PlanForm をそのまま活用 -->
+    <PlanForm @submit="onSubmit" :busy="busy" />
 
-      <div>
-        <label class="block mb-1">スポットID（順番どおり / カンマ区切り）</label>
-        <input v-model="waypointText" placeholder="spot_001,spot_007" class="border rounded px-2 py-1 w-full" />
-      </div>
-
-      <div class="flex gap-2">
-        <button @click="onSubmit" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50" :disabled="submitting">
-          {{ submitting ? '送信中…' : 'プラン作成' }}
-        </button>
-        <button @click="toMap" class="bg-gray-200 px-4 py-2 rounded">地図へ</button>
-      </div>
-    </section>
-
-    <section v-if="taskId || polling" class="space-y-2">
-      <div class="font-semibold">ポーリング</div>
-      <div class="text-sm text-gray-600">task_id: {{ taskId || '-' }}</div>
-      <ul class="text-sm bg-gray-50 border rounded p-2 max-h-40 overflow-auto">
-        <li v-for="(l,idx) in pollLog" :key="idx">{{ l }}</li>
-      </ul>
-    </section>
-
-    <section v-if="packId" class="space-y-2">
-      <div class="font-semibold">準備完了</div>
-      <div>pack_id: <code>{{ packId }}</code></div>
-      <div class="text-sm">自動で地図へ移動します…（うまく行かないときは「地図へ」を押してください）</div>
-    </section>
-  </main>
+    <div v-if="store.polling" class="mt-4 text-sm text-gray-600">
+      ルート生成中…（バックエンドへ問い合わせ中）
+    </div>
+    <ul v-if="store.pollLog.length" class="mt-2 text-xs text-gray-500 space-y-1">
+      <li v-for="(l,i) in store.pollLog" :key="i">{{ l }}</li>
+    </ul>
+  </div>
 </template>
 
-<script setup>
-import { computed, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useNavStore } from '@/stores/nav';
+<script>
+import { useRouter } from 'vue-router'
+import { useNavStore } from '@/stores/nav'
+import PlanForm from '@/components/PlanForm.vue'
 
-const store = useNavStore();
-const router = useRouter();
+export default {
+  name: 'PlanView',
+  components: { PlanForm },
+  setup() {
+    const router = useRouter()
+    const store  = useNavStore()
+    const busy   = ref(false)
 
-const lang = ref(store.lang);
-const waypointText = ref('spot_001,spot_007');
+    async function onSubmit({ origin, language, waypoints }) {
+      busy.value = true
+      try {
+        store.setLang(language)
+        store.setWaypoints(waypoints)
+        await store.submitPlan(origin)  // 送信 & ポーリング開始
+        router.push('/nav')             // すぐナビ画面へ遷移（結果は自動反映）
+      } catch (e) {
+        console.error(e)
+        alert('プラン作成に失敗しました')
+      } finally {
+        busy.value = false
+      }
+    }
 
-const submitting = ref(false);
-
-const taskId = computed(() => store.taskId);
-const pollLog = computed(() => store.pollLog);
-const polling = computed(() => store.polling);
-const packId = computed(() => store.packId);
-
-// packId が入ったら自動で地図へ
-watch(packId, (v) => {
-  if (v) router.push({ name: 'nav' });
-});
-
-async function onSubmit() {
-  submitting.value = true;
-  try {
-    store.setLang(lang.value);
-    const ids = waypointText.value.split(',').map(s => s.trim()).filter(Boolean);
-    store.setWaypoints(ids);
-
-    // 位置情報（起点）。取れなくても既定を使用
-    let origin = { lat: 39.2201, lon: 139.9006 };
-    try {
-      const p = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000 })
-      );
-      origin = { lat: p.coords.latitude, lon: p.coords.longitude };
-    } catch (_) {}
-
-    await store.submitPlan(origin); // 内部で自動ポーリング → 200 で plan 格納 & プリフェッチ
-  } catch (e) {
-    alert(e?.message || e);
-  } finally {
-    submitting.value = false;
+    return { store, busy, onSubmit }
   }
-}
-
-function toMap() {
-  router.push({ name: 'nav' });
 }
 </script>
 
 <style scoped>
-main { max-width: 640px; margin: 0 auto; }
 </style>
