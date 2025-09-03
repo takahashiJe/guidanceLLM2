@@ -1,28 +1,24 @@
-const APP_CACHE = 'app-shell-v1';
-const APP_ASSETS = [
-  '/', '/index.html',
-  '/favicon.ico',
-];
+// public/sw.js
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(APP_CACHE).then(c => c.addAll(APP_ASSETS)));
+self.addEventListener('install', (event) => {
+  // 旧キャッシュを残さない
+  event.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== APP_CACHE).map(k => caches.delete(k)))
-    )
-  );
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
 });
 
-// ルートや静的はキャッシュ優先、APIや /packs/ はページ側で制御する方針
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-  const isApp = url.origin === location.origin && !url.pathname.startsWith('/back/');
-  if (isApp) {
-    e.respondWith(
-      caches.match(e.request).then(r => r || fetch(e.request))
-    );
+// fetch: /back/ は完全に素通し（キャッシュしない）
+//       /packs/ も基本ネット優先（Cache Storage への事前プリフェッチはアプリ側が行う）
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/back/')) {
+    return; // SW で触らない（ブラウザに任せる）
   }
+  if (url.pathname.startsWith('/packs/')) {
+    // 音声はブラウザ既定の挙動に任せる（アプリ側で caches.add するため）
+    return;
+  }
+  // それ以外は通常通り（必要なら静的アセットのキャッシュ戦略を追加）
 });

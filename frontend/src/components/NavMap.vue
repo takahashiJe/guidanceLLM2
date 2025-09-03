@@ -1,60 +1,66 @@
+<!-- src/components/NavMap.vue -->
 <template>
-  <div class="map-wrap">
-    <div ref="mapEl" class="map-el"></div>
-  </div>
+  <div ref="mapRef" class="map"></div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-import iconUrl from 'leaflet/dist/images/marker-icon.png'
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
-L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl })
+const props = defineProps({
+  plan: { type: Object, required: false, default: null },
+})
 
-const props = defineProps({ plan: { type: Object, default: () => ({}) } })
+const mapRef = ref(null)
+let map, geoLayer, poiLayer
 
-const mapEl = ref(null)
-let map, routeLayer, youMarker
-let geoWatchId = null
+function renderPlan(plan) {
+  if (!map || !plan) return
+  // 既存のレイヤをクリア
+  if (geoLayer) { geoLayer.remove(); geoLayer = null }
+  if (poiLayer) { poiLayer.remove(); poiLayer = null }
 
-function renderRoute() {
-  if (!map || !props.plan?.route) return
-  if (routeLayer) routeLayer.remove()
-  routeLayer = L.geoJSON(props.plan.route, { style: () => ({ weight: 5 }) }).addTo(map)
-  try { map.fitBounds(routeLayer.getBounds(), { padding: [20, 20] }) } catch {}
+  // 経路（GeoJSON）
+  if (plan.route) {
+    geoLayer = L.geoJSON(plan.route, {
+      style: { weight: 5 }
+    }).addTo(map)
+    try {
+      map.fitBounds(geoLayer.getBounds(), { padding: [20, 20] })
+    } catch (_) {}
+  }
+
+  // 沿道POI
+  if (Array.isArray(plan.along_pois)) {
+    poiLayer = L.layerGroup(
+      plan.along_pois.map(p =>
+        L.marker([p.lat, p.lon]).bindPopup(`<b>${p.name || p.spot_id}</b>`)
+      )
+    ).addTo(map)
+  }
 }
 
 onMounted(() => {
-  map = L.map(mapEl.value, { zoomControl: true })
+  if (!mapRef.value) return
+  map = L.map(mapRef.value, { zoomControl: true }).setView([39.22, 139.90], 12)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 18, attribution: '&copy; OpenStreetMap',
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap',
   }).addTo(map)
 
-  renderRoute()
-  ;(props.plan.along_pois || []).forEach(p => {
-    L.marker([p.lat, p.lon]).addTo(map).bindPopup(p.name || p.spot_id)
-  })
-  youMarker = L.circleMarker([0, 0], { radius: 6 }).addTo(map)
-  geoWatchId = navigator.geolocation.watchPosition(
-    (pos) => youMarker.setLatLng([pos.coords.latitude, pos.coords.longitude]),
-    () => {},
-    { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
-  )
+  renderPlan(props.plan)
 })
 
 onBeforeUnmount(() => {
-  if (geoWatchId) navigator.geolocation.clearWatch(geoWatchId)
   if (map) map.remove()
-  map = routeLayer = youMarker = null
 })
 
-watch(() => props.plan, () => renderRoute())
+watch(() => props.plan, (p) => {
+  renderPlan(p)
+})
 </script>
 
 <style scoped>
-.map-wrap { width: 100%; height: 100%; }
-.map-el { width: 100%; height: 100%; }
+.map { width: 100%; height: calc(100vh - 140px); }
 </style>

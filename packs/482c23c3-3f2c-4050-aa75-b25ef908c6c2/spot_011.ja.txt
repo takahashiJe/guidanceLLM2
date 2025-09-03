@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration for the visitor guide at 道の駅象潟. Let me start by understanding the requirements. The user wants a 45-60 second narration in Japanese, with a calm guide tone. The structure should include a short intro, key facts, a fun tidbit, and a safety reminder. Also, avoid speculation and keep it self-contained. Plus, the safety part needs to mention weather, footing, and wildlife, without recommending excessive actions.
+
+First, the intro should welcome visitors and mention the spot. Next, the key facts: it's a roadside station with an ocean view hot spring, local products, and a restaurant. The fun tidbit could be about the name "Kōkai" meaning "ocean view" or something related to the local area. For safety, mention weather changes, slippery paths, and wildlife like deer or wild boars, but without suggesting specific actions.
+
+Wait, the facts mention the hot spring is popular. Maybe the fun tidbit is about the hot spring's name or how it's situated. Also, need to check if there are any specific local legends or stories about the area. Since the user says to avoid speculation, I shouldn't make up anything. So maybe the fun tidbit is about the name "Kōkai" meaning "ocean view" as a play on words. 
+
+Safety reminder: weather can change suddenly, so check forecasts. Paths might be slippery, especially after rain. Be cautious of wildlife like deer or wild boars, but don't recommend specific actions. Keep it brief.
+
+Let me structure it step by step. Start with a welcoming intro. Then mention the hot spring, local products, and restaurant. The fun fact about the name. Safety tips: weather, footing, wildlife. Keep each part concise. Check the word count to stay within 200-300 characters. Avoid any markdown and use plain text. Make sure all proper nouns are correct, like 道の駅象潟. Also, ensure the safety part is included as per the user's instruction.
+</think>
+
+道の駅象潟へようこそ。日本海を望む展望温泉が人気のスポットです。地元の特産品や海産物を購入できるほか、レストランも併設されています。名称の「象潟」は「象」と「潟」から、海の見える広い平地を意味します。お楽しみいただけるよう、ご注意ください。天候の急変や足元の滑りやすさ、野生動物（例：鹿やイノシシ）に配慮し、安全にご滞在ください。

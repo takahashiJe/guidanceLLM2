@@ -1,3 +1,4 @@
+// src/stores/nav.js
 import { defineStore } from 'pinia';
 import { openDB } from 'idb';
 import { createPlan, fetchPlanTask } from '@/lib/api';
@@ -31,18 +32,20 @@ async function playFromCacheOrNetwork(url, packId) {
   const cached = await cache.match(url);
   const src = cached ? URL.createObjectURL(await cached.blob()) : url;
   const audio = new Audio(src);
-  await audio.play().catch(()=>{});
+  try { await audio.play(); } catch (_) {}
 }
 
 export const useNavStore = defineStore('nav', {
   state: () => ({
     lang: 'ja',
-    waypoints: [],          // ['spot_001','spot_007',...]
+    waypoints: [],
     taskId: null,
-    plan: null,             // PlanResponse
-    watchingId: null,       // geolocation watch id
-    triggered: new Set(),   // 再生済みspot
-    proximityMeters: 250,   // 近接閾値（初期:車運用向け）
+    plan: null,
+    watchingId: null,
+    triggered: new Set(),
+    proximityMeters: 250,
+    polling: false,
+    pollLog: [],
   }),
   getters: {
     packId: (s) => s.plan?.pack_id || null,
@@ -52,6 +55,7 @@ export const useNavStore = defineStore('nav', {
     setWaypoints(list) { this.waypoints = list; },
 
     async submitPlan(origin) {
+      console.log('[nav] submitPlan origin=', origin, 'lang=', this.lang, 'wps=', this.waypoints);
       if (!this.waypoints.length) throw new Error('waypoints is empty');
       const payload = {
         language: this.lang,
@@ -61,24 +65,47 @@ export const useNavStore = defineStore('nav', {
       };
       const res = await createPlan(payload);
       this.taskId = res.task_id;
+      console.log('[nav] taskId=', this.taskId);
+      // 自動でポーリング開始
+      this.pollUntilReady().catch(err => {
+        console.error('[nav] poll error:', err);
+        this.pollLog.push(`ERROR: ${err.message || err}`);
+      });
       return res;
     },
 
     async pollUntilReady(intervalMs = 1500, timeoutMs = 120000) {
+      if (!this.taskId) throw new Error('taskId is empty');
       const start = Date.now();
+      this.polling = true;
+      this.pollLog = [];
+      console.log('[nav] start polling taskId=', this.taskId);
+
       while (true) {
         const { status, body } = await fetchPlanTask(this.taskId);
+        this.pollLog.push(`status=${status} ${new Date().toLocaleTimeString()}`);
+        console.log('[nav] poll status', status, body ? '(body received)' : '');
+
         if (status === 200) {
           this.plan = body;
-          // 保存
           const db = await getDB();
           await db.put(DB_STORE, body);
-          // プリフェッチ
           await this.prefetchAssets();
+          this.polling = false;
+          console.log('[nav] READY pack=', this.plan?.pack_id);
           return body;
         }
-        if (status === 500) throw new Error(`plan failed: ${JSON.stringify(body)}`);
-        if (Date.now() - start > timeoutMs) throw new Error('plan polling timeout');
+
+        if (status === 500) {
+          this.polling = false;
+          throw new Error(`plan failed: ${JSON.stringify(body)}`);
+        }
+
+        if (Date.now() - start > timeoutMs) {
+          this.polling = false;
+          throw new Error('plan polling timeout');
+        }
+
         await new Promise(r => setTimeout(r, intervalMs));
       }
     },
@@ -87,12 +114,14 @@ export const useNavStore = defineStore('nav', {
       if (!this.plan?.assets?.length) return;
       const packId = this.packId;
       const cache = await caches.open(`packs-${packId}`);
+      console.log('[nav] prefetch assets for pack', packId);
       await Promise.all(
         this.plan.assets
           .map(a => a?.audio?.url)
           .filter(Boolean)
           .map(u => cache.add(new Request(u, { mode: 'same-origin' })))
       );
+      console.log('[nav] prefetch done');
     },
 
     async restorePlan(packId) {
@@ -108,17 +137,11 @@ export const useNavStore = defineStore('nav', {
 
       const onPos = async (pos) => {
         const cur = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        const allSpots = [
-          ...(this.plan.along_pois || []),
-        ];
-        // waypointsを along_pois に含めない設計なら、ここで追加しても良い（必要に応じて）
-        // ※ spot_repo の定義次第。今は along_pois に含まれている前提でもOK。
-
+        const allSpots = [ ...(this.plan.along_pois || []) ];
         for (const s of allSpots) {
           if (!s?.spot_id || this.triggered.has(s.spot_id)) continue;
           const d = haversine(cur, { lat: s.lat, lon: s.lon });
           if (d <= this.proximityMeters) {
-            // 近接トリガ
             const asset = this.plan.assets.find(a => a.spot_id === s.spot_id);
             if (asset?.audio?.url) {
               this.triggered.add(s.spot_id);
@@ -128,7 +151,7 @@ export const useNavStore = defineStore('nav', {
         }
       };
 
-      const onErr = () => {};
+      const onErr = (e) => { console.warn('[nav] geolocation error', e); };
       this.watchingId = navigator.geolocation.watchPosition(onPos, onErr, {
         enableHighAccuracy: true,
         maximumAge: 5000,

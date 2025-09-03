@@ -1,0 +1,11 @@
+<think>
+Okay, let's tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about the "あがりこ大王" spot. The facts mention a deformed bamboo that grew from a sapling after logging. 
+
+First, I need to structure it as per the constraints: intro, key facts, fun tidbit, safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. Avoid any speculation, keep it self-contained.
+
+Starting with the intro: Welcome to the area, mention the spot. Then the key facts: the bamboo's origin from a sapling after logging, its unique shape. The fun tidbit could be that it's a symbol of resilience. Safety reminder needs to include weather, footing, and wildlife, without encouraging risky behavior.
+
+Check for proper nouns: "あがりこ大王" should be correct. Avoid metaphors. Make sure not to reference any external documents. Keep it plain text. Let me count the characters to ensure it's within the limit. Also, ensure the safety part is concise. Alright, putting it all together now.
+</think>
+
+皆さん、こんにちは。今日は「あがりこ大王」をご案内します。このスポットは、伐採後の萌芽から成長した奇形ブナで、自然の力によるユニークな姿が特徴です。戦後に植えられたもので、時間とともに歪んだ形になったとされています。地元では「大王」と呼ばれ、歴史と自然の絆を象徴する存在です。ただし、足元は滑りやすく、天候の急変や野生動物の出没に注意が必要です。ごゆっくりお楽しみください。

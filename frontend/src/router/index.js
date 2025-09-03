@@ -1,3 +1,4 @@
+// src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import NavView from '../views/NavView.vue'
 

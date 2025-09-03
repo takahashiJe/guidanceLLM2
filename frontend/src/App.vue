@@ -1,14 +1,9 @@
+<!-- src/App.vue -->
 <template>
-  <RouterView />
+  <router-view />
 </template>
 
-<script setup>
-// 何も書かなくてOK
-</script>
-
 <style>
-html, body, #app {
-  height: 100%;
-  margin: 0;
-}
+html, body, #app { height: 100%; margin: 0; }
+* { box-sizing: border-box; }
 </style>

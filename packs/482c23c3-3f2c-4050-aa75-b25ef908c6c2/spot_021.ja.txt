@@ -1,0 +1,15 @@
+<think>
+Okay, I need to create a spoken narration for the visitor guide about Ganmansen Temple (spot_021) in the Chokai area. Let me start by understanding the user's requirements.
+
+First, the structure is four parts: short intro, key facts/history/nature, fun tidbit, and safety reminder. The tone should be calm and professional, around 45-60 seconds, which is about 200-300 characters. I need to make sure to use the correct proper nouns and avoid overusing metaphors. Also, I should avoid speculation and keep it self-contained without referencing any external documents.
+
+The facts provided mention that Ganmansen Temple is a Jodo-shu temple located in Ohashi, visited by Matsuo Basho, who wrote a haiku about it. The key points to include are the location, the temple's affiliation, Basho's visit, and the haiku. The fun tidbit could be about the haiku's imagery, like the moonlight and waves. The safety reminder should mention weather, terrain, and wildlife, without encouraging risky behavior.
+
+Let me check the constraints again. No speculation, so I shouldn't add anything not in the facts. The safety part needs a brief note. Let me structure each part step by step. Start with an intro about the temple's location and significance. Then mention Basho's visit and the haiku. The fun fact could be the haiku's imagery. Finally, the safety reminder about weather, terrain, and wildlife. Keep it concise and natural in Japanese.
+</think>
+
+（落ち着いたナレーション）  
+象潟にある曹洞宗の伽藍、 Ganmansen（がんまんじん）寺。松尾芭蕉が「おくのほそ道」で訪れ、月光に照らされた海面を詠んだ句が残る名所です。境内には静かな雰囲気が漂い、自然と歴史が融合した空間を楽しめます。  
+
+（補足）  
+足元の湿った石段や、潮風による視界の悪化には注意が必要です。また、野生動物の出没に配慮し、周辺を歩く際は安全を確認してください。
