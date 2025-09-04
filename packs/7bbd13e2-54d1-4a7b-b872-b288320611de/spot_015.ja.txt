@@ -1,0 +1,7 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the Ryugetsu Gen Wetland (竜ヶ原湿原). The structure needs to be four parts: short intro, key facts, fun tidbit, safety reminder. Also, they mentioned to avoid speculation and keep it self-contained. Plus, the safety part should include considerations for weather, footing, and wildlife, without recommending excessive actions.
+
+First, I need to start with a short intro. The spot is in the middle of Mt. Chokai, so maybe mention its location. Then the key facts: it's a high-altitude wetland with plants like Watasgae and Nikkou Kishuge. The fun tidbit could be about the name, like the dragon and the original wetland. For safety, mention weather changes, unstable ground, and wildlife like deer or insects. Keep it calm and avoid any metaphors. Also, make sure to use the correct terms and not assume anything unknown. Let me check the facts again to ensure accuracy. The POI description says it's a high-altitude wetland with those plants, so that's the key point. The fun fact could be the name's origin. Safety reminder should be concise. Alright, putting it all together in Japanese, keeping the tone steady and informative.
+</think>
+
+竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原です。ワタスゲやニッコウキスゲといった高山植物が生育する自然の宝庫として知られています。特に春には花々が競う様子が美しいとされ、観光客に人気です。実は「竜の原」と名付けられた由来は、周辺の地形からという説があります。足元は滑りやすい場所もあるため、軽装で入るのをおすすめします。天候の急変や野生動物（特に鹿や昆虫）に注意し、無理な行動は控えてください。

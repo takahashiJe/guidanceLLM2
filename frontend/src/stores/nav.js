@@ -2,128 +2,86 @@
 import { defineStore } from 'pinia';
 import { openDB } from 'idb';
 import { createPlan, pollPlan } from '@/lib/api';
-import { prefetchTilesForRoute } from '@/lib/tiles';
 
 const DB_NAME = 'navpacks';
-const DB_VER = 1;
-const STORE   = 'plans';
+const DB_VERSION = 1;
 
 async function getDB() {
-  return openDB(DB_NAME, DB_VER, {
+  return openDB(DB_NAME, DB_VERSION, {
     upgrade(db) {
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE);
+      if (!db.objectStoreNames.contains('packs')) {
+        db.createObjectStore('packs', { keyPath: 'pack_id' });
       }
     }
   });
 }
 
+async function prefetchAssets(plan) {
+  if (!plan?.assets) return;
+  const cache = await caches.open('nav-audio-v1');
+  const db = await getDB();
+
+  const tasks = plan.assets
+    .map(a => a?.audio?.url)
+    .filter(Boolean)
+    .map(async (url) => {
+      try {
+        await cache.add(new Request(url, { credentials: 'same-origin' }));
+      } catch {
+        // 既にキャッシュ済み or ネットワーク一時失敗は無視
+      }
+    });
+
+  await Promise.all(tasks);
+  await db.put('packs', { pack_id: plan.pack_id, saved_at: Date.now(), assets: plan.assets });
+}
+
 export const useNavStore = defineStore('nav', {
   state: () => ({
-    // UI入力保持
     lang: 'ja',
-    origin: { lat: 39.2201, lon: 139.9006 },
-    waypointIds: [],
-
-    // 実行・結果
-    plan: null,
-    packId: null,
+    waypoints: [],        // ['spot_001', ...]
+    origin: JSON.parse(localStorage.getItem('nav.origin') || 'null'), // ← 復元
+    taskId: null,
     polling: false,
-    ready: false,
-    error: null,
+    plan: null,           // 最終 Plan レスポンス
   }),
-  getters: {
-    hasPlan: (s) => !!s.plan,
-  },
-  actions: {
-    // ====== UI設定系 ======
-    setLang(lang) {
-      // サーバは "ja" | "en" | "zh"
-      const m = { ja: 'ja', en: 'en', zh: 'zh', 'zh-CN': 'zh', cn: 'zh' };
-      this.lang = m[lang] || 'ja';
-    },
-    setOrigin({ lat, lon }) {
-      const latNum = Number(lat);
-      const lonNum = Number(lon);
-      if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
-        this.origin = { lat: latNum, lon: lonNum };
-      }
-    },
-    setWaypoints(ids) {
-      this.waypointIds = Array.isArray(ids) ? ids.filter(Boolean) : [];
-    },
 
-    // ====== Plan 反映系 ======
+  actions: {
+    setLang(l) { this.lang = l; },
+    setWaypoints(arr) { this.waypoints = Array.from(new Set(arr)); },
+    setOrigin(o) {
+      this.origin = { lat: o.lat, lon: o.lon };
+      localStorage.setItem('nav.origin', JSON.stringify(this.origin));
+    },
+    clearPlan() { this.plan = null; this.taskId = null; },
+
+    // ✅ 追加：Plan をストアに保存してプリフェッチも走らせる
     setPlan(plan) {
       this.plan = plan;
-      this.packId = plan?.pack_id || null;
-      this.ready = !!plan;
-      this.error = null;
-    },
-    clearPlan() {
-      this.plan = null;
-      this.packId = null;
-      this.ready = false;
-      this.error = null;
+      prefetchAssets(plan).catch(() => {});
     },
 
-    // ====== IndexedDB ======
-    async savePlanToDB(plan) {
-      const db = await getDB();
-      await db.put(STORE, plan, plan.pack_id);
-    },
-    async loadPlanFromDB(packId) {
-      const db = await getDB();
-      const plan = await db.get(STORE, packId);
-      if (plan) this.setPlan(plan);
-      return plan;
-    },
+    // （任意）ストアだけで作成〜ポーリングまでやりたい場合に使えるヘルパ
+    async submitPlan() {
+      if (!this.origin) throw new Error('現在地が未取得です');
+      if (this.waypoints.length < 2) throw new Error('スポットは2か所以上選んでください');
 
-    // ====== プリフェッチ ======
-    async prefetchAssets() {
-      if (!this.plan) return;
-      const cache = await caches.open(`packs-${this.packId}`);
-      const urls = (this.plan.assets || [])
-        .map(a => a?.audio?.url)
-        .filter(Boolean);
-      await Promise.all(urls.map(u => cache.add(new Request(u, { mode: 'no-cors' }))));
-    },
-
-    // ====== 送信ワンストップ ======
-    async submitPlan(payload) {
-      // payload は PlanRequest 形式に正規化して送る（PlanView側でも正規化するが念のためここでも型を保証）
-      const req = {
-        language: (payload?.language || this.lang),
-        origin: {
-          lat: Number(payload?.origin?.lat ?? this.origin.lat),
-          lon: Number(payload?.origin?.lon ?? this.origin.lon),
-        },
-        return_to_origin: Boolean(
-          payload?.return_to_origin ?? true
-        ),
-        waypoints: (payload?.waypoints || this.waypointIds || [])
-          .map(w => (typeof w === 'string' ? { spot_id: w } : w))
-          .filter(x => x && x.spot_id),
+      const payload = {
+        language: this.lang,
+        origin: { lat: this.origin.lat, lon: this.origin.lon },
+        return_to_origin: true,
+        waypoints: this.waypoints.map(id => ({ spot_id: id })),
       };
 
-      this.error = null;
+      const { task_id } = await createPlan(payload);
+      this.taskId = task_id;
       this.polling = true;
-      this.ready = false;
-      try {
-        const { task_id } = await createPlan(req);
-        const plan = await pollPlan(task_id, () => {});
-        this.setPlan(plan);
-        await this.savePlanToDB(plan);
-        await this.prefetchAssets();
-        await prefetchTilesForRoute(plan.polyline, { zooms: [12,13,14,15], marginDeg: 0.05, max: 800 });
-        this.ready = true;
-        return plan;
-      } catch (e) {
-        this.error = e;
-        throw e;
-      } finally {
-        this.polling = false;
-      }
+
+      const plan = await pollPlan(task_id);
+      this.polling = false;
+
+      this.setPlan(plan); // 上の setPlan を使用
+      return plan;        // 呼び出し側で router.push('/nav') など可能
     },
   },
 });

@@ -1,0 +1,19 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 鳴ヶ原湿原 (ID: spot_015). The facts mention it's a high-altitude wetland in the middle of bird mountain, known for alpine plants like watasige and nikkou kisuge. 
+
+First, I need to structure the narration into four parts: short intro, key facts, fun tidbit, and safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Must avoid excessive metaphors and ensure proper nouns are correct.
+
+Starting with the intro: maybe mention the location and its significance. Then key facts: describe the wetland and the plants. The fun tidbit could be about the plants' resilience. Safety reminder needs to include weather, footing, and wildlife, without recommending excessive actions.
+
+Wait, the user specified to avoid speculation. So if there's any unknown info, just mention it briefly. Also, keep it self-contained, no references to documents. Output plain text only.
+
+Check for proper nouns: 鳴ヶ原湿原 is correct. The plants are ワタスゲ and ニッコウキスゲ. Need to make sure those are spelled correctly in katakana. 
+
+Safety part: mention weather changes, unstable ground, and wildlife. Maybe suggest checking conditions before visiting. Avoid advising specific actions like hiking alone. 
+
+Now, putting it all together concisely. Let me draft each section, keeping within the character limit. Let me count the characters. Maybe start with "鳴ヶ原湿原は...". Then key facts about the plants. Fun fact about the plants blooming in summer. Safety reminder about weather, footing, and wildlife. 
+
+Double-check for any speculation. Since the facts provided are about the plants, maybe the fun tidbit is about their blooming season. Safety reminder should be a single sentence. Make sure the total is around 200-300 characters. Let me write it out and check.
+</think>
+
+鳴ヶ原湿原は、鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲといった高山植物が生育する名所です。標高帯に応じた多様な植物が季節ごとに咲き乱れ、自然の豊かさを体感できます。特に夏には群生するニッコウキスゲの姿は見事です。ただし、天候の急変や足元の滑りやすさ、野生動物への遭遇に注意が必要です。ご来訪の際は、現地の状況を確認し、安全に楽しみましょう。

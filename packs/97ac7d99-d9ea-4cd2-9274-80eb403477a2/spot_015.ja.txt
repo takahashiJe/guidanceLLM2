@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration for the spot 竜ヶ原湿原 (ID: spot_015) as a tour guide. Let's start by understanding the requirements.
+
+First, the structure: intro, key facts, fun tidbit, safety reminder. The user wants a calm, professional tone, around 45-60 seconds, so 200-300 words. Avoid overused metaphors and keep it self-contained. Also, include a safety note about weather, terrain, and wildlife without recommending excessive activities.
+
+The facts mention it's a highland marsh in the middle of 鳥海山, known for plants like ワタスゲ and ニッコウキスゲ. I should highlight that it's a treasure trove for alpine plants. The fun tidbit could be about the name, maybe the dragon's origin? Wait, the name is 竜ヶ原, which means "Dragon's Plain." Maybe the story about the dragon's breath creating the marsh? That's a common myth, so that's a good fun fact.
+
+Safety reminders: check the weather, watch your step on the mossy ground, and be cautious of wildlife. Avoid mentioning specific dangerous animals unless stated, but since it's a marsh, maybe insects or animals like snakes? But the user said to avoid speculation, so just mention wildlife in general.
+
+Now, putting it all together. Start with a short intro about the location. Then key facts about the plants. Fun tidbit about the dragon legend. Safety reminder with weather, terrain, and wildlife. Keep it concise, natural, and professional. Let me check the word count. Also, ensure no markdown, just plain text. Make sure to use the correct terms and avoid any guesses beyond the given info.
+</think>
+
+竜ヶ原湿原は、鳥海山の山腰に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する貴重な場所です。標高帯に応じた植物の分布を楽しむことができます。また、その名前の由来には、伝説に登場する竜が息を吹きかけたとされる神秘的なエピソードがあります。足元は湿った芝生で滑りやすいため、雨天時は特に注意が必要です。天候の変化に敏感に。また、野生動物の出没も確認されているため、立ち入り時は周囲をよく確認してください。

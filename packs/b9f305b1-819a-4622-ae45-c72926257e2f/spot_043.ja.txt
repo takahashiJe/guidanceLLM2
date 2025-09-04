@@ -1,0 +1,12 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the 花立クリーンハイツ. The structure needs to be intro, key facts, fun tidbit, and safety reminder. Also, they mentioned to avoid speculation and keep it self-contained.
+
+First, the intro should be short and welcoming. Maybe start with welcoming visitors to the area and mention the spot. Then the key facts: it's a tourist hub with restaurant, info corner, check-in for cottages, and the popular Jersey soft cream. Need to mention the POI description accurately.
+
+For the fun tidbit, the Jersey soft cream is a good point. Maybe add that it's a local favorite. Then the safety reminder: weather, terrain, wildlife. Need to mention caution due to weather changes and uneven paths, and being mindful of wildlife. Avoid recommending specific actions, just a general reminder.
+
+Check the constraints: no markdown, plain text. Keep it around 200-300 characters. Let me make sure all the facts are included and the structure is followed. Also, ensure that the safety part is concise and covers the required points without overstepping.
+</think>
+
+皆様、花立クリーンハイツへようこそ。鳥海高原の観光拠点として、レストランや案内コーナーが充実。隣接するコテージのチェックインもここで行えます。人気のジャージーソフトクリームは、地元の味覚をぜひお試しください。  
+※天候の変化や足元の悪さにご注意ください。また、野生動物に遭遇する可能性もあるため、ご見守りください。過度な行動はお控えください。

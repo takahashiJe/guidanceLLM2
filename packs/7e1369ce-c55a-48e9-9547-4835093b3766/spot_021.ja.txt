@@ -1,0 +1,22 @@
+<think>
+Okay, I need to create a spoken narration for a tour guide in the area around Mt. Chokai, specifically about Ganman-ji Temple (spot_021). Let me start by understanding the user's requirements.
+
+First, the structure: intro, key facts/history/nature, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 words. I need to make sure to use the correct terminology and avoid excessive metaphors. Also, include a safety note about weather, footing, and wildlife without recommending risky actions.
+
+The facts provided mention that Ganman-ji is a Jodo-shu temple in Okunoshima, visited by Matsuo Basho who wrote a haiku about it. I should include that. The fun tidbit could be about the haiku itself. For safety, I need to mention weather changes, uneven paths, and wildlife like snakes or insects, advising visitors to be cautious.
+
+Wait, the user specified to avoid speculation. So if I don't know something, I should say so briefly. But in this case, the facts are given, so I can stick to those. The safety part should be concise. Let me check the word count. The example response is about 200 words. Let me structure each section:
+
+Intro: Welcome to Ganman-ji Temple, located in Okunoshima, a Jodo-shu temple. Mention Basho's visit and his haiku.
+
+Key facts: Located in Okunoshima, part of the Jodo-shu sect. Basho visited during his "Oku no Hosomichi" journey and composed a haiku here.
+
+Fun tidbit: The haiku he wrote is a highlight for visitors.
+
+Safety: Be mindful of weather changes, uneven paths, and wildlife like snakes or insects. Take care with your steps and watch for wildlife.
+
+Make sure to keep it self-contained, no references to other documents. Use plain text only. Avoid any markdown. Let me put this all together in Japanese, keeping the tone calm and informative.
+</think>
+
+こんにちは、皆様。今日は象潟に位置する曹洞宗の寺院、 Ganman-ji（がんまんじ）をご案内します。松尾芭蕉が「おくのほそ道」の旅で訪れ、その地に句を詠んだことで知られています。境内には自然の風景が広がり、歴史を感じられるスポットです。  
+訪れる際は、天候の変化や足元の滑りやすさに注意し、特に野生の動物（蛇や昆虫など）に配慮してください。過度な行動は控え、安全に楽しんでください。

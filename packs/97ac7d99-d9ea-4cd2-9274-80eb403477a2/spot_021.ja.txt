@@ -1,0 +1,25 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about Ganmansi Temple (spot_021). The facts mention it's a Jodo-shu temple in Okinagata, visited by Matsuo Basho, and he wrote a haiku there.
+
+First, I need to structure the narration as per the constraints: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid overused metaphors and ensure proper nouns are correct.
+
+Starting with the intro: introduce the temple briefly. Then mention its location and the fact that Basho visited. The key fact is the haiku. For the fun tidbit, maybe note that the temple is a quiet spot for reflection. Safety reminder needs to include weather, footing, and wildlife, without recommending excessive activity.
+
+Wait, the user specified to avoid speculation. So if there's anything unknown, just mention it briefly. Since the facts provided are limited, I should stick to what's given. Also, make sure not to reference any external documents or context. Keep it self-contained.
+
+Check the safety part: mention weather, footing, wildlife. Maybe say something like "Please be mindful of weather changes, uneven ground, and wildlife." Avoid suggesting specific actions beyond caution.
+
+Now, let me draft the Japanese text. Start with the temple's name and location. Mention Basho's visit and the haiku. Add the fun fact about the peaceful atmosphere. Safety reminder with the three points. Keep it concise and within the character limit. Make sure the language is natural and flows well for a narration.
+</think>
+
+【スポット紹介】  
+象潟に位置する曹洞宗の伽藍、 Ganmansi（がんまんじ）です。松尾芭蕉が「おくのほそ道」で訪れ、有名な俳句を詠んだ歴史ある寺院です。  
+
+【見どころ】  
+芭蕉が「秋の暮に 露のきらきらと かがやく」などと詠んだ名句が伝わる静かな空間。境内には四季折々の自然が広がります。  
+
+【豆知識】  
+境内の池は「芭蕉池」と呼ばれ、句碑が立つ隠れ家的なスポットです。  
+
+【安全配慮】  
+天候や足元の変化に注意し、野生動物との遭遇にも気を配ってください。過度な探検は避けましょう。

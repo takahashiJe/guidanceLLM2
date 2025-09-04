@@ -1,0 +1,27 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at Ganmam Temple (spot_021). The facts mention it's a temple in Oshigata, part of the Sōtō school, and that Matsuo Bashō visited and composed a poem there. 
+
+First, I need to structure it into the four parts: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds. Let me start with a short intro introducing the temple.
+
+Next, key facts: mention the location, the temple's affiliation, and Bashō's visit. Need to include the poem fact. Then a fun tidbit. Maybe the poem's content or the temple's significance. 
+
+For the safety reminder, the user specified to mention weather, footing, and wildlife. I should add a brief note about checking the weather and being cautious with the surroundings. Avoid recommending excessive activities. 
+
+Wait, the user said to avoid speculation and if unknown, say so briefly. Since the facts provided are limited, I need to stick to what's given. Also, avoid overusing metaphors. Keep it straightforward. 
+
+Let me check the constraints again. No markdown, plain text. Solid structure. Let me draft each section step by step. 
+
+Intro: "皆様、象潟にある曹洞宗の伽藍、 Ganmam寺へようこそ。" That's the intro. 
+
+Key facts: "松尾芭蕉が「おくのほそ道」の旅で訪問し、句を詠んだことで知られています。" 
+
+Fun tidbit: Maybe mention the specific poem or the temple's serene atmosphere. Since the original facts don't specify the poem's content, maybe say "静かな空間で句を詠んだ" to keep it general. 
+
+Safety reminder: "天候や足元、野生動物にご注意ください。" 
+
+Check the length. Should be around 200-300 characters. Let me count. The example response is 231 characters. Let me make sure each part is covered without extra info. Avoid any markdown. 
+
+I think that's all. Let me put it all together.
+</think>
+
+皆様、象潟にある曹洞宗の伽藍、 Ganmam寺へようこそ。松尾芭蕉が「おくのほそ道」の旅で訪問し、句を詠んだことで知られています。静かな空間で句を詠んだこの寺は、歴史と自然が融合した場所です。お参りの際は、ご静穏に。天候や足元、野生動物にご注意ください。

@@ -1,0 +1,17 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the 道の駅象潟. The structure needs to be short intro, key facts, fun tidbit, safety reminder. Also, they specified to avoid speculation and keep it self-contained.
+
+First, I need to make sure I understand all the facts provided. The spot is a roadside station with an ocean view hot spring, local products, and a restaurant. The key points are the view, the shopping options, and the restaurant. The fun tidbit should be something interesting but not too detailed. Maybe mention the local specialties? Wait, the facts mention local products and seafood, so maybe the fun fact could be about a specific item, like the "象潟の海苔" (Takihata seaweed) if that's a known product. But since the original facts don't specify, I should stick to what's given. Maybe the fun fact is that the restaurant serves local dishes. 
+
+Safety reminder needs to include weather, footing, and wildlife. Since it's by the Japan Sea, mention weather changes and slippery paths. Also, wildlife like deer or birds, but avoid suggesting specific actions. Just a general caution.
+
+Now, structure. Start with a short intro welcoming visitors. Then mention the view and hot spring, the shopping, and the restaurant. Fun tidbit could be that the station is a good place to relax after hiking. Safety: check weather, watch your step, be aware of wildlife.
+
+Need to keep it around 200-300 characters. Let me check the example response. The example has four parts: intro, key facts, fun tidbit, safety. The safety part mentions weather, footing, and wildlife. So I should follow that structure.
+
+Make sure not to use any markdown. Keep it plain text. Also, avoid any speculation. If something isn't mentioned, don't assume. For example, if the station has a specific event, but the facts don't say, so skip that.
+
+Putting it all together: Start with the name, mention the ocean view and hot spring, shopping, restaurant. Fun fact about the local products. Safety reminder about weather, footing, and wildlife. Keep the tone calm and informative. Check for any overuse of metaphors. Ensure all proper nouns are correct, like 道の駅象潟. Avoid any unnecessary details. Let me draft that now.
+</think>
+
+こんにちは、道の駅象潟へようこそ。日本海を望む展望温泉が人気のスポットで、地元の特産品や海産物を購入できます。レストランも併設され、リラックスしながら食事を楽しめます。お土産選びに迷ったら、スタッフに相談してみてください。天候の変化や足元の滑りに注意し、野生動物に遭遇した際は、距離を保ってください。安全に楽しんでください。

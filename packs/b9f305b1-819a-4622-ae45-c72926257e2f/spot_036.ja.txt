@@ -1,0 +1,25 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the 鳥海高原花立牧場公園. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, they mentioned to avoid speculation and keep it self-contained.
+
+First, I'll start with the intro. It should be welcoming and mention the location. Then the key facts: the spot is in the north foot of Chokai Mountain, has a Jersey cow farm, go-karts, park golf, and an animal interaction area. Need to mention it's family-friendly.
+
+Next, the fun tidbit. Maybe something about the cows being friendly or the activities for kids. Wait, the facts say "動物とのふれあい広場" so maybe the cows are approachable. But I should check if that's accurate. The original facts don't specify, so I should avoid speculation. Maybe just say it's a place where you can interact with animals, which is a fun aspect.
+
+Safety reminder: need to mention weather, footing, and wildlife. The user specified to add a note on these. So something like being mindful of weather changes, uneven ground, and keeping a safe distance from wildlife.
+
+Wait, the user said to avoid over-the-top metaphors and keep it straightforward. Also, the narration should be around 45-60 seconds, 200-300 characters. Let me check the character count. Let me draft it in Japanese.
+
+Start with the intro: "鳥海高原花立牧場公園は、鳥海山の北麓にあるレジャースポットです。" Then mention the main attractions: "ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場などがあり、家族で一日中楽しめます。" 
+
+Fun tidbit: "特に、動物とのふれあい広場では、子どもたちが牛に触れて遊べるなど、親子で笑顔になるスポットです。" 
+
+Safety: "天候や足元の変化に注意し、野生動物には距離を保って楽しんでください。" 
+
+Check for any speculation. The fun tidbit mentions children touching cows, but the original facts only say "動物とのふれあい広場" without specifics. Maybe it's safer to say "交流" instead of "触れて遊べる" to avoid assuming details. So adjust to "動物とのふれあい広場では、家族で楽しく交流できる場所です。" 
+
+Now check the structure: intro, key facts, fun tidbit, safety. Yes. Also, ensure no references to external documents. Keep it self-contained. 
+
+Final check for character count. Let me count: the sample response is about 200 characters. Okay, that should fit within the 300 limit. Make sure the safety note includes weather, footing, and wildlife. Yes. Avoid over-the-top metaphors. The tone is calm and informative, as per the user's request.
+</think>
+
+鳥海高原花立牧場公園は、鳥海山の北麓にあるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場などがあり、家族で一日中楽しめます。特に、動物とのふれあい広場では、家族で楽しく交流できる場所です。天候や足元の変化に注意し、野生動物には距離を保って楽しんでください。

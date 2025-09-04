@@ -1,0 +1,17 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 鳥海山 (Toriyama) area, specifically focusing on 龍ヶ原湿原 (Ryūgahara Shikabe). Let me start by recalling the facts provided. The spot is a highland wetland in the middle of the mountain, known for its alpine plants like Watasige and Nikkō Kishige. 
+
+First, the structure requires a short intro, then key facts, a fun tidbit, and a safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. I need to avoid speculation and keep it self-contained. Also, include a safety note about weather, footing, and wildlife.
+
+Let me start with the intro. Maybe something like, "Welcome to Ryūgahara Shikabe, a highland wetland nestled in the middle of Toriyama." Then mention it's a treasure trove for alpine plants. Next, the key facts: it's a highland wetland, home to Watasige and Nikkō Kishige. 
+
+For the fun tidbit, maybe note that it's a popular spot for photography or that the plants bloom in summer. Wait, the facts mention it's known for those plants, so maybe the fun fact could be about the best time to visit for seeing them. 
+
+Safety reminder: Check the weather, watch your step on the trail, and be cautious of wildlife. Avoid recommending excessive activities. 
+
+Need to make sure the names are correct. Ryūgahara Shikabe is the name, and Toriyama is the mountain. Avoid metaphors. Keep it straightforward. Let me check the character count. 
+
+Putting it all together: Start with the intro, then the key facts, then the fun fact, then the safety note. Make sure each part is concise. Also, include the safety considerations as per the instruction. Let me draft it now.
+</think>
+
+龍ヶ原湿原へようこそ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する自然の宝庫です。春から夏にかけて、色彩豊かな花々が季節を告げます。特にニッコウキスゲは、夕暮れ時の夕焼けと相まって美しく、写真スポットとしても人気です。天候や足元の変化に注意し、野生動物との遭遇にも配慮してお出かけください。過度な行動は避け、安全に楽しんでください。
