@@ -1,0 +1,19 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 花立クリーンハイツ. Let me start by understanding the requirements. The user wants a professional guide in Japanese, with a calm tone, around 45-60 seconds, 200-300 characters. Structure is intro, key facts, fun tidbit, safety reminder. Avoid speculation, use exact names, no excessive metaphors. Also, include a safety note about weather, footing, wildlife, and avoid recommending risky actions.
+
+First, the introduction should be short. Maybe start with welcoming visitors to the area and introducing the spot. Then key facts: it's a tourist base, has a restaurant, info corner, check-in for cottages, and the popular Jersey soft cream. Fun tidbit could be the soft cream's popularity. Safety reminder needs to mention weather, footing, wildlife, but not recommend risky behavior. 
+
+Wait, the facts mention the restaurant and info corner, check-in for adjacent cottages, and the Jersey soft cream. Need to make sure all those points are covered. Also, the safety part should be a brief mention. Let me check the constraints again: no references to the document, self-contained. So I can't mention anything else beyond what's given.
+
+Let me structure it step by step. Start with intro: "訪れる皆様へ、花立クリーンハイツへようこそ。" Then key facts: tourist base, restaurant, info corner, check-in for cottages, Jersey soft cream. Fun tidbit: the soft cream's popularity. Safety: check weather, footing, wildlife. 
+
+Wait, the user wants the safety reminder to include consideration for weather, footing, and wildlife, but avoid recommending excessive actions. So maybe something like "天候や足元、野生動物への配慮が必要です。過度な行動はお控えください。" 
+
+Putting it all together, making sure it's concise. Let me count the characters. The example response is around 200-300 characters. Let me check each part. 
+
+Intro: 10-15 words. Key facts: 30-40 words. Fun tidbit: 10-15 words. Safety: 15-20 words. Total should be around 70-90 words, which fits the 200-300 character limit. 
+
+Need to ensure that the names are correct, like 花立クリーンハイツ and ヤシの実. Also, avoid any speculation. Make sure the safety part is included. Alright, I think that's covered.
+</think>
+
+訪れる皆様へ、花立クリーンハイツへようこそ。鳥海高原の観光拠点施設で、レストランや観光案内コーナーがあり、隣接するコテージのチェックインも行えます。人気のジャージーソフトクリームをご堪能ください。コテージ滞在の際は、お部屋の鍵を必ず確認し、安全に過ごしてください。天候や足元、野生動物への配慮が必要です。過度な行動はお控えください。

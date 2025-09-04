@@ -1,0 +1,12 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 花立クリーンハイツ. Let's start by understanding the requirements. The user wants a professional, calm guide tone, around 45-60 seconds, so about 200-300 characters. The structure should include an intro, key facts, a fun tidbit, and a safety reminder. Also, avoid speculation, use correct proper nouns, and don't use excessive metaphors. Plus, add a safety note about weather, terrain, and wildlife without recommending excessive actions.
+
+First, the intro should briefly mention the spot. Then the key facts: it's a tourist facility in 鳥海高原, has a restaurant, info corner, check-in for cottages, and the popular Jersey soft cream. The fun tidbit could be the soft cream's popularity. Safety reminder needs to mention weather, terrain, and wildlife, but not encourage risky behavior.
+
+Wait, the user specified to avoid over-the-top metaphors and speculation. So I need to stick to facts. Also, the safety part should be concise. Let me check the facts again. The POI description says it's a tourist base, has restaurant, info corner, check-in for adjacent cottages, and the Jersey soft cream is popular. So the key points are the facilities and the soft cream. The fun tidbit is the soft cream's popularity. Safety: mention weather, terrain, and wildlife, but not recommend specific actions. Maybe something like "Please check weather and terrain conditions, and be cautious of wildlife."
+
+Putting it all together: start with a greeting, mention the facility, its role as a base, facilities, the soft cream, then the fun fact, and safety note. Keep each part concise. Let me count the characters to ensure it's within the limit. Also, make sure the language is natural and flows well. Avoid any markdown, just plain text. Let me draft it step by step.
+</think>
+
+こんにちは。花立クリーンハイツは、鳥海高原の観光拠点として活用されています。レストランや観光案内コーナーがあり、隣接するコテージのチェックインもここで行えます。人気のジャージーソフトクリームをご堪能ください。  
+足元の滑りやすさや天候の変化に注意し、野生動物に遭遇する可能性もあるため、ご注意ください。過度な行動は控え、安全に楽しんでください。

@@ -1,0 +1,15 @@
+<think>
+Okay, I need to create a narration for the Fushikawa Shrine (祓川神社) as a tour guide. Let me start by recalling the facts provided. The shrine is located at the base of Mount Chokai, specifically at the Yashimadai entrance, and it's a popular spot for hikers praying for safe travels. 
+
+First, the structure: intro, key facts, fun tidbit, safety reminder. The intro should be brief, maybe mention the location and its significance. Then the key facts would include the shrine's location, its role in祈願 for safety, and maybe some history if available. Wait, the facts section only mentions the description, so I need to stick to that. The fun tidbit could be about the name "Fushikawa" meaning purification, which ties into the shrine's purpose. 
+
+Safety reminder needs to include weather, footing, and wildlife. The user specified to mention these briefly without recommending excessive actions. Also, avoid speculation. Let me check the constraints again: 45-60 seconds, 200-300 characters. Need to keep it concise. 
+
+Let me draft the intro: "皆様、こんにちは。今日は、鳥海山の登山口に位置する祓川神社をご案内します。" Then mention the shrine's role in祈願. For the fun fact, maybe the name's origin. Safety: "天候や足元、野生動物への注意が必要です。" 
+
+Wait, the user wants the safety part to be a one-line addition. So maybe after the main points, add a line about safety. Let me check the example response. The example ends with "天候や足元、野生動物への配慮をお願いします。" So I need to include that. 
+
+Putting it all together: intro, key facts, fun tidbit, safety. Let me count the characters. The example is around 200-300. Make sure not to use any markdown, just plain text. Avoid overusing metaphors. Also, ensure proper nouns are correct. Okay, I think that's covered. Let me write the final version.
+</think>
+
+皆様、こんにちは。今日は、鳥海山の登山口に位置する祓川神社をご案内します。登山道の入口に立つこの神社は、多くの登山者が安全を祈願し参拝するスポットです。神社の名前は「祓（はら）川」と読み、 purification（清め）を意味する由来があります。お参りの際は、ご神前に手を合わせて無事を祈願してみてください。天候や足元、野生動物への配慮をお願いします。

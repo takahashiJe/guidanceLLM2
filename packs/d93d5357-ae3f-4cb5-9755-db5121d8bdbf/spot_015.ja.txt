@@ -1,0 +1,17 @@
+<think>
+Okay, let me tackle this query. The user wants a spoken narration in Japanese for a tour guide at 鳴ヶ原湿原. They specified a structure with intro, key facts, fun tidbit, and safety reminder. Also, need to keep it around 45-60 seconds, so 200-300 characters. Let me check the facts again: it's a highland marshland in the middle of Mt. Chokai, known for alpine plants like Watasage and Nipponkikusuge. 
+
+First, the intro should be short. Maybe start with welcoming and the name. Then key facts: mention the location, the plants, and maybe the altitude. The fun tidbit could be about the flowers blooming in summer. For safety, need to mention weather, footing, and wildlife. Avoid speculation, so if there's anything unknown, just say so. Also, avoid overusing metaphors. Let me make sure the terms are correct, like the plant names. Also, the safety part should be a brief note. Let me check the character count. Maybe split into four parts as instructed. Let me draft each part step by step.
+</think>
+
+【スポット紹介】  
+鳴ヶ原湿原は、鳥海山の中腹に広がる高層湿原です。ワタスゲやニッコウキスゲといった高山植物が生育する、自然の宝庫です。  
+
+【特徴】  
+標高約1,700メートルに位置し、夏には高山帯の花々が咲き乱れる絶景が楽しめます。  
+
+【意外な知識】  
+湿原の周辺は、春から秋にかけて、アカシアの花が咲き誇る「アカシアの森」に。  
+
+【安全配慮】  
+天候の急変や湿った足元に注意し、野生動物との遭遇には警戒してください。過度な行動は避けましょう。

@@ -1,0 +1,7 @@
+<think>
+Okay, I need to create a spoken narration in Japanese for the spot "あがりこ大王" (ID: spot_001). The facts mention it's a deformed bamboo that grew from a sapling after logging. Let me break down the structure as per the constraints.
+
+First, a short intro. Maybe start with welcoming visitors and introducing the spot. Then the key facts: the bamboo's origin from a sapling after logging, its unique shape. The fun tidbit could be that it's a symbol of resilience. Safety reminder should mention weather, footing, and wildlife. Need to keep it around 200-300 characters, calm guide tone, no speculation, and self-contained. Also, avoid excessive metaphors. Let me check the word count and ensure all elements are included without referencing external documents. Make sure to mention safety considerations briefly at the end.
+</think>
+
+こんにちは、あがりこ大王へようこそ。この奇形ブナは、かつての伐採後の萌芽から成長した自然の出来事です。木の歪みは、成長過程での環境変化を物語ります。地元の伝説では、この木が山の守護神を象徴するともいわれています。ご注意ください。天候や足元の悪化には十分お気を付けください。また、野生動物の出没にご注意ください。

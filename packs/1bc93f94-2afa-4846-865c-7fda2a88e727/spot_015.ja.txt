@@ -1,0 +1,23 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the Ryu-ga-Hara Wetland. They provided the facts and structure constraints. 
+
+First, I need to make sure I follow the structure: short intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. No markdown, just plain text. Also, include safety considerations about weather, footing, and wildlife, without recommending excessive activity.
+
+Starting with the intro. The spot is Ryu-ga-Hara Wetland, so I'll mention its location. Then the key facts: it's a high-altitude wetland in the middle of Tsurugayama, known for alpine plants like Watasgae and Nikkoukisuge. Need to mention those names correctly. 
+
+For the fun tidbit, maybe something about the plants being a haven for birds or insects. Wait, the facts mention it's a treasure trove for alpine plants, so maybe the fun fact could be about the diversity of flora. 
+
+Safety reminder: advise checking weather, being cautious with footing, and avoiding wildlife. Also, mention not to venture off-trail. Need to keep it concise. 
+
+Check for any speculation. The user said to avoid that. The facts given are about the plants, so I shouldn't add anything not mentioned. 
+
+Now, putting it all together in Japanese, making sure it's natural and flows well. Let me count the characters to ensure it's within the limit. Also, make sure to use the correct terms for the plants. 
+
+Wait, the user mentioned to avoid over-embellishment with metaphors, so keep it straightforward. Let me draft each section step by step, then combine them. 
+
+Double-check the safety part: weather, footing, wildlife. Maybe something like "天候や足元、野生動物への配慮を". Also, the user wants it self-contained, so no references to other documents. 
+
+Okay, time to write the narration in Japanese, following all the constraints.
+</think>
+
+竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する自然の宝庫です。四季を通じて色彩豊かな植物が咲き乱れ、春には特に美しくなります。また、湿原の水辺ではカモやカモメなどの鳥も姿を見せます。天候や足元、野生動物への配慮を忘れず、自然を楽しみながら行動してください。

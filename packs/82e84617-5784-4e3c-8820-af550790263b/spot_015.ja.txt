@@ -1,0 +1,19 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the 鳴ヶ原湿原 (Lion's Plain Wetland). The structure needs to be four parts: short intro, key facts, fun tidbit, and safety reminder. Also, they want it in Japanese, calm guide tone, around 45-60 seconds, so 200-300 characters. No speculation, avoid overused metaphors, and include safety considerations about weather, terrain, and wildlife.
+
+First, the intro should be brief. Maybe start with welcoming visitors and mentioning the location. Then the key facts: it's a high-altitude wetland in the middle of the mountain, known for alpine plants like Watasuge and Nikkou Kishuge. The fun tidbit could be that it's a popular spot for photography or maybe something about the flora. Safety reminder needs to mention weather changes, unstable ground, and wildlife. Also, avoid recommending excessive activities.
+
+Wait, the user specified to avoid overused metaphors, so I need to keep the language straightforward. Let me check the facts again. The POI description says it's a high-altitude wetland in the middle of the mountain, a treasure of alpine plants. So the key facts should highlight that. The fun tidbit could be that it's a great place for birdwatching or something like that. Safety reminder: weather can change quickly, watch your step on uneven ground, and be cautious of wildlife. Also, the user wants safety considerations to be mentioned, so maybe add a line about respecting nature.
+
+Now, putting it all together. Start with a greeting, then the location and main features. Then the fun fact, then safety. Keep each part concise. Let me check the character count. Let me draft in Japanese.
+
+"皆様、こんにちは。鳥海山の中腹に広がる高層湿原、竜ヶ原湿原へようこそ。ワタスゲやニッコウキスゲなど、高山植物が生育する自然の宝庫です。特に春には花々が咲き乱れ、訪れる人々を癒します。ただし、天候の急変や足元の滑りやすさにご注意ください。また、野生動物に遭遇する可能性もあるため、周囲をしっかり確認して歩くようにしてください。自然を楽しみながら、安全にご案内いたします。" 
+
+Wait, that's about 200 characters. Let me check the structure. Intro: "皆様、こんにちは。鳥海山の中腹に広がる高層湿原、竜ヶ原湿原へようこそ。" Key facts: "ワタスゲやニッコウキスゲなど、高山植物が生育する自然の宝庫です。特に春には花々が咲き乱れ、訪れる人々を癒します。" Fun tidbit: maybe the part about spring flowers. Safety: "天候の急変や足元の滑りやすさにご注意ください。また、野生動物に遭遇する可能性もあるため、周囲をしっかり確認して歩くようにしてください。" 
+
+But the user wants the fun tidbit as a separate point. Maybe the part about spring flowers is the fun tidbit. Then the safety reminder includes weather, terrain, and wildlife. Also, the user mentioned to avoid overused metaphors, so phrases like "癒します" might be okay. Need to make sure not to speculate. The original facts don't mention anything about photography, so maybe the fun tidbit is about the flowers. Also, the safety reminder should mention the weather, terrain, and wildlife. The user also wants a safety consideration line, so maybe add "自然を楽しみながら、安全にご案内いたします。" at the end. 
+
+I think this meets the requirements. Let me check the character count again. The example response the user provided is around 200-300 characters. The above should be within that range. Also, avoid mentioning anything beyond the facts given. The user said to keep it self-contained, so no references to other documents. Looks good.
+</think>
+
+皆様、こんにちは。鳥海山の中腹に広がる高層湿原、竜ヶ原湿原へようこそ。ワタスゲやニッコウキスゲなど、高山植物が生育する自然の宝庫です。特に春には花々が咲き乱れ、訪れる人々を癒します。ただし、天候の急変や足元の滑りやすさにご注意ください。また、野生動物に遭遇する可能性もあるため、周囲をしっかり確認して歩くようにしてください。自然を楽しみながら、安全にご案内いたします。

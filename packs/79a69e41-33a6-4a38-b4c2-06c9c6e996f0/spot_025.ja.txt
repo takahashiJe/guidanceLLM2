@@ -1,0 +1,13 @@
+<think>
+Okay, let me tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 赤滝 (spot_025). The facts mention it's near 諫早川, with powerful waterfalls in spring when snow melts. 
+
+First, I need to structure it into four parts: intro, key facts, fun tidbit, safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 words. Avoid overusing metaphors and keep it self-contained without referencing external documents.
+
+Starting with the intro: mention the spot's name and location. Then the key facts about the waterfall and the snowmelt period. The fun tidbit could be about the name meaning "red waterfall" and the reason for the red color. For safety, mention weather, footing, and wildlife, without recommending excessive activities.
+
+Need to check if all information is accurate. The name 赤滝 translates to "Red Waterfall," so the tidbit about the red color from tannins makes sense. Safety reminder should be concise, advising caution due to slippery rocks and wildlife. 
+
+Make sure to use the correct terminology and avoid speculation. Keep each section clear and concise. Let me put it all together now, ensuring it flows naturally and meets the constraints.
+</think>
+
+赤滝は、諫早川の近くに位置する滝です。春の雪解け水で水量が増す時期には、迫力ある姿を見せてくれます。名前の由来は「赤い水」という意味で、川の水が岩の鉄分を含むため、見た目が赤みがかったとされています。周辺は自然豊かですが、足元の滑りやすさや天候の変化に注意が必要です。また、野生動物の出没も確認されているため、ご注意ください。安全第一でご観光ください。

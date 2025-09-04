@@ -1,0 +1,17 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at Mt. Chokai's 龍ヶ原湿原. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, they mentioned to avoid speculation and keep it self-contained.
+
+First, the intro should be short. Maybe start with welcoming visitors to the area. Then mention the spot's name and its location. Next, the key facts: it's a highland wetland with specific plants like ワタスゲ and ニッコウキスゲ. Need to make sure the names are correct. 
+
+For the fun tidbit, maybe something about the plants blooming in summer or a unique feature. Wait, the facts mention it's a treasure of alpine plants. Maybe the fun fact is that it's a popular spot for photography or something like that. 
+
+Safety reminder: mention weather, terrain, and wildlife. The user specified to add a note on safety considerations. So, suggest checking the weather, being cautious with the terrain, and avoiding sudden movements around wildlife. Also, avoid recommending excessive activities. 
+
+Need to keep it around 200-300 characters. Let me check the example response. They used a calm tone, concise sentences. Let me structure each part step by step. Make sure not to use any markdown. Also, ensure that all proper nouns are accurate. 
+
+Wait, the user said to avoid over-embellishment with metaphors. So keep it straightforward. Let me draft each section: intro, key facts, fun tidbit, safety. Check the length. Maybe the fun tidbit is about the plants being a highlight. Safety part should be a sentence or two. 
+
+Let me put it all together now, making sure each part flows naturally and meets the constraints.
+</think>
+
+皆様、ようこそ。龍ヶ原湿原へ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が季節に応じて咲き誇るスポットです。特に夏には色彩豊かな花畑が広がり、観光客の注目を集めます。なお、植物の生育に合わせた時期に訪れるのがおすすめです。天候や足元の状態に注意し、野生動物との遭遇には落ち着いて対応してください。過度な行動は避け、自然を楽しみながら探索してください。

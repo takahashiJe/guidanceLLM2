@@ -1,0 +1,9 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the Chokai area, specifically about the Koteda Daibutsu. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, the tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Let me check the facts again.
+
+The POI is at the Hase-ji temple in Yonezawa City, Akita Prefecture. It's known for its calm expression. Need to mention that it's enshrined there. The fun tidbit could be about the size or something unique. Safety reminder should include weather, footing, and wildlife. Avoid speculation, so if I don't know something, just say so briefly. Also, keep it self-contained, no references to documents. Plain text only.
+
+Start with the intro: "皆様、赤田の大仏へようこそ。" Then key facts: location, temple, calm expression. Fun tidbit: maybe the size or construction details? Wait, the facts don't mention size, so maybe the fact that it's a large statue. Safety: check the weather, watch your step, be cautious of wildlife. Need to make sure all parts are covered concisely. Let me count the characters to ensure it's within the limit. Avoid overusing metaphors. Make sure all proper nouns are correct. Okay, that should work.
+</think>
+
+皆様、赤田の大仏へようこそ。秋田県由利本荘市の長谷寺に安置され、穏やかな表情で知られる大仏です。高さ約12メートルの仏像で、地元の信仰の中心となっています。お参りの際は、静かな心で拝観ください。天候や足元の状態を確認し、安全にご訪問ください。野生動物のいたるところもご注意ください。

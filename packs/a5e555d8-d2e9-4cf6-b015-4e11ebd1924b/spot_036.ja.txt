@@ -1,0 +1,17 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide in Japanese about the 鳥海高原花立牧場公園. Let me start by understanding the user's requirements.
+
+First, the structure should be four parts: a short intro, key facts/history/nature, a fun tidbit, and a safety reminder. The tone needs to be calm and professional, around 45-60 seconds, which is about 200-300 words. I have to avoid overused metaphors and keep it self-contained without referencing other documents.
+
+The facts provided mention it's a leisure spot in the north foot of Chokai Mountain, centered around a Jersey cow ranch, with go-karts, park golf, and an animal interaction area. The user also wants a safety note about weather, footing, and wildlife, without recommending excessive activities.
+
+Let me start with the intro. Maybe something like "ようこそ、鳥海高原花立牧場公園へ。" Then mention the location and main attractions. Next, the key facts: the location, the Jersey cows, and the activities available. The fun tidbit could be about the animal interaction area. For safety, mention weather, terrain, and wildlife, advising caution.
+
+Wait, the user said to avoid speculation. So I shouldn't add anything not in the facts. Also, need to make sure the safety part is concise. Let me check the example response they provided. It starts with a welcome, then describes the area, mentions the activities, the fun fact about the animals, and ends with safety tips. I need to follow that structure.
+
+I should make sure to use the correct names, like 鳥海山 and 鳥海高原花立牧場公園. Avoid any unnecessary words. Let me count the words to ensure it's within the limit. Also, the safety part needs to be a single sentence, mentioning weather, footing, and wildlife. Maybe something like "天候や足元、野生動物への配慮をお願いします。"
+
+Putting it all together, the narration should flow smoothly, each section concise. Let me draft each part step by step, ensuring all constraints are met.
+</think>
+
+ようこそ、鳥海高原花立牧場公園へ。鳥海山の北麓に広がるこのエリアは、ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場など、家族連れに人気のレジャースポットです。自然豊かな高原で、四季折々の風景を楽しめます。特に動物とのふれあい広場では、牛たちと触れ合う体験ができます。天候や足元、野生動物への配慮をお願いします。過度な行動は避け、安全に楽しみましょう。

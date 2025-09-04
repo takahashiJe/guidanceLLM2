@@ -1,0 +1,21 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 鳥海高原花立牧場公園. Let me start by understanding the user's requirements. The user wants a narration in Japanese, with a calm guide tone, around 45-60 seconds, which translates to about 200-300 characters. The structure needs to include a short intro, key facts, a fun tidbit, and a safety reminder. Also, they mentioned to avoid speculation and overuse of metaphors, keep it self-contained, and include a safety note about weather, footing, and wildlife without recommending excessive activities.
+
+First, I'll start with the intro. It should introduce the spot briefly. The POI description mentions it's a leisure spot at the foot of Chokai Mountain, with a Jersey cow farm, go-karts, park golf, and an animal interaction area. So the intro should mention location and main attractions.
+
+Next, key facts: The main points are the Jersey cows, the various facilities like go-karts and park golf, and that it's family-friendly. Need to mention these concisely.
+
+Fun tidbit: Maybe something about the cows or the park's activities. For example, the cows are friendly, or the park has a special event. Wait, the facts don't mention any specific events, so maybe just a general fun fact like the cows are a highlight.
+
+Safety reminder: Need to mention weather, footing, and wildlife. For example, check the weather, be cautious with footing, and keep a safe distance from wildlife. Avoid recommending risky activities.
+
+Now, check the constraints. Avoid overuse of metaphors, so keep it straightforward. Use correct proper nouns like 鳥海山 and 鳥海高原花立牧場公園. Make sure the structure is followed: intro, key facts, fun tidbit, safety reminder.
+
+Let me draft the intro: "鳥海山の北麓にある鳥海高原花立牧場公園は、ファミリー向けのレジャースポットです。" Then key facts: "ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場があり、一日中楽しめます。" Fun tidbit: "特に、子供たちに人気の動物とのふれあい広場で、牛たちと触れ合える体験ができます。" Safety: "天候や足元に注意し、野生動物には遠くから見守ってください。"
+
+Check the length. Let me count the characters. The example response is around 200-300 characters. Let me make sure each section is concise. Also, ensure that the safety part mentions weather, footing, and wildlife without recommending excessive actions. The example response includes "天候や足元に注意し、野生動物には遠くから見守ってください。" which fits. 
+
+I think that covers all the points. Now, structure the sentences in natural Japanese, keeping it calm and informative without any speculation.
+</think>
+
+鳥海山の北麓にある鳥海高原花立牧場公園は、ファミリー向けのレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場があり、一日中楽しめます。特に、子供たちに人気の動物とのふれあい広場で、牛たちと触れ合える体験ができます。天候や足元に注意し、野生動物には遠くから見守ってください。
