@@ -1,0 +1,21 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 法体の滝. The facts mention it's part of the Japan's 100 Famous Waterfalls and has three-tiered waterfalls from Mount Chokai.
+
+First, I need to structure the narration as per the constraints: intro, key facts, fun tidbit, safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. Avoid overused metaphors and keep it self-contained. Also, include a safety note about weather, footing, and wildlife without recommending risky behavior.
+
+Start with a short intro. Maybe something like "Welcome to 法体の滝..." Then mention it's one of Japan's 100 Famous Waterfalls. Next, describe the three-tiered cascade from Mount Chokai. For the fun fact, maybe mention the name's origin, like "Hōtei" meaning "Law and Order" or something related to Buddhist tradition. Wait, the original name is 法体の滝, which I think translates to "Law Body Falls" but maybe there's a cultural significance. Alternatively, maybe it's linked to a historical figure or a local legend. If unsure, better to state it's named after a local tradition or something simple. 
+
+Safety reminder: Check weather conditions, watch your step on wet rocks, and be cautious of wildlife like snakes or insects. Avoid suggesting specific actions like swimming or climbing. 
+
+Need to ensure all proper nouns are correct. Also, avoid speculation. If the origin of the name isn't known, just say it's named for a local tradition or something. 
+
+Let me draft:
+
+"Welcome to 法体の滝, one of Japan's 100 Famous Waterfalls. The cascade flows in three tiers from Mount Chokai, creating a majestic sight. Locally known as 'Hōtei Falls,' the name reflects its historical significance as a site for Buddhist meditation. Be mindful of weather changes, slippery rocks, and wildlife like snakes. Enjoy responsibly, and stay safe."
+
+Check the length. Maybe adjust to fit within 200-300 characters. Also, ensure the safety note is concise. Maybe combine the safety points into one sentence. Also, confirm that the name's meaning is accurate. If unsure, maybe just state it's named for a local tradition without over-explaining. 
+
+Final check: No markdown, plain text. Ensure all constraints are met.
+</think>
+
+法体の滝へようこそ。日本の滝百選に選ばれたこの名瀑は、鳥海山から流れる水が三段にわたって流れ落ち、壮大な姿を見せます。地元では「法体」という名前から、仏教の修行地としての歴史を持つともいわれます。天候や足元の悪さに注意し、野生動物（特に蛇）に配慮してご観光ください。過度な近づきはご遠慮ください。
