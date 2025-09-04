@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia';
 import { openDB } from 'idb';
 import { createPlan, pollPlan } from '@/lib/api';
+import { prefetchTilesForRoute } from '@/lib/tiles';
 
 const DB_NAME = 'navpacks';
 const DB_VER = 1;
@@ -114,6 +115,7 @@ export const useNavStore = defineStore('nav', {
         this.setPlan(plan);
         await this.savePlanToDB(plan);
         await this.prefetchAssets();
+        await prefetchTilesForRoute(plan.polyline, { zooms: [12,13,14,15], marginDeg: 0.05, max: 800 });
         this.ready = true;
         return plan;
       } catch (e) {
