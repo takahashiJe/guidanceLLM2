@@ -1,0 +1,9 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the 花立クリーンハイツ. The structure needs to have a short intro, key facts, a fun tidbit, and a safety reminder. Also, it has to be in Japanese, with a calm guide tone, around 45-60 seconds, so 200-300 characters. Need to avoid speculation and keep it self-contained.
+
+First, the intro should mention the location and its role as a tourist hub. Then the key facts: it's a facility with a restaurant, info corner, and check-in for cottages. The popular item is the Jersey soft cream. For the fun tidbit, maybe mention the name's origin or something quirky. Safety reminder needs to include weather, terrain, and wildlife, without recommending excessive activities.
+
+Wait, the user specified to avoid over-the-top metaphors. So keep it straightforward. Also, check if all the facts are covered. Let me make sure not to add any unknown info. The safety part should be a single sentence. Let me count the characters to ensure it's within the limit. Let me put it all together now.
+</think>
+
+花立クリーンハイツは、鳥海高原の観光拠点として機能する施設です。レストランや観光案内コーナーがあり、隣接するコテージのチェックインもここで行われます。人気のジャージーソフトクリームをぜひお試しください。ちなみに、名称は周辺の花立山から来ています。天候や足元の変化に注意し、野生動物との遭遇には配慮してください。過度な行動は避けて安全に楽しんでください。

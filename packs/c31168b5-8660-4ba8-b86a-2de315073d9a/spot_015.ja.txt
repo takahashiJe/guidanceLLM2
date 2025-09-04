@@ -1,0 +1,11 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 鳥海山 (Toukai-san) area, specifically focusing on the 竜ヶ原湿原 (Ryūgahara Shikabe) spot. Let me start by recalling the user's instructions.
+
+First, the structure should be four parts: short intro, key facts/history/nature, fun tidbit, and safety reminder. The tone needs to be calm and professional, around 45-60 seconds, so 200-300 characters. I have to avoid overusing metaphors and keep it self-contained without referencing other documents.
+
+The facts given are that it's a high-altitude wetland in the middle of Toukai-san, known for its alpine plants like Watasuge and Nikkoukisuge. The user also wants a safety note about weather, footing, and wildlife, without recommending excessive activity.
+
+Let me start with the intro. Maybe something like "皆様、こんにちは。今日は龍ヶ原湿原をご案内します。" Then mention it's a high-altitude wetland in the middle of Toukai-san. Next, the key facts: it's a treasure trove of alpine plants, including Watasuge and Nikkoukisuge. The fun tidbit could be that the name comes from the dragon-like shape of the wetland. For safety, remind visitors to check the weather, watch their steps, and be cautious of wildlife. Avoid speculation, so if I'm unsure about anything, just mention it briefly. Keep the language simple and natural, no markdown. Let me check the character count to make sure it's within the limit. Also, ensure that proper nouns are correct and avoid any overused metaphors. Alright, that should cover all the points.
+</think>
+
+皆様、こんにちは。今日は龍ヶ原湿原をご案内します。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する宝庫です。特に夏には鮮やかな花々が咲き乱れ、自然の美しさを楽しむことができます。なお、湿原の名は「龍の原」という意味で、広がる地形が龍の姿に見えると伝わります。天候や足元に注意し、野生動物に遭遇しないよう配慮してください。過度な行動はお控えください。

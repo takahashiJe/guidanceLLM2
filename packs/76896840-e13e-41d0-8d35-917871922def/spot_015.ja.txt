@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration in Japanese for the spot "竜ヶ原湿原" (ID: spot_015) as a tour guide. Let me start by understanding the requirements.
+
+First, the structure: short intro, key facts/history/nature, fun tidbit, safety reminder. The user wants a calm guide tone, around 45-60 seconds, so about 200-300 characters. Avoid excessive metaphors and keep it self-contained without referencing other documents.
+
+The facts given are that it's a highland marsh in the middle of Mt. Chokai, known for alpine plants like Watasgae and Nikkou Kisosage. Also, need to mention safety considerations: weather, footing, wildlife. Don't recommend excessive actions.
+
+Let me start with the intro. Maybe something like "竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原で..." Then mention the key facts about the plants. For the fun tidbit, maybe note that it's a haven for plant enthusiasts. Safety reminder: check weather, watch footing, and be cautious of wildlife. Need to make sure all the points are covered concisely.
+
+Check for proper nouns: 竜ヶ原湿原, 鳥海山, ワタスゲ, ニッコウキスゲ. Avoid any speculation. Keep it simple and straightforward. Let me draft that.
+</think>
+
+竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなど高山植物が生育する自然の宝庫です。標高帯に応じた植物の分布を楽しむことができます。特に春には花々が競う様子が見どころです。ただし、天候の変化に注意し、足元の滑りやすさを確認してください。野生動物の出没も確認されているため、ご注意ください。

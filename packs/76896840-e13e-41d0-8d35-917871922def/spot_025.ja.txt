@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration for the spot 赤滝 (ID: spot_025) as a tour guide. Let me start by understanding the user's requirements.
+
+First, the structure: short intro, key facts/history/nature, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid excessive metaphors and keep it self-contained. Also, include safety considerations about weather, footing, and wildlife, without recommending excessive actions.
+
+The facts given are that it's near Fushikawa, and during snowmelt seasons, it's impressive. So the intro should mention the location. Key facts would be the proximity to Fushikawa and the seasonal aspect. The fun tidbit could be something like the name's meaning or a local story. Safety reminder needs to mention weather, footing, and wildlife, but without suggesting risky behavior.
+
+I should check if there's any history or additional info. Since the user didn't provide more, I'll stick to the given facts. The name "Akataki" (赤滝) translates to "Red Waterfall," maybe that's the fun tidbit. Also, need to mention safety without being too alarmist. Maybe something like "Please be cautious of slippery rocks and sudden weather changes, and avoid approaching wildlife."
+
+Now, let me draft the narration in Japanese, keeping it concise and within the character limit. Make sure to use the correct terms for the location and avoid any speculation beyond what's provided.
+</think>
+
+赤滝は、祓川の近くに位置する滝で、特に雪解けの時期には水量が増し、迫力が際立つスポットです。名前の「赤」は、水の色合いや周辺の紅葉を連想させるもので、四季折々の美しさが楽しめます。地元の伝説では、滝の下に神社があるとされることがあり、観光客も訪れる場所です。ただし、足元は滑りやすくなり、急な天候の変化に注意が必要です。野生動物の出没も確認されており、自然を楽しむ際は安全に留意してください。

@@ -1,0 +1,9 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at 鳥海山's 竜ヶ原湿原. The structure needs to be four parts: intro, key facts, fun tidbit, safety reminder. Also, they want a safety note about weather, terrain, and wildlife, without recommending excessive actions.
+
+First, I need to make sure the facts are accurate. The spot is a highland wetland with plants likeワタスゲ andニッコウキスゲ. The intro should be brief, maybe mention the location and its reputation. Key facts would include the plants and maybe the elevation. The fun tidbit could be something like the name's origin or a unique fact. Safety reminder needs to be concise, mentioning weather, terrain, and wildlife without advising risky behavior.
+
+I should check if there's any specific history or cultural info, but since the user said to avoid speculation, I'll stick to the given facts. The tone needs to be calm and informative. Let me structure each part step by step, ensuring each section is concise. Also, make sure not to use any markdown and keep it plain text. Let me double-check the word count to fit within 200-300 characters. Finally, confirm that all proper nouns are correct and avoid overused metaphors.
+</think>
+
+こんにちは、龍ヶ原湿原へようこそ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する自然の宝庫です。特に春には一面の花畑が広がり、季節限定の美しさを楽しめます。実は、この湿原は「竜が原」と名付けられた由来があるんですよ。天候や足元の状態に留意し、野生動物との遭遇にも配慮してご観光ください。安全に楽しんでいただけますようお願いいたします。
