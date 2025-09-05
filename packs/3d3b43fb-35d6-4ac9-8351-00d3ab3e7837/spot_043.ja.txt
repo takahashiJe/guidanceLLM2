@@ -1,0 +1,13 @@
+<think>
+Okay, let's see. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about the Hanatate Clean Heights (花立クリーンハイツ) with ID spot_043. The facts given are that it's a tourist facility in the Bird's Highland area, has a restaurant, tourist information corner, and check-in for adjacent cottages. They also mention the popular Jersey soft cream.
+
+First, I need to structure the narration into four parts: short intro, key facts, fun tidbit, and safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. Avoid any speculation, so if something isn't mentioned, don't add it. Also, make sure to include the safety note about weather, footing, and wildlife, without recommending excessive activities.
+
+Start with the intro: mention the location as a base for tourism. Then key facts: restaurant, info corner, check-in for cottages, and the soft cream. Fun tidbit could be the popularity of the soft cream. Safety reminder: check weather, watch your step, be cautious of wildlife.
+
+Wait, the user said to avoid overusing metaphors. So keep it straightforward. Also, make sure to use the correct names. Let me check the facts again. The POI.description says it's a tourist facility with restaurant, info corner, check-in for adjacent cottages, and the Jersey soft cream is popular. So the fun tidbit is the soft cream. Safety: weather, footing, wildlife. Need to add a sentence about safety considerations without recommending specific actions. Maybe something like "Please check the weather and be mindful of your footing, and keep an eye out for wildlife."
+
+Putting it all together in Japanese, keeping it concise. Let me count the characters to make sure it's within the limit. Also, make sure it's plain text only, no markdown. Alright, let me draft it.
+</think>
+
+花立クリーンハイツは、鳥海高原の観光拠点として活用されています。レストランや観光案内コーナーがあり、隣接するコテージのチェックインも行えます。特に人気なのは、ジャージーソフトクリームです。お楽しみください。天候や足元に注意し、野生動物にも配慮してご観光ください。

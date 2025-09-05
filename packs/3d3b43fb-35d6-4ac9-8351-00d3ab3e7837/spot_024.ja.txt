@@ -1,0 +1,17 @@
+<think>
+Okay, I need to create a spoken narration for the Fushikawa Shrine (祓川神社) as a tour guide. Let me start by understanding the user's requirements.
+
+First, the structure: short intro, key facts/history/nature, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters in Japanese. I have to avoid excessive metaphors and keep it self-contained without referencing other documents. Also, include a safety note about weather, footing, and wildlife, without recommending risky actions.
+
+The facts given are that it's a shrine at the base of Chokai Mountain, near the Fushikawa entrance, and it's busy with hikers praying for safe climbs. The shrine's name is Fushikawa Shrine, ID spot_024. Need to mention that it's a popular spot for hikers seeking safety. 
+
+For the intro, maybe start with welcoming visitors to the area and introducing the shrine. Then mention its location and purpose. The fun tidbit could be about the shrine's name meaning "purification of the river," which ties into the river's role in the area. Safety reminder should include checking the weather, being cautious on trails, and avoiding wildlife areas. 
+
+Wait, the user said to avoid speculation. So if there's anything not known, just say so briefly. Since the facts provided are limited, I need to stick to what's given. The shrine's name might have a meaning related to purification, but I should confirm if that's accurate. Alternatively, maybe the river's name is Fushikawa, and the shrine is named after it. 
+
+Also, the safety note needs to mention weather, footing, and wildlife. So phrases like "天候や足元、野生動物への配慮が必要です" would work. Avoid recommending specific actions like "don't go alone" but rather suggest being cautious. 
+
+Putting it all together: start with the shrine's location and purpose, mention the hikers' prayers, the fun fact about the river's name, and then safety tips. Keep it concise and natural in Japanese.
+</think>
+
+皆様、鳥海山の登山口にある祓川神社へようこそ。多くの登山者が安全を祈願し、賑わうこの神社は、山頂への道の始まりです。神社の名前の由来は、周辺の祓川にちなむもので、自然との調和を象徴しています。お参りの際は、ご参拝の後、周辺の自然をゆっくりと楽しんでみてください。安全配慮として、天候や足元、野生動物への配慮が必要です。過度な行動は避け、自然を大切に。

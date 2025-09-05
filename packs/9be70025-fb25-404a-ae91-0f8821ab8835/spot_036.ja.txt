@@ -1,0 +1,19 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in Japanese, specifically about the 鳥海高原花立牧場公園. The structure needs to be short intro, key facts, fun tidbit, safety reminder. Also, they mentioned to include a safety note about weather, terrain, and wildlife, without recommending excessive activities.
+
+First, I need to make sure I understand the facts provided. The spot is a leisure spot in the north foot of Chokai Mountain, centered around a Jersey cow farm with go-karts, park golf, and an animal interaction area. It's family-friendly for a day.
+
+Starting with the intro: should be welcoming and mention the location. Then key facts: mention the Jersey cows, the facilities, and that it's good for families. The fun tidbit could be about the animal interaction area, maybe something like kids can feed the cows. Safety reminder needs to include weather, terrain, and wildlife. Maybe something like checking the weather, being cautious on uneven ground, and keeping a distance from animals.
+
+Wait, the user specified to avoid speculation. So if I don't know something, I should say so briefly. But the facts given are clear, so I can use those. Also, avoid overusing metaphors. Keep it straightforward.
+
+Check the constraints again: 45-60 seconds, 200-300 characters. Let me count. The sample response is around 200 characters. Need to keep it concise. Also, self-contained, no references to documents.
+
+Now, structure each part. Intro: Welcome to the area. Key facts: location, facilities. Fun fact: animal interaction. Safety: weather, terrain, wildlife. Make sure to mention safety without pushing for extreme activities.
+
+Let me draft in Japanese. Start with "鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。" Then mention the Jersey cows and the facilities. Fun fact: "特に、動物とのふれあい広場では、子供たちが牛に触れて遊べるなど、家族で楽しむことができます。" Safety: "天候や足元の確認、野生動物との距離を保つなど、安全に楽しんでください。"
+
+Check for length. Maybe adjust to fit within the character limit. Also, ensure that all parts are covered. Avoid any markdown, just plain text. Make sure the safety note is included as per the user's instruction. Okay, that should cover it.
+</think>
+
+鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場があり、家族で一日楽しめます。特に、動物とのふれあい広場では、子供たちが牛に触れて遊べるなど、親しみやすい空間です。天候や足元の確認、野生動物との距離を保つなど、安全に楽しんでください。
