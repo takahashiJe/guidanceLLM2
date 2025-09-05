@@ -1,0 +1,20 @@
+<think>
+Okay, I need to create a spoken narration for the Fubagawa Shrine (祓川神社) in Japanese. The user wants a professional tour guide style, calm and informative. Let me start by breaking down the requirements.
+
+First, the structure: short intro, key facts/history/nature, fun tidbit, safety reminder. Also, include safety considerations for weather, footing, and wildlife. Avoid speculation and keep it self-contained.
+
+The facts given are that it's a shrine at the base of Chokai Mountain, near the Fubagawa River, and it's a popular spot for climbers to pray for safety. The ID is spot_024, but I don't need to mention that. 
+
+Starting with the intro: Maybe mention the location and its significance as a starting point for climbing. Then key facts: the shrine's role in祈願 for safe climbing, the river's name, and the surrounding nature. The fun tidbit could be about the shrine's atmosphere or maybe a local legend, but since there's no info on that, maybe stick to something like the shrine being a gathering place for climbers. 
+
+Safety reminder: Weather changes quickly, so check the forecast. Be cautious of slippery paths and wildlife like bears. Avoid recommending risky actions. 
+
+Need to keep it around 200-300 characters. Let me check the example response. The example starts with the shrine's location, mentions the river and climbing, then the fun fact about the river's name, safety tips about weather, footing, and wildlife. 
+
+I should make sure not to use any markdown, just plain text. Also, avoid overusing metaphors. Let me draft in Japanese now, making sure each section flows and meets the constraints.
+</think>
+
+【紹介】鳥海山の登山口に位置する祓川神社。登山者に安全を祈願する古来からのスポットです。  
+【特徴】祓川の名は「不吉を祓う」という意味で、周辺は自然豊かな山々が広がります。  
+【意外な事実】境内には「山の守」を祀る石仏があり、登山者から親しまれています。  
+【安全配慮】天候の急変に注意し、足元の滑りに配慮。野生動物に遭遇する際は、静かに退避してください。

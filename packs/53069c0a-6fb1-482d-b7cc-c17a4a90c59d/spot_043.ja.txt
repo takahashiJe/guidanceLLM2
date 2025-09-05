@@ -1,0 +1,13 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the Hanadake Clean Heights (花立クリーンハイツ) with the given facts. The constraints are clear: a calm guide tone, around 45-60 seconds, 200-300 characters. Structure needs to include an intro, key facts, a fun tidbit, and a safety reminder. Also, avoid speculation and keep it self-contained.
+
+First, I need to start with a short intro. Maybe something like welcoming visitors to the area and introducing the spot. Then mention the key facts: it's a tourist base with a restaurant, info corner, and check-in for cottages. Highlight the popular Jersey soft cream. 
+
+For the fun tidbit, maybe mention the popular item, the soft cream, and perhaps the view from the area. Safety reminder should include weather, footing, and wildlife. Need to keep it brief and avoid over-the-top advice. Also, ensure all proper nouns are correct, like the name of the place. 
+
+Check the length. Let me count the characters. The example response is around 200-300, so I need to keep it concise. Avoid any markdown and plain text only. Make sure each section flows naturally. Let me draft each part step by step, then check for the constraints again. Also, ensure that the safety part is included as per the user's instruction. Alright, time to put it all together.
+</think>
+
+皆様、鳥海高原の観光拠点「花立クリーンハイツ」へようこそ。レストランや観光案内コーナーがあり、隣接するコテージのチェックインもここで行えます。特に人気なのは、ジャージーソフトクリームです。  
+
+この場所からは、周辺の自然を楽しむことができますが、天候や足元の状態に注意が必要です。また、野生動物に遭遇する可能性もあるため、ご注意ください。過度な行動は避け、安全にご観光ください。

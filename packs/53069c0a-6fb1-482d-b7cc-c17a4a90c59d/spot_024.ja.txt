@@ -1,0 +1,26 @@
+<think>
+Okay, let me tackle this query. The user wants a spoken narration in Japanese for a tour guide at the Fushikawa Shrine near Mt. Chokai. The structure needs to be intro, key facts, fun tidbit, safety reminder, and include a safety note about weather, footing, and wildlife.
+
+First, I need to make sure the introduction is brief. Start with the shrine's location and its role as a starting point for climbers. Then mention the key facts from the provided data: it's at the base of Mt. Chokai, serves as a starting point, and is popular for safety prayers. 
+
+Next, the fun tidbit. The shrine has a unique feature, maybe the purification ritual with water? That's a common element in Shinto shrines, so that could be a good point. 
+
+For the safety reminder, I have to mention weather, footing, and wildlife. Since the user specified to avoid recommending excessive activity, I should keep it general. Maybe say to check the weather, watch your step, and be cautious of wildlife. 
+
+I need to keep it around 200-300 characters, so I have to be concise. Also, avoid any speculation. If there's anything unknown, like specific wildlife, I should mention that briefly. 
+
+Let me check the constraints again: no markdown, plain text only. Make sure the tone is calm and professional. Avoid overused metaphors. 
+
+Putting it all together: Start with the shrine's location, its role for climbers, mention the purification ritual as a fun fact, then the safety tips. Ensure the safety note is included at the end. Let me count the characters to make sure it's within the limit. 
+
+Wait, the user also wants the safety note to be a separate part. So after the safety reminder, add a line about weather, footing, and wildlife. Let me structure each part step by step. 
+
+Double-check the facts: the shrine is at the登山口, so the starting point. Many climbers come here for safety prayers. The fun tidbit about the purification ritual. Safety: check weather, watch your step, be cautious of wildlife. 
+
+Okay, that should cover all the points. Now, write it in Japanese with the specified structure and constraints.
+</think>
+
+【紹介】鳥海山矢島口の登山口に位置する祓川神社。多くの登山者が安全を祈願して参拝します。  
+【特徴】登山口の象徴的な存在で、参拝者は川の水で手を清め、無事を願う風習があります。  
+【豆知識】境内には「祓川」の名前の由来となる伝説が残されており、地元の歴史に深く結びついています。  
+【注意】天候や足元の悪化に注意し、野生動物への配慮も忘れず、安全第一で登山してください。

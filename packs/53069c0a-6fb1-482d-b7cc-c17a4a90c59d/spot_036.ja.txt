@@ -1,0 +1,19 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in Japanese, focusing on the 鳥海高原花立牧場公園. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, include a safety note about weather, terrain, and wildlife. 
+
+First, I need to make sure I understand the facts provided. The spot is a leisure spot at the foot of Chokai Mountain, centered around a Jersey cow farm with go-karts, park golf, and an animal interaction area. The narration should be calm and around 45-60 seconds, so 200-300 characters. 
+
+Starting with the intro: Greeting and location. Then key facts: mention the Jersey cows, the various facilities. Fun tidbit could be about the animal interaction area. Safety reminder needs to include weather, terrain, and wildlife. Avoid speculation, so if something isn't known, just mention it briefly. 
+
+Wait, the user specified to avoid over-the-top metaphors and keep it self-contained. Also, the safety note should be a single sentence. Let me check the constraints again. 
+
+Make sure not to reference any external documents. Use plain text only. Let me structure each part step by step. 
+
+Intro: Welcome to the area, mention the location. Key facts: the main attractions. Fun tidbit: maybe the animal interaction is a highlight. Safety: check weather, watch steps, be cautious of wildlife. 
+
+Need to keep it concise. Let me draft each section. Also, ensure the safety part is included as a single sentence. Maybe end with the safety note. Let me count the characters to stay within the limit. 
+
+Double-check for any speculation. Since the facts don't mention specific wildlife, just a general note. Okay, that should cover it. Now, put it all together in Japanese, keeping the tone calm and informative.
+</think>
+
+鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場などがあり、家族で一日楽しめます。特に、子どもたちに人気の動物ふれあいエリアは、牛や羊と触れ合う体験ができます。天候や足元に注意し、野生動物との遭遇には配慮して楽しんでください。

@@ -1,0 +1,15 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the dragon's original wetland (竜ヶ原湿原). The structure needs to be short intro, key facts, fun tidbit, and safety reminder. Also, they mentioned to avoid speculation and keep it self-contained.
+
+First, the intro should be brief. Maybe start with welcoming visitors and mentioning the location. Then, the key facts: it's a highland wetland in the middle of the mountain, known for alpine plants like Watasgae and Nikkou Kishu. Need to mention the POI description accurately.
+
+For the fun tidbit, maybe something about the plants being a haven for wildlife or a specific interesting fact. Wait, the facts section says it's a treasure trove for alpine plants. Maybe add that it's a popular spot for photography or something like that.
+
+Safety reminder: weather, terrain, wildlife. Need to mention to check the weather, watch your step, and be cautious of wildlife. Avoid recommending specific actions, just a reminder.
+
+Also, make sure to use the correct Japanese terms. Avoid overused metaphors. Keep the tone calm and informative. Let me check the constraints again. No references to the document, self-contained. Output plain text only. Safety considerations must be included in the safety reminder.
+
+Putting it all together: Start with a welcome, location, key facts about the wetland and plants. Then a fun fact about the flora. Safety tips about weather, terrain, and wildlife. Keep it around 200-300 characters. Let me count the characters. Maybe around 250. Let me draft each part step by step.
+</think>
+
+竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する自然の宝庫です。標高の高い場所に位置するため、夏でも涼しく、四季を通じて異なる植物が楽しめるスポットです。特に春には、ニッコウキスゲの鮮やかな赤が湿原を彩ります。足元の湿った土は滑りやすいので、歩きやすい靴をおすすめします。天候の変化が急なので、雨具の準備も忘れずに。 wildlifeには注意が必要です。

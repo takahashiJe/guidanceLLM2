@@ -1,0 +1,21 @@
+<think>
+Okay, let me tackle this query. The user wants a spoken narration in Japanese for a tour guide at 鳥海山 (Toriyama) area, specifically about 竜ヶ原湿原 (Ryūgahara Shikabe). The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, they mentioned to avoid speculation and keep it self-contained.
+
+First, the intro should be short. Maybe start with welcoming visitors and introducing the spot. Then the key facts: it's a high-altitude wetland with rare plants like Watasgae and Nikkō Kikusuke. Need to mention it's in the middle of the mountain. 
+
+For the fun tidbit, perhaps mention that it's a haven for birdwatchers or photographers. Wait, the facts say it's a treasure trove of alpine plants, so maybe the fun fact could be about the variety of plants or maybe the best time to visit. But the user said to avoid overused metaphors, so maybe just a simple fact without embellishment.
+
+Safety reminder: weather, footing, wildlife. Need to mention to check the weather, be cautious of unstable ground, and avoid approaching wildlife. Also, the user specified to add a note about safety considerations without recommending excessive activity. So maybe something like "Please be mindful of weather conditions, unstable terrain, and wildlife. Avoid venturing too far."
+
+Check the constraints: no markdown, plain text. Keep it around 200-300 characters. Let me count the characters. The example response is about 250 characters. Need to make sure each part is covered concisely. Also, ensure that all proper nouns are correct, like 竜ヶ原湿原 and the plant names. Avoid any speculation, so don't say things like "it's famous for..." but stick to the facts given. 
+
+Let me structure it step by step. Intro: "ようこそ、竜ヶ原湿原へ。" Then key facts: "鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育しています。" Fun tidbit: "特に春には、花々が競うように咲き誇り、自然の美しさを楽しむことができます。" Safety: "天候や足元、野生動物に配慮し、過度な行動は避けましょう。" 
+
+Wait, the fun tidbit should be a bit more unique. Maybe mention that it's a hidden gem or something, but the user said to avoid overused metaphors. Alternatively, since it's a plant treasure, maybe the fun fact is that it's a must-see for botanists. But the example response uses "特に春には" which is good. 
+
+Check the safety part: "天候や足元、野生動物への配慮を。過度な行動は避けましょう。" That's concise. 
+
+Now, putting it all together in Japanese, making sure it's around 200-300 characters. Let me count. The example response is 250 characters. So the final answer should be similar.
+</think>
+
+ようこそ、竜ヶ原湿原へ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育しています。特に春には、花々が競うように咲き誇り、自然の美しさを楽しむことができます。天候や足元、野生動物への配慮を。過度な行動は避けましょう。
