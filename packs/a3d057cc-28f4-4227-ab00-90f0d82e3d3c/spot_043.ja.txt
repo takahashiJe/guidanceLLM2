@@ -1,0 +1,13 @@
+<think>
+Okay, the user wants me to act as a professional tour guide for visitors around Mt. Chokai. The specific spot is 花立クリーンハイツ with ID spot_043. Let me start by recalling the facts provided. 
+
+First, the description mentions it's a tourist facility in 鳥海高原, with a restaurant, tourist information corner, and check-in for adjacent cottages. The popular item is Jersey soft cream. 
+
+The structure needs to be four parts: short intro, key facts, fun tidbit, safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. I need to avoid speculation and keep it self-contained. Also, include a safety note about weather, footing, and wildlife without recommending excessive activities.
+
+Starting with the intro: introduce the spot as a base for the area. Then mention the facilities like restaurant and info corner, check-in for cottages. The fun tidbit is the Jersey soft cream. For safety, remind about weather changes, uneven paths, and wildlife encounters. 
+
+I need to make sure all proper nouns are correct. Avoid any metaphors. Let me check the character count. Also, the output should be plain text only. Let me put this all together concisely.
+</think>
+
+花立クリーンハイツは、鳥海高原の観光拠点として活用されています。レストランや観光案内コーナーがあり、隣接するコテージのチェックインもここで行えます。人気のジェネレーションソフトクリームをご堪能ください。季節によっては天候が急変するため、雨具の準備をおすすめします。足元は滑りやすい場合がありますので、くれぐれもご注意ください。野生動物の出没も確認されているため、自然に近いエリアでは声をかけず遠ざけることが安全です。

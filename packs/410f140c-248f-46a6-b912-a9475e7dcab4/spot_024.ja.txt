@@ -1,0 +1,7 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the Fushikawa Shrine near Mt. Chokai. The structure needs to be intro, key facts, fun tidbit, safety reminder, and include a safety note about weather, footing, and wildlife.
+
+First, I need to make sure the introduction is short and welcoming. Then, mention the shrine's location at the登山口 and its role in祈願 for safe climbing. The fun fact could be about the shrine's name origin, like "祓川" meaning purification. For the safety reminder, I should include weather, footing, and wildlife without recommending risky behavior. Also, keep it self-contained and avoid any speculation. Let me check the constraints again to ensure compliance. Avoid overused metaphors and keep the tone calm. Alright, time to put it all together concisely.
+</think>
+
+皆様、こんにちは。今日は「祓川神社」をご案内します。鳥海山矢島口の登山口に位置し、多くの登山者が安全を祈願するスポットです。神社の名は「祓川」と読み、川の清めを意味する由来があります。お参りの際は、ご安全に留意ください。天候や足元の悪化、野生動物への配慮が必要です。過度な行動はお控えください。

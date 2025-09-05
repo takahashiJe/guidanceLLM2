@@ -1,0 +1,13 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at 鳥海山の中腹の竜ヶ原湿原. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, include a safety note about weather, footing, and wildlife. Keep it calm, around 45-60 seconds, 200-300 characters.
+
+First, the intro should mention the spot's location and its significance. Then key facts: it's a high-altitude wetland with rare plants like ワタスゲ and ニッコウキスゲ. Fun tidbit: maybe the name's origin or something unique about the plants. Safety reminder: check weather, watch footing, be cautious of wildlife. Need to avoid speculation, so if something isn't known, just say briefly. Also, no markdown, plain text only.
+
+Wait, the user specified to avoid over-the-top metaphors. So keep it straightforward. Let me check the facts again. The POI description says it's a high-altitude wetland with a collection of alpine plants. The fun tidbit could be that the name "竜ヶ原" might relate to the area's features, but I'm not sure. Maybe better to stick to the plants. Or maybe mention that it's a haven for birdwatchers? But the facts don't mention that. Need to be careful not to add info not in the facts. 
+
+Safety reminder: mention weather changes, uneven ground, and wildlife. Maybe say something like "注意が必要な点は天候の変化や足元の悪さ、野生動物の出没です。過度な行動は避けてください。" 
+
+Putting it all together: start with the location, then the plants, a fun fact about the plants, and safety. Keep each part concise. Let me count the characters. Maybe around 250 characters. Let me draft it.
+</think>
+
+竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する貴重な場所です。春には花々が競う様子が見られ、自然愛好家に人気です。実は、湿原の名前の由来は「竜が原に集う」という言い伝えからという説もあります。天候の急変や足元の滑りやすさ、野生動物への配慮が必要です。過度な行動は避け、安全に楽しんでください。

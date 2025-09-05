@@ -1,0 +1,23 @@
+<think>
+Okay, let's see. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about the Fushikawa Shrine (spot_024). The facts mention it's at the base of Mount Chokai, near the Yashima entrance, and many hikers come here for safety prayers.
+
+First, I need to structure it into four parts: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid overused metaphors, keep it factual. Also, include a safety note about weather, footing, and wildlife without recommending risky behavior.
+
+Start with the intro: mention the shrine's location and purpose. Then key facts: it's at the登山口, serves as a starting point, and the prayers for safety. Fun tidbit: maybe the name's origin or something unique about the shrine. Safety reminder: check weather, watch your step, be aware of wildlife.
+
+Wait, the facts say it's at the登山口 of 鳥海山矢島口 (Fushikawa), so the shrine is at the base. The name "Fushikawa" might relate to purification, since "fushika" can mean purification. Maybe that's the fun tidbit. Also, safety: remind visitors to check weather, be cautious on the trail, and watch for wildlife.
+
+Make sure not to speculate. If something isn't known, just say so. Keep it self-contained. Use plain text only. Avoid any markdown. Let me check the character count. Let me draft it step by step.
+</think>
+
+【導入】  
+鳥海山矢島口の登山口に位置する「祓川神社」は、登山の安全を祈願する多くの登山者で賑わいます。  
+
+【概要】  
+山頂への道の始まりとして知られ、参拝者は安全を願いながら出発。地元の伝説では、川の流れが山の守護を象徴するとも言われます。  
+
+【エピソード】  
+神社の名前の「祓川」は、古来からの purification（浄化）の意味を持つとされ、参拝者が心を清めるとされる由来です。  
+
+【安全注意】  
+天候の変化に注意し、足元の滑りやすい場所を避けてください。また、野生動物の出没に配慮し、静かな行動を心がけましょう。

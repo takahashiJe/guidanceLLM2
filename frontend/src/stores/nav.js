@@ -3,14 +3,12 @@ import { defineStore } from 'pinia'
 
 export const useNavStore = defineStore('nav', () => {
   // --- State ---
-  // プラン作成中に使用する一時的なデータ
   const lang = ref('ja')
-  const origin = ref({ lat: 39.72, lon: 140.13 }) // 秋田県庁の座標をデフォルトに
-  const waypointsByIds = ref([]) // 選択されたspot_idの配列
+  const origin = ref(null) // ★ デフォルト値を削除し、nullで初期化
+  const waypointsByIds = ref([])
 
-  // ナビゲーション開始後にセットされるデータ
   const plan = ref(null)
-  const focusedWaypointIndex = ref(0)
+  const focusedWaypointIndex = ref(0) 
 
   // --- Getters ---
   const waypoints = computed(() => plan.value?.waypoints || [])
@@ -41,11 +39,14 @@ export const useNavStore = defineStore('nav', () => {
     focusedWaypointIndex.value = 0
   }
 
-  function focusNextWaypoint() {
+  function focusOnWaypointById(spotId) {
     if (!plan.value || !waypoints.value.length) return;
-    focusedWaypointIndex.value = (focusedWaypointIndex.value + 1) % waypoints.value.length;
+    const index = waypoints.value.findIndex(wp => wp.spot_id === spotId);
+    if (index !== -1) {
+      focusedWaypointIndex.value = index;
+    }
   }
-
+  
   function reset() {
     plan.value = null
     focusedWaypointIndex.value = 0
@@ -53,21 +54,18 @@ export const useNavStore = defineStore('nav', () => {
   }
 
   return {
-    // PlanView用
     lang,
     origin,
     waypointsByIds,
     setLang,
     setOrigin,
     setWaypointsByIds,
-
-    // NavView用
     plan: readonly(plan),
     waypoints,
     alongPois,
     focusedWaypoint,
     setPlan,
-    focusNextWaypoint,
+    focusOnWaypointById,
     reset,
   }
 })

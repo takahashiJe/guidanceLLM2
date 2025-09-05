@@ -14,7 +14,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
-
 const props = defineProps({
   routeGeojson: {
     type: Object,
@@ -23,10 +22,6 @@ const props = defineProps({
   pois: {
     type: Array,
     default: () => []
-  },
-  focusCoords: {
-    type: Array,
-    default: null
   }
 });
 
@@ -37,17 +32,13 @@ let routeLayer = null;
 onMounted(() => {
   if (!mapContainer.value) return;
 
-  // Leafletマップの初期化
   map = L.map(mapContainer.value);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 
-  // ルートを描画
   drawRoute();
-  
-  // POIマーカーを描画
   drawPois();
 });
 
@@ -58,13 +49,9 @@ onUnmounted(() => {
   }
 });
 
-// ルートデータを描画する関数
 const drawRoute = () => {
   if (!map || !props.routeGeojson) return;
-
-  if (routeLayer) {
-    map.removeLayer(routeLayer);
-  }
+  if (routeLayer) map.removeLayer(routeLayer);
 
   routeLayer = L.geoJSON(props.routeGeojson, {
     style: (feature) => {
@@ -73,31 +60,29 @@ const drawRoute = () => {
     }
   }).addTo(map);
 
-  // 地図の表示範囲をルート全体に合わせる
   map.fitBounds(routeLayer.getBounds(), { padding: [20, 20] });
 };
 
-// POIを描画する関数
 const drawPois = () => {
   if (!map || !props.pois) return;
   props.pois.forEach(poi => {
     if (poi.lonlat) {
-      L.marker([poi.lonlat[1], poi.lonlat[0]]) // Leafletは [lat, lon] の順
+      L.marker([poi.lonlat[1], poi.lonlat[0]])
         .addTo(map)
-        .bindPopup(`<b>${poi.name}</b><br>${poi.description || ''}`);
+        .bindPopup(`<b>${poi.name?.ja || poi.spot_id}</b>`);
     }
   });
 };
 
-
-// 注目座標の変更を監視
-watch(() => props.focusCoords, (newCoords) => {
-  if (newCoords && map) {
-    // Leafletは [lat, lon] の順なので注意
-    map.flyTo([newCoords[1], newCoords[0]], 15); // ズームレベル15に設定
+// 親コンポーネントからこのメソッドを呼び出せるようにする
+defineExpose({
+  flyTo: (coords, zoom = 15) => {
+    if (map && coords) {
+      // Leafletは [lat, lon] の順
+      map.flyTo([coords[1], coords[0]], zoom);
+    }
   }
 });
-
 </script>
 
 <template>
