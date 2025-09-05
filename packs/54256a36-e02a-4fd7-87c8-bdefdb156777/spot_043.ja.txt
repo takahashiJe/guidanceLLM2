@@ -1,0 +1,9 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 花立クリーンハイツ. The facts provided mention it's a tourist facility with a restaurant, information corner, and check-in for adjacent cottages. They also note the popular Jersey soft cream.
+
+First, I need to structure it into four parts: intro, key facts, fun tidbit, and safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid any metaphors and keep it factual. Also, include a safety note about weather, terrain, and wildlife without recommending risky behavior.
+
+Start with a short intro introducing the spot. Then mention the key points: it's a base for tourism, has restaurant and info corner, check-in for cottages, and the popular dessert. The fun tidbit could be about the Jersey soft cream being a must-try. For safety, remind visitors to check weather, watch their steps, and be cautious of wildlife. Make sure to use the exact name and avoid any speculation. Keep everything self-contained without referencing other documents. Let me check the character count to ensure it's within the limit. Also, ensure the safety part is concise and adds value without being too verbose.
+</think>
+
+花立クリーンハイツは、鳥海高原の観光拠点として活用されています。レストランや観光案内コーナーがあり、隣接するコテージのチェックインも行えます。特に人気なのはジャージーソフトクリームで、甘さ控えめの味わいが魅力です。季節ごとの自然の美しさを堪能しながら、ごゆっくりお楽しみください。天候や足元の変化に注意し、野生動物との遭遇には万全の準備を。安全に楽しむことが大切です。

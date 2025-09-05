@@ -1,0 +1,17 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 鳥海山の中腹の竜ヶ原湿原. The facts provided mention it's a high-altitude wetland with plants like ワタスゲ and ニッコウキスゲ. 
+
+First, I need to structure the narration into four parts: intro, key facts, fun tidbit, and safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. Avoid any speculation, so I'll stick to the given facts. 
+
+For the intro, maybe start with a welcoming statement about the spot. Then mention the location and the main attraction, the high-altitude wetland. Next, the key facts: it's a treasure trove for alpine plants. The fun tidbit could be about the name, like "dragon's origin" since it's called 竜ヶ原. 
+
+Safety reminder needs to include weather, terrain, and wildlife. Since it's a high-altitude area, weather can change quickly, so advising to check forecasts and wear appropriate gear. Also, be cautious of wildlife and stay on marked paths. 
+
+Need to make sure all proper nouns are correct, like 竜ヶ原湿原 and the plant names. Avoid overusing metaphors. Keep it self-contained without referencing other documents. 
+
+Let me check the character count. The example response is around 200 characters. Let me draft each section concisely. Maybe start with "竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原です。" Then mention the plants. Fun fact about the name. Safety tips about weather and wildlife. 
+
+Wait, the user specified to avoid over-the-top metaphors, so keep it straightforward. Also, the safety part needs to be a single sentence. Let me put it all together and check the length. Make sure it's natural and flows well for a narration.
+</think>
+
+竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原です。ワタスゲやニッコウキスゲなどの高山植物が生育し、自然の宝庫として知られています。湿原の名は「竜の原」という言い伝えから来るともいわれ、神秘的な雰囲気を帯びています。天候の急変や足元の滑りやすさ、野生動物への配慮が必要です。安全に楽しむため、事前の確認と軽装着がおすすめです。

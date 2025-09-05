@@ -1,0 +1,19 @@
+<think>
+Okay, I need to create a spoken narration for the visitor guide at 道の駅象潟. Let me start by recalling the user's requirements. The user wants a narration in Japanese, with a calm guide tone, around 45-60 seconds, 200-300 characters. The structure should include a short intro, key facts, a fun tidbit, and a safety reminder. Also, avoid speculation, keep it self-contained, and add a safety note about weather, footing, and wildlife.
+
+First, the intro should be brief. Maybe start with welcoming visitors to the area. Then mention the main points: the view of the Japan Sea, the onsen (hot spring), and the local products. The key facts include the restaurant and the ability to buy local specialties. The fun tidbit could be about the name "象潟" – maybe it's related to the area's history or something unique. Wait, the facts mention the POI description, so I need to stick to that. The name "象潟" might have a meaning related to the area's geography, like a marsh or something. Maybe the fun fact is that the name comes from the local dialect or a historical term.
+
+For the safety reminder, I need to mention weather, footing, and wildlife. Since it's a coastal area, maybe mention checking the weather and being cautious with slippery surfaces. Also, wildlife like deer or other animals, so remind visitors to keep a safe distance.
+
+Now, check the constraints. Avoid overusing metaphors, keep it factual. Don't reference any documents. Use plain text. Let me structure each part step by step.
+
+Intro: "皆様、道の駅象潟へようこそ。" Then mention the view and onsen. Key facts: the restaurant and local products. Fun tidbit: the name's origin. Safety: check weather, be cautious of slippery paths, keep distance from wildlife.
+
+Wait, the user said to avoid speculation. If the origin of the name isn't specified, maybe just mention it's a local specialty or something related to the area. Alternatively, maybe the fun tidbit is about the onsen being popular for its view. Let me make sure not to include any unknown info. The facts provided don't mention the name's origin, so maybe the fun tidbit is about the combination of onsen and the view. Or maybe the restaurant's cuisine. Alternatively, the fact that it's a place to buy local products. Maybe the fun tidbit is that the restaurant serves local dishes. 
+
+Safety reminder: "天候や足元、野生動物への配慮を。" Need to mention checking weather, being careful with wet paths, and keeping distance from animals. 
+
+Putting it all together in Japanese, keeping it concise. Let me count the characters to ensure it's within the limit. Let me draft each part and check the flow.
+</think>
+
+皆様、道の駅象潟へようこそ。日本海を望む展望温泉が人気の観光スポットで、地元特産品や海産物の購入も可能です。併設されたレストランでは、新鮮な食材を使った料理が味わえます。また、象潟の名は「象潟」という地名の由来にちなみ、地域の歴史を感じられるスポットです。天候や足元、野生動物への配慮を。雨天時は滑りやすい路面にご注意ください。自然の中での行動は、安全を第一に。

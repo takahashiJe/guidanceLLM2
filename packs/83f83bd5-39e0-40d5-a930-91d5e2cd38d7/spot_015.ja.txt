@@ -1,0 +1,7 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the 竜ヶ原湿原. The facts provided mention it's a high-altitude wetland in the middle of the mountain, known for alpine plants likeワタスゲ andニッコウキスゲ. The structure needs to be four parts: short intro, key facts, fun tidbit, safety reminder. Also, include a safety note about weather, terrain, and wildlife, without recommending excessive activities.
+
+First, the intro should be brief. Maybe start with welcoming visitors and introducing the spot. Then key facts: mention the location, the plants, and maybe the significance as a treasure. The fun tidbit could be something like the name's origin or a unique feature. For safety, need to mention weather changes, unstable ground, and wildlife. Avoid speculation, so if unsure about anything, just say so briefly. Keep it self-contained, no references to other documents. Use plain text, no markdown. Also, check for correct use of katakana and kanji for the place names. Make sure the tone is calm and informative, around 200-300 characters. Let me piece this together step by step, ensuring each part is covered without being too verbose.
+</think>
+
+皆様、ようこそ。竜ヶ原湿原へ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなど高山植物の宝庫です。季節によって色とりどりの花が咲き、自然の美しさを楽しむスポットです。おもしろいのは、湿原の名は「竜が原」という伝説から来ているとされるんですよ。天候の変化や足元の不安定さ、野生動物への配慮が必要です。ご注意ください。

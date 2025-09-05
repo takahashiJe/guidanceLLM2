@@ -1,87 +1,73 @@
-// src/stores/nav.js
-import { defineStore } from 'pinia';
-import { openDB } from 'idb';
-import { createPlan, pollPlan } from '@/lib/api';
+import { ref, computed, readonly } from 'vue'
+import { defineStore } from 'pinia'
 
-const DB_NAME = 'navpacks';
-const DB_VERSION = 1;
+export const useNavStore = defineStore('nav', () => {
+  // --- State ---
+  // プラン作成中に使用する一時的なデータ
+  const lang = ref('ja')
+  const origin = ref({ lat: 39.72, lon: 140.13 }) // 秋田県庁の座標をデフォルトに
+  const waypointsByIds = ref([]) // 選択されたspot_idの配列
 
-async function getDB() {
-  return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('packs')) {
-        db.createObjectStore('packs', { keyPath: 'pack_id' });
-      }
+  // ナビゲーション開始後にセットされるデータ
+  const plan = ref(null)
+  const focusedWaypointIndex = ref(0)
+
+  // --- Getters ---
+  const waypoints = computed(() => plan.value?.waypoints || [])
+  const alongPois = computed(() => plan.value?.along_pois || [])
+
+  const focusedWaypoint = computed(() => {
+    if (!plan.value || !waypoints.value.length) return null
+    return waypoints.value[focusedWaypointIndex.value] || null
+  })
+
+  // --- Actions ---
+  function setLang(newLang) {
+    lang.value = newLang
+  }
+
+  function setOrigin(newOrigin) {
+    if (newOrigin && typeof newOrigin.lat === 'number' && typeof newOrigin.lon === 'number') {
+      origin.value = newOrigin
     }
-  });
-}
+  }
 
-async function prefetchAssets(plan) {
-  if (!plan?.assets) return;
-  const cache = await caches.open('nav-audio-v1');
-  const db = await getDB();
+  function setWaypointsByIds(ids) {
+    waypointsByIds.value = ids
+  }
 
-  const tasks = plan.assets
-    .map(a => a?.audio?.url)
-    .filter(Boolean)
-    .map(async (url) => {
-      try {
-        await cache.add(new Request(url, { credentials: 'same-origin' }));
-      } catch {
-        // 既にキャッシュ済み or ネットワーク一時失敗は無視
-      }
-    });
+  function setPlan(newPlan) {
+    plan.value = newPlan
+    focusedWaypointIndex.value = 0
+  }
 
-  await Promise.all(tasks);
-  await db.put('packs', { pack_id: plan.pack_id, saved_at: Date.now(), assets: plan.assets });
-}
+  function focusNextWaypoint() {
+    if (!plan.value || !waypoints.value.length) return;
+    focusedWaypointIndex.value = (focusedWaypointIndex.value + 1) % waypoints.value.length;
+  }
 
-export const useNavStore = defineStore('nav', {
-  state: () => ({
-    lang: 'ja',
-    waypoints: [],        // ['spot_001', ...]
-    origin: JSON.parse(localStorage.getItem('nav.origin') || 'null'), // ← 復元
-    taskId: null,
-    polling: false,
-    plan: null,           // 最終 Plan レスポンス
-  }),
+  function reset() {
+    plan.value = null
+    focusedWaypointIndex.value = 0
+    waypointsByIds.value = []
+  }
 
-  actions: {
-    setLang(l) { this.lang = l; },
-    setWaypoints(arr) { this.waypoints = Array.from(new Set(arr)); },
-    setOrigin(o) {
-      this.origin = { lat: o.lat, lon: o.lon };
-      localStorage.setItem('nav.origin', JSON.stringify(this.origin));
-    },
-    clearPlan() { this.plan = null; this.taskId = null; },
+  return {
+    // PlanView用
+    lang,
+    origin,
+    waypointsByIds,
+    setLang,
+    setOrigin,
+    setWaypointsByIds,
 
-    // ✅ 追加：Plan をストアに保存してプリフェッチも走らせる
-    setPlan(plan) {
-      this.plan = plan;
-      prefetchAssets(plan).catch(() => {});
-    },
-
-    // （任意）ストアだけで作成〜ポーリングまでやりたい場合に使えるヘルパ
-    async submitPlan() {
-      if (!this.origin) throw new Error('現在地が未取得です');
-      if (this.waypoints.length < 2) throw new Error('スポットは2か所以上選んでください');
-
-      const payload = {
-        language: this.lang,
-        origin: { lat: this.origin.lat, lon: this.origin.lon },
-        return_to_origin: true,
-        waypoints: this.waypoints.map(id => ({ spot_id: id })),
-      };
-
-      const { task_id } = await createPlan(payload);
-      this.taskId = task_id;
-      this.polling = true;
-
-      const plan = await pollPlan(task_id);
-      this.polling = false;
-
-      this.setPlan(plan); // 上の setPlan を使用
-      return plan;        // 呼び出し側で router.push('/nav') など可能
-    },
-  },
-});
+    // NavView用
+    plan: readonly(plan),
+    waypoints,
+    alongPois,
+    focusedWaypoint,
+    setPlan,
+    focusNextWaypoint,
+    reset,
+  }
+})

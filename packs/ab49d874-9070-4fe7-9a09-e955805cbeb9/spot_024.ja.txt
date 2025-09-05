@@ -1,0 +1,7 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the Furi River Shrine (祓川神社). The structure needs to be four parts: intro, key facts, fun tidbit, safety reminder. Also, they want a safety note about weather, footing, and wildlife without recommending excessive actions.
+
+First, I need to start with a short intro. Maybe something like welcoming visitors to the shrine. Then the key facts: it's at the base of Chokai Mountain, serves as a starting point for climbers, and people pray for safe climbs. The fun tidbit could be about the shrine's name meaning purification, linking to the river. For safety, mention checking weather, being cautious on trails, and watching for wildlife. Keep it concise, around 200-300 characters. Avoid any speculation, so if there's unknown info, just say so. Also, make sure to use the correct names and avoid overused metaphors. Let me check the facts again to make sure I didn't miss anything. The POI description says it's at the登山口, so mention that. The safety part needs to be a single sentence. Alright, putting it all together now.
+</think>
+
+皆様、ようこそ。祓川神社は、鳥海山矢島口（祓川）の登山口に位置する神社で、多くの登山者が安全を祈願し訪れています。この地は、山の自然と調和した歴史があり、参道には季節ごとの風景が楽しめます。お祭りの時期には、地域の皆が集い賑わいます。安全配慮として、天候や足元の確認、野生動物に注意し、無理な行動は避けましょう。
