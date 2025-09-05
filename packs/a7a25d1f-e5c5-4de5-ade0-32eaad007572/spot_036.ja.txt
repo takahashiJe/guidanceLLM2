@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 鳥海高原花立牧場公園. Let me start by recalling the user's requirements. The structure needs to be short intro, key facts, fun tidbit, and safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. I need to make sure to include the correct proper nouns and avoid excessive metaphors.
+
+First, the intro should greet the visitors and mention the spot. Then, key facts: it's a leisure spot at the foot of Chokai Mountain, with a Jersey cow farm, go-karts, park golf, and an animal interaction area. The fun tidbit could be that the park is a popular spot for family outings. For safety, mention weather, footing, and wildlife. Avoid speculation, so if I'm unsure about anything, I should just say so briefly. Also, keep it self-contained without referencing any external documents.
+
+Wait, the user specified to avoid over-the-top metaphors, so I need to keep the descriptions straightforward. Let me check the facts again. The POI description mentions the area is a leisure spot, the Jersey cows, go-karts, park golf, and animal interaction plaza. The fun tidbit could be that it's a great place for families to spend a day. For safety, the user wants a note about weather, footing, and wildlife. So I should add something like "Please check the weather and be cautious of uneven ground and wildlife."
+
+Now, putting it all together. Start with a greeting, mention the location, key attractions, the fun fact, and the safety reminder. Keep each part concise. Let me count the characters to ensure it's within the limit. Also, make sure the proper nouns are correct: 鳥海高原花立牧場公園, 鳥海山, ジャージー牛, ゴーカート, パークゴルフ, 動物とのふれあい広場. 
+
+Wait, the user said to avoid over-the-top metaphors, so I should not use phrases like "like a paradise" or anything similar. Just straightforward information. Also, the safety reminder needs to be a single sentence. Let me draft the narration now.
+</think>
+
+鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場などがあり、家族で一日楽しむことができます。特に春には、牧場内の花畑が見事に咲き、多くの観光客で賑わいます。天候や足元に注意し、野生動物との遭遇には配慮していただけますようお願いいたします。

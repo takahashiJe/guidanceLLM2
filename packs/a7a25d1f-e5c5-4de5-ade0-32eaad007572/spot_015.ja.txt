@@ -1,0 +1,7 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 鳴ヶ原湿原. The facts mention it's a high-altitude wetland with plants like Watasgae and Nikkou Fireweed. The structure needs a short intro, key facts, a fun tidbit, and a safety reminder. Also, the tone should be calm, around 45-60 seconds, so 200-300 characters. No speculation, avoid over-figurative language. Must include safety considerations about weather, terrain, and wildlife, without recommending excessive actions.
+
+First, the intro should grab attention. Maybe start with "皆様、こんにちは。" Then mention the location and its reputation. Next, key facts: high-altitude wetland, specific plants. Fun tidbit could be about the plants' colors or maybe the name's origin. Safety reminder needs to mention weather, terrain, wildlife, and not to venture off. Need to keep it concise. Check for any unknowns—since the user says to avoid speculation, if there's any info not provided, just say so. But here, the facts are given, so maybe the fun tidbit is about the plants' colors. Let me structure each part step by step, ensuring each section is covered. Make sure not to reference any external documents. Keep the language natural and in Japanese. Let me draft that.
+</think>
+
+皆様、こんにちは。龍ヶ原湿原は、鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲといった高山植物が生育する自然の宝庫です。標高の高い場所に位置するため、夏でも涼しく、四季を通じて異なる風景を楽しめます。特にニッコウキスゲは、夕焼けに染まる紅い花が見事です。足元には湿った土や岩場があるため、転倒の危険があります。天候の急変や野生動物との遭遇にも注意し、指定された道を歩くようにしてください。

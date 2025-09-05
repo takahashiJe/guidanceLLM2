@@ -1,101 +1,167 @@
 <template>
-  <div class="page">
-    <header class="top">
-      <router-link to="/" class="back">← プランへ</router-link>
-      <h1>周遊ナビ</h1>
-      <div class="pid">#{{ shortId }}</div>
+  <div class="nav-view">
+    <header class="nav-toolbar">
+      <div class="title">
+        <span class="label">パックID</span>
+        <span class="value" v-if="plan">{{ plan.pack_id }}</span>
+        <span class="value" v-else>—</span>
+      </div>
+
+      <div class="chips" v-if="spots.length">
+        <button
+          v-for="(p, idx) in spots"
+          :key="p.spot_id || `${p.lat},${p.lon}`"
+          class="chip"
+          :class="{ active: p.spot_id === activeSpotId }"
+          @click="focusSpot(p, idx)"
+        >
+          <span class="num">{{ idx + 1 }}</span>
+          <span class="name">{{ p.name || '無名スポット' }}</span>
+        </button>
+      </div>
     </header>
 
-    <!-- 順番付きスポットのボタン列 -->
-    <div class="chips" v-if="orderedSpots.length">
-      <button
-        v-for="s in orderedSpots"
-        :key="s.spot_id"
-        class="chip"
-        :class="{ active: s.spot_id === activeId }"
-        @click="focus(s.spot_id)"
-      >
-        <span class="num">{{ s.order }}</span>
-        <span class="lbl">{{ s.name }}</span>
-      </button>
-    </div>
+    <section class="map-wrap">
+      <NavMap
+        ref="mapRef"
+        :plan="plan"
+        :pois="spots"
+      />
+    </section>
 
-    <NavMap ref="mapRef" :plan="plan" :lang="lang" />
+    <section v-if="!plan" class="empty">
+      プランがまだありません。PlanForm から作成してください。
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
+// ※ プロジェクトのエイリアス設定に合わせてください（Vite の既定なら '@' でOK）
 import { useNavStore } from '@/stores/nav'
-import { storeToRefs } from 'pinia'
 import NavMap from '@/components/NavMap.vue'
 
 const store = useNavStore()
-const { plan, lang } = storeToRefs(store)
-
 const mapRef = ref(null)
-const activeId = ref(null)
 
-const shortId = computed(() => (plan.value?.pack_id || '').slice(0, 7))
+const plan = computed(() => store.plan || null)
+// along_pois の中からスポット系のみ（kind が無い場合はスポットとして扱う）
+const spots = computed(() =>
+  (plan.value?.along_pois || []).filter(p => !p.kind || p.kind === 'spot')
+)
 
-function pickName(s, lang='ja') {
-  return (
-    s?.official_name?.[lang] ||
-    s?.[`name_${lang}`] ||
-    s?.name ||
-    s?.spot_id ||
-    ''
-  )
-}
+const activeSpotId = ref(null)
 
-const orderedSpots = computed(() => {
-  const legs = plan.value?.legs || []
-  return legs.map((l, i) => {
-    const s = l?.spot || {}
-    const sid = String(s.spot_id || s.id || '')
-    return {
-      spot_id: sid,
-      name: pickName(s, lang.value),
-      order: i + 1,
-      lat: s.lat, lon: s.lon,
-    }
-  }).filter(s => s.spot_id)
-})
-
-function focus(spotId) {
-  activeId.value = String(spotId)
-  // defineExpose のメソッドを直接呼べる（<script setup>）
-  mapRef.value?.focusSpotById(activeId.value)
+function focusSpot(poi, idx) {
+  activeSpotId.value = poi.spot_id || null
+  // マップへフォーカス要求（存在しないIDでも安全に何もしません）
+  mapRef.value?.focusOnSpot(poi.spot_id, {
+    // スポットが無名でもUI側の番号と同期
+    fallbackTitle: `${idx + 1}. ${poi.name || '無名スポット'}`
+  })
 }
 
 onMounted(() => {
-  if (orderedSpots.value.length) {
-    focus(orderedSpots.value[0].spot_id)
+  // 音声の自動再生トリガ（近接）— 既存ストアの実装を利用
+  if (typeof store.startProximityWatcher === 'function') {
+    store.startProximityWatcher()
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof store.stopProximityWatcher === 'function') {
+    store.stopProximityWatcher()
   }
 })
 </script>
 
 <style scoped>
-.page { padding: 12px; }
-.top {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-  margin-bottom: 8px;
+.nav-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100dvh;
 }
-.back { justify-self: start; color: #2563eb; font-weight: 600; }
-.top h1 { justify-self: center; font-size: 18px; }
-.pid { justify-self: end; color: #6b7280; font-size: 12px; }
+
+.nav-toolbar {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.title .label {
+  font-size: 12px;
+  color: #6b7280;
+}
+.title .value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  color: #111827;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
 
 .chips {
-  display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; margin-bottom: 8px;
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
 }
 .chip {
-  display: inline-flex; align-items: center; gap: 8px;
-  border: 1.5px solid #dbe3f4; background: #f8fafc; color: #0f172a;
-  padding: 6px 10px; border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  white-space: nowrap;
 }
 .chip .num {
-  display: grid; place-items: center;
-  width: 22px; height: 22px; border-radius: 999px; background: #e5edff; color:#1d4ed8; font-weight: 700; font-size: 12px;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
 }
-.chip.active { border-color: #3b82f6; box-shadow: 0 0 0 2px #3b82f633 inset; }
+.chip.active {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.15) inset;
+}
+.chip.active .num {
+  background: #2563eb;
+  color: #fff;
+  border-color: transparent;
+}
+.chip:active { transform: translateY(1px); }
+
+.map-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 420px;
+}
+
+/* 空表示 */
+.empty {
+  padding: 16px;
+  color: #6b7280;
+}
 </style>
