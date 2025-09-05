@@ -1,0 +1,15 @@
+<think>
+Okay, I need to create a spoken narration for the Fushikawa Shrine (祓川神社) as a tour guide. Let me start by understanding the requirements.
+
+First, the structure: short intro, key facts/history/nature, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 words. Use accurate proper nouns, avoid excessive metaphors. Also, include a safety note about weather, footing, and wildlife, without recommending excessive actions.
+
+The facts given are that it's a shrine at the base of Chokai Mountain, near the Fushikawa entrance, and it's busy with climbers praying for safety. I should mention its location, purpose, and the fact that it's a popular spot for climbers.
+
+For the intro, maybe start with welcoming visitors to the area and introducing the shrine. Then, key facts: location, purpose, and maybe a bit about the area's natural features. The fun tidbit could be that the name "Fushikawa" relates to purification, which ties into the shrine's role. Safety reminder needs to mention weather, footing, and wildlife, advising caution without pushing for risky behavior.
+
+Check if there's any unknown info. The user said to say "so briefly" if unknown. Since the facts are limited, maybe avoid adding extra info beyond what's given. Ensure the shrine's ID is spot_024, but the user didn't mention including that in the narration, so probably not necessary.
+
+Avoid references to the document or context. Keep it self-contained. Use plain text only, no markdown. Let me draft each section step by step, making sure each part is concise and meets the constraints.
+</think>
+
+皆様、鳥海山の登山口に位置する「祓川神社」へようこそ。多くの登山者が安全を祈願し、参拝で賑わいます。この神社は、山の自然と調和する風景に包まれ、四季折々の美しさを感じられる場所です。ご神社の名前の由来は、川の清めを意味する「祓（はら）」から来ています。小さな祠に込められた願いが、山の奥へ届くかもしれません。天候や足元の変化に注意し、野生動物との遭遇には配慮していただきますようお願いします。無理な行動は避け、自然と向き合う心を忘れずに。

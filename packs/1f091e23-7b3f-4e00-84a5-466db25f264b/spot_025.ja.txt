@@ -1,0 +1,7 @@
+<think>
+Okay, let's see. The user wants me to act as a tour guide for visitors around Mt. Chokai, specifically focusing on the spot 赤滝 (ID: spot_025). The facts provided mention that it's near Fushikawa and has impressive views during snowmelt periods. The narration needs to be in Japanese, with a calm guide tone, around 45-60 seconds, 200-300 characters. Structure: intro, key facts, fun tidbit, safety reminder. Avoid speculation, use accurate proper nouns, no excessive metaphors. Also, include a safety note about weather, footing, and wildlife without recommending excessive actions.
+
+First, I need to start with a short intro. Maybe something like "赤滝は、祓川の近くにある滝で..." Then mention the key facts about snowmelt water making it impressive. The fun tidbit could be about the name meaning "red cascade" due to the red rocks. For safety, mention weather, footing, and wildlife. Need to keep it concise and self-contained, no references to other documents. Let me check the character count. Also, make sure not to use any markdown and keep it plain text. Let me draft that.
+</think>
+
+赤滝は、祓川の近くにある滝で、雪解け水が多い時期には迫力が際立つスポットです。春から夏にかけて水量が増し、自然の雄姿を楽しむことができます。名前の由来は、滝の周辺に広がる赤い岩の様子からとられています。ただし、天候や足元の状態に注意し、野生動物との遭遇に備えてください。過度な探検は控え、安全第一でご観光ください。

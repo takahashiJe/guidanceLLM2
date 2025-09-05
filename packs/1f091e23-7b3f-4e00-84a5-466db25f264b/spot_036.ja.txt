@@ -1,0 +1,21 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide in Japanese about the 鳥海高原花立牧場公園. Let me start by understanding the requirements.
+
+First, the structure should be: short intro, key facts/history/nature, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so about 200-300 words. I need to use the correct proper nouns and avoid excessive metaphors. Also, I have to include a safety note about weather, footing, and wildlife, without recommending excessive activities.
+
+Let me check the facts provided. The spot is in the north foot of Chokai Mountain, a leisure spot with a Jersey cow farm, go-karts, park golf, and an animal interaction area. Family-friendly, can enjoy all day.
+
+Starting with the intro: maybe mention the location and the main attractions. Then key facts: the location, the main features like the cow farm and the other facilities. Fun tidbit could be something like the animal interaction area or maybe the go-karts. Safety reminder needs to mention weather, footing, and wildlife. Also, avoid speculation if anything is unknown. Keep it self-contained, no references to other documents.
+
+Wait, the user said to avoid speculation and if unknown, say so briefly. Since the facts are given, I can use them. The safety part should be a sentence or two. Let me make sure the safety part is included. Also, the output should be plain text only, no markdown.
+
+Let me draft the intro: "鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。" Then mention the main attractions. Key facts: Jersey cows, go-karts, park golf, animal interaction area. Fun tidbit: maybe the animal interaction area is a highlight. Safety: "天候や足元、野生動物への配慮を忘れないでください。"
+
+Wait, the safety reminder needs to be a sentence or two. Let me check the word count. The example response is about 200 words. Let me structure each part.
+
+Intro: 1-2 sentences. Key facts: 1-2 sentences. Fun tidbit: 1 sentence. Safety: 1 sentence. Total around 200-300 words.
+
+Putting it all together in Japanese, making sure the proper nouns are correct. Avoid any markdown. Also, the safety note should be included at the end. Let me check if I missed anything. The user wants the safety reminder to include weather, footing, and wildlife. So the safety part should mention all three. Maybe something like "天候や足元、野生動物への配慮を忘れないでください。" That's concise and covers all points. Okay, that should work.
+</think>
+
+鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場などがあり、家族で一日中楽しめます。自然豊かな場所ではありますが、牧場内では牛との触れ合いを楽しむことができます。また、園内には小さな動物たちが住んでおり、子どもたちに人気のスポットです。天候や足元、野生動物への配慮を忘れないでください。
