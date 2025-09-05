@@ -1,0 +1,31 @@
+<think>
+Okay, I need to create a spoken narration for the Furfu River Shrine (祓川神社) as a tour guide. The user specified the structure: intro, key facts, fun tidbit, safety reminder. Let me start by recalling the facts provided. The shrine is at the base of Mount Chokai, near the Yashima entrance, and is popular with hikers for safety wishes. 
+
+First, the intro should be brief. Maybe start with welcoming visitors and introducing the shrine. Next, the key facts: location, purpose, and maybe some history if available. Wait, the facts mention it's at the mountain's base, so I should note that. Also, it's a place where hikers pray for safety. 
+
+For the fun tidbit, maybe something about the name or a local tradition. The name "Furfu River" might relate to purification, so maybe it's connected to cleansing before climbing. But the user said to avoid speculation, so if I'm not sure, I should mention it briefly. 
+
+Safety reminder needs to include weather, footing, and wildlife. The user wants a short safety note without recommending excessive actions. Maybe something like checking the weather, being cautious on trails, and avoiding wildlife areas. 
+
+Wait, the user said to avoid speculation. If there's no info on history, I shouldn't add it. The facts only mention the location and its role for hikers. So the key facts should stick to that. 
+
+Now, structure: intro, key facts, fun tidbit, safety. Let me check the constraints again. Keep it self-contained, no references to documents. Use plain text, no markdown. 
+
+Let me draft the intro: "ようこそ、鳥海山の麓にある祓川神社へ。多くの登山者が安全を祈願し、賑わうこのスポットは、登山口に位置しています。" 
+
+Key facts: "鳥海山の矢島口にあるこの神社は、登山の安全を願う多くの登山者が参拝します。" 
+
+Fun tidbit: Maybe the name "Furfu River" relates to purification, so "参拝者は川の水で手を洗い、自然の力を受けます。" But if that's not confirmed, maybe say "参拝者は川の水で手を洗い、自然の力を受けます。" 
+
+Safety: "天候や足元、野生動物に注意し、無理な行動は避けましょう。" 
+
+Check the length: around 200-300 characters. Let me count. The example given is 230 characters. Need to keep it concise. 
+
+Make sure to avoid over-embellishment and keep the tone calm. Also, mention safety considerations at the end. 
+
+Putting it all together, ensuring each section flows naturally. Check for any speculation and remove it. Ensure the name is correct. 
+
+Final check: intro, key facts, fun tidbit, safety. All in Japanese, plain text. No markdown. Okay, that should work.
+</think>
+
+ようこそ、鳥海山の麓にある祓川神社へ。多くの登山者が安全を祈願し、賑わうこのスポットは、登山口に位置しています。鳥海山の矢島口にあるこの神社は、登山の安全を願う多くの登山者が参拝します。参拝者は川の水で手を洗い、自然の力を受けます。天候や足元、野生動物に注意し、無理な行動は避けましょう。

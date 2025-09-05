@@ -1,0 +1,15 @@
+<think>
+Okay, I need to create a spoken narration for the spot 竜ヶ原湿原 (ID: spot_015) as a tour guide. Let me start by understanding the requirements.
+
+First, the structure: short intro, key facts, fun tidbit, safety reminder. The user wants a calm guide tone, around 45-60 seconds, so 200-300 characters. I need to avoid excessive metaphors and keep it self-contained. Also, include safety considerations about weather, footing, and wildlife, without recommending excessive actions.
+
+The facts given are that it's a high-altitude wetland in the middle of Mt. Chokai, known for its alpine plants like Watasgae and Nikkou Kisosuge. The fun tidbit could be something about the plants or the area's uniqueness. Safety reminders should mention weather, footing, and wildlife, maybe also staying on paths.
+
+Let me check the constraints again. No speculation, so if I don't know something, I should mention that briefly. Since the user said to avoid referencing 'the document' or 'context', I need to rely only on the provided facts. Also, output plain text only, no markdown.
+
+Starting with the intro: "ようこそ、竜ヶ原湿原へ。" That's a good start. Then mention it's a high-altitude wetland in the middle of Mt. Chokai, known for the plants. For the fun tidbit, maybe mention that it's a haven for alpine plants, or that some plants only bloom here. Safety: check the weather, watch your step, be cautious of wildlife. Maybe add something about staying on trails to avoid getting lost.
+
+Wait, the user specified to add safety considerations about weather, footing, and wildlife. So I need to include all three. Also, avoid over-the-top recommendations. Let me make sure each part is covered concisely. Let me count the characters to ensure it's within the limit. Let me draft it in Japanese, keeping it natural and calm.
+</think>
+
+ようこそ、竜ヶ原湿原へ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲといった高山植物が生育する自然の宝庫です。季節によっては鮮やかな花々が咲き乱れ、訪れる人々を魅了します。実は、この湿原は「日本百名山」の一つ、鳥海山の生態系を支える大切な場所でもあります。天候や足元の状態に注意し、野生動物との遭遇には配慮を。安全に楽しんでください。

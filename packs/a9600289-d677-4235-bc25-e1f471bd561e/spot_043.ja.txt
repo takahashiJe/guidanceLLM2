@@ -1,0 +1,17 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about 花立クリーンハイツ. Let me start by understanding the requirements. The user wants a professional guide in Japanese, with a calm tone, around 45-60 seconds, so 200-300 characters. The structure should include a short intro, key facts, a fun tidbit, and a safety reminder. Also, avoid speculation and keep it self-contained. 
+
+First, the intro should mention the spot's name and its role as a tourist hub. Then, the key facts: it's a facility in 鳥海高原, has a restaurant, info corner, and check-in for cottages. The popular item is the Jersey soft cream. For the fun tidbit, maybe mention the soft cream's popularity. The safety reminder needs to include weather, footing, and wildlife, without recommending excessive activities.
+
+Wait, the user specified to avoid over-the-top metaphors. So I need to keep it straightforward. Also, make sure all proper nouns are correct. Let me check the facts again. The POI description says it's a tourist base facility with a restaurant, info corner, and check-in for adjacent cottages. Jersey soft cream is popular. 
+
+So the intro could be something like: "訪れる皆様へ、花立クリーンハイツをご案内します。" Then key facts: location, facilities, and the soft cream. Fun tidbit: the soft cream's popularity. Safety: check weather, footing, and wildlife. 
+
+I need to make sure each section is concise. Let me count the characters. The example response is 245 characters. I should stay within that range. Avoid any markdown and keep it plain text. Also, ensure that the safety reminder is a single sentence. 
+
+Wait, the user wants the safety reminder to include consideration for weather, footing, and wildlife, but without recommending excessive activities. So maybe: "天候や足元、野生動物にご注意ください。" That's concise. 
+
+Putting it all together: intro, key facts, fun tidbit, safety. Let me draft each part. Check for proper nouns and avoid speculation. Make sure it's all in Japanese and meets the character limit. Alright, that should work.
+</think>
+
+訪れる皆様へ、花立クリーンハイツをご案内します。鳥海高原の観光拠点施設で、レストランや観光案内コーナーがあり、隣接するコテージのチェックインも行います。人気のジャージーソフトクリームが味わえます。ソフトクリームは甘さ控えめで、地元の味覚を楽しめるおすすめです。天候や足元、野生動物にご注意ください。

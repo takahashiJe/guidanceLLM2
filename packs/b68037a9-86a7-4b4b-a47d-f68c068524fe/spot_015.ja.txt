@@ -1,0 +1,13 @@
+<think>
+Okay, I need to create a spoken narration for the spot 竜ヶ原湿原 (ID: spot_015) as a tour guide. Let me start by understanding the requirements. The user wants a narration in Japanese, with a calm guide tone, around 45-60 seconds, so about 200-300 characters. Structure is intro, key facts, fun tidbit, safety reminder. Avoid speculation, use accurate terms, no excessive metaphors. Also, include safety considerations about weather, terrain, and wildlife without recommending excessive actions.
+
+First, the intro should be brief. Maybe start with welcoming visitors to the area. Then mention the spot's name and location. The key facts are that it's a highland wetland in the middle of Chokai Mountain, known for high-altitude plants like Watasgae and Nikkou Kishu. Need to mention those plants. The fun tidbit could be something about the area's beauty or maybe a unique feature. For safety, mention weather, terrain, and wildlife. Avoid saying things like "don't go alone" but rather advise to check conditions and be cautious.
+
+Check the facts again: the POI description says it's a highland wetland in the middle of Chokai Mountain, a treasure of high-altitude plants like Watasgae and Nikkou Kishu. Need to make sure to include those names correctly. Also, the safety part should mention weather, footing, and wildlife. Maybe something like "Please be mindful of changing weather, unstable ground, and wildlife. Avoid risky behavior."
+
+Let me structure it step by step. Start with the intro: "皆様、ようこそ。" Then location: "鳥海山の中腹に広がる高層湿原、竜ヶ原湿原へようこそ。" Key facts: "ワタスゲやニッコウキスゲなどの高山植物の宝庫として知られています。" Fun tidbit: Maybe mention the vibrant colors or the view from there. "特に春には、花々が競って咲き乱れる姿が美しく、多くの訪問者を惹きつけています。" Safety: "天候や足元、野生動物への配慮が必要です。過度な行動は避け、安全を第一にご注意ください。"
+
+Check the length. Let me count characters. Maybe around 250-300. Also, ensure no markdown, just plain text. Avoid any speculation, so if there's anything unknown, just state it briefly. Since the facts are given, I can stick to those. Make sure the safety part is included. Also, the structure is covered: intro, key facts, fun tidbit, safety. Okay, that should work. Let me put it all together now.
+</think>
+
+皆様、ようこそ。鳥海山の中腹に広がる高層湿原、竜ヶ原湿原へ。ワタスゲやニッコウキスゲなどの高山植物の宝庫として知られています。特に春には、花々が競って咲き乱れる姿が美しく、多くの訪問者を惹きつけています。天候や足元、野生動物への配慮が必要です。過度な行動は避け、安全を第一にご注意ください。

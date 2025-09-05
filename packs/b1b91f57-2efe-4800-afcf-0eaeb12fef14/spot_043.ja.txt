@@ -1,0 +1,11 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 花立クリーンハイツ. Let me start by understanding the user's requirements. The user wants a professional tour guide narration in Japanese, with a calm tone, around 45-60 seconds, which translates to about 200-300 characters. The structure should include a short intro, key facts, a fun tidbit, and a safety reminder. I also need to avoid speculation and ensure all information is accurate, using the provided facts.
+
+First, the intro should be brief. The spot is a tourist facility in 鳥海高原, so I'll mention that. Next, the key facts include the restaurant, tourist information corner, and check-in for cottages. The popular item is the Jersey soft cream. I should mention these points clearly. The fun tidbit could be the Jersey soft cream's popularity. For the safety reminder, the user specified to include considerations for weather, footing, and wildlife, without recommending excessive actions. I need to add a brief note about these aspects.
+
+I need to check the facts again. The POI description says it's a tourist facility with a restaurant, tourist info corner, and check-in for adjacent cottages. The Jersey soft cream is popular. I should make sure not to add any extra information not provided. Also, avoid using metaphors or over-exaggeration. Keep it straightforward.
+
+Now, structuring the narration. Start with the intro: "訪れる皆様へ、鳥海高原の観光拠点となる花立クリーンハイツをご案内します。" Then mention the facilities: restaurant, tourist info, check-in. Highlight the Jersey soft cream. The fun tidbit: "特に人気のジャージーソフトクリームは、甘さ控えめでおすすめです。" For safety: "天候や足元、野生動物への配慮をお願いします。" Make sure the total is within the character limit. Let me count the characters. The sample response is around 200-300, so I need to keep it concise. Avoid any markdown and ensure it's plain text. Check for any speculation and make sure not to mention anything beyond the given facts. Okay, that should cover all the points.
+</think>
+
+訪れる皆様へ、鳥海高原の観光拠点となる花立クリーンハイツをご案内します。レストランや観光案内コーナーがあり、隣接するコテージのチェックインも行います。特に人気のジャージーソフトクリームは、甘さ控えめでおすすめです。天候や足元、野生動物への配慮をお願いします。

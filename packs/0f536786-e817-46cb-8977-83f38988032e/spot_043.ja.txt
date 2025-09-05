@@ -1,0 +1,16 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about 花立クリーンハイツ. Let me start by understanding the user's requirements. The user wants a professional tour guide narration in Japanese, around 45-60 seconds, so about 200-300 characters. The structure should be intro, key facts, fun tidbit, safety reminder. Also, avoid speculation and keep it self-contained. 
+
+First, the intro should be short. Maybe start with welcoming visitors to the area and introducing the spot. Then the key facts: it's a tourist facility in 鳥海高原, has a restaurant, information corner, and check-in for cottages. The popular item is the Jersey soft cream. 
+
+For the fun tidbit, maybe mention the Jersey soft cream being a local favorite. Then the safety reminder needs to include weather, footing, and wildlife. But avoid recommending excessive actions. 
+
+I need to check if all the facts are correctly included. Make sure the place name is accurate. Avoid any metaphors. Keep the tone calm and professional. Also, ensure that it's plain text only, no markdown. 
+
+Wait, the user mentioned to avoid speculation. So if there's anything unknown, just say so briefly. But in this case, the facts provided are clear. The safety part should mention weather, footing, and wildlife. Maybe something like "天候や足元、野生動物への配慮を忘れないでください。" 
+
+Putting it all together: start with the intro, then key facts, fun fact about the soft cream, and safety reminder. Check the character count to make sure it's within the limit. Let me draft it now.
+</think>
+
+皆様、花立クリーンハイツへようこそ。鳥海高原の観光拠点として、レストランや観光案内コーナーが充実しています。隣接するコテージのチェックインもここで行え、特に人気のジャージーソフトクリームをご賞味ください。  
+このエリアでは、季節ごとの自然の美しさを楽しむことができますが、天候や足元、野生動物への配慮を忘れないでください。過度な行動はお控えください。

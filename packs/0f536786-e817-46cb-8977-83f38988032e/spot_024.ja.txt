@@ -1,0 +1,31 @@
+<think>
+Okay, I need to create a spoken narration for the Fushikawa Shrine (祓川神社) as a tour guide. Let me start by understanding the user's requirements. The user wants a professional, calm guide tone, around 45-60 seconds, which translates to about 200-300 words. The structure should be intro, key facts/history/nature, fun tidbit, safety reminder. Also, include a safety note about weather, footing, and wildlife without recommending excessive actions.
+
+First, the intro should mention the shrine's location and its role. The facts say it's at the base of Chokai Mountain, near the Fushikawa登山口, and is a place where hikers pray for safety. So the intro could be something like welcoming visitors to the shrine at the base of the mountain.
+
+Next, key facts: it's located at the登山口 of 鳥海山矢島口, serves as a starting point for hikers, and many visit for safety prayers. Maybe mention the natural surroundings, like the forest or views.
+
+Fun tidbit: Maybe something about the shrine's history or a unique feature. Since the facts don't mention history, perhaps the name "Fushikawa" relates to purification, or maybe it's a local landmark. Wait, the POI description says it's at the登山口, so maybe the shrine is a popular spot for starting the hike. Maybe the fun fact is that it's a common gathering place for hikers before they start.
+
+Safety reminder: Check the weather, watch your footing, be aware of wildlife. Avoid recommending specific actions, just mention the need for caution.
+
+Now, structure each part concisely. Make sure to use the correct names, avoid metaphors. Let me check the constraints again: no speculation, self-contained, plain text. Also, the safety note must be included.
+
+Putting it all together:
+
+Intro: Welcome to Fushikawa Shrine at the base of Chokai Mountain.
+
+Key facts: Located at the登山口 of 鳥海山矢島口, many hikers visit for safety prayers. The area is surrounded by nature, offering scenic views.
+
+Fun tidbit: The shrine's name "Fushikawa" might relate to purification, symbolizing a clean start for hikers.
+
+Safety: Check weather, be cautious of uneven paths, and watch for wildlife.
+
+Wait, the user said to avoid over-the-top metaphors, so maybe the fun tidbit is simpler. Maybe it's the shrine's role as a starting point, or that it's a popular spot for hikers to gather before their climb.
+
+Also, the safety note must mention weather, footing, and wildlife. Need to make sure each is mentioned in one sentence.
+
+Let me draft the Japanese text now, keeping it within the length and structure.
+</think>
+
+皆様、お気軽にお立ち寄りください。祓川神社は、鳥海山矢島口（祓川）の登山口に位置する神社で、多くの登山者が安全を祈願して参拝しています。眼下には自然豊かな山々が広がり、季節ごとの風景が楽しめます。お参りの際は、参道の木々の陰に隠れる小動物にも気を配りましょう。天候や足元の状態を事前に確認し、無理な行動は避け、安全に楽しんでください。

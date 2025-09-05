@@ -1,0 +1,23 @@
+<think>
+Okay, the user wants me to act as a professional tour guide for visitors around Mt. Chokai area. The specific spot is 鳥海高原花立牧場公園 with ID spot_036. The facts provided mention it's a leisure spot in the north foot of Chokai Mountain, featuring a Jersey cow farm, go-karts, park golf, and an animal interaction area, suitable for families to enjoy all day.
+
+First, I need to create a spoken narration in Japanese, about 45-60 seconds, which is around 200-300 characters. The style should be calm and informative, avoiding excessive metaphors. The structure needs to include a short intro, key facts/history/nature, a fun tidbit, and a safety reminder. Also, the safety reminder must mention weather, footing, and wildlife considerations without recommending excessive activities.
+
+I should start with a welcoming intro. Then mention the location and main attractions. The fun tidbit could be about the Jersey cows or the animal interaction area. For safety, remind visitors to check the weather, watch their steps, and be cautious of wildlife. Need to keep it self-contained, no references to external documents. Avoid speculation, so if something isn't known, just state it briefly. Use plain text only, no markdown.
+
+Let me check the facts again to ensure accuracy. The POI description says it's a leisure spot in the north foot of Chokai Mountain, with Jersey cows, go-karts, park golf, and an animal interaction area. The fun tidbit could be that the cows are friendly, or maybe the park golf is suitable for all ages. The safety part needs to mention weather, footing, and wildlife. Maybe something like "Please check the weather and footing, and be cautious of wildlife."
+
+Now, structure the narration:
+
+Intro: Welcome to 鳥海高原花立牧場公園, located at the north foot of Chokai Mountain.
+
+Key facts: Jersey cow farm, go-karts, park golf, animal interaction area, family-friendly.
+
+Fun tidbit: The Jersey cows are friendly and often interact with visitors.
+
+Safety: Check weather, footing, and be aware of wildlife. Avoid excessive activities.
+
+Make sure it's concise, within the character limit. Avoid any markdown, just plain text. Let me put it all together now.
+</think>
+
+鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場が設けられており、家族で一日楽しむことができます。特に、牛たちと触れ合う体験は人気です。天候や足元に注意し、野生動物との遭遇に配慮してご観光ください。過度な運動はお控えください。

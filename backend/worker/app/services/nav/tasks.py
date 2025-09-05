@@ -222,6 +222,8 @@ def step_routing(self, payload: dict) -> dict:
         "car_to_trailhead": True
     }
     routing = post_route(routing_req)
+    import json
+    logger.info(f"routing_result: {json.dumps(routing, indent=2, ensure_ascii=False)}")
     payload["routing_result"] = routing
     return payload
 
@@ -229,6 +231,7 @@ def step_routing(self, payload: dict) -> dict:
 @celery_app.task(name="nav.step.alongpoi_and_llm", bind=True)
 def step_alongpoi_and_llm(self, payload: dict): # 戻り値の型ヒントを削除
     logger.info(f"[{self.request.id}] Step 2: AlongPOI & LLM started")
+    logger.info(f"payload at start of alongpoi_and_llm: {json.dumps(payload, indent=2, ensure_ascii=False)}")
     routing_result = payload["routing_result"]
     along_req = {
         "polyline": routing_result["polyline"],
@@ -255,19 +258,34 @@ def step_alongpoi_and_llm(self, payload: dict): # 戻り値の型ヒントを削
     # それをLLMタスクのコールバックとして設定したチェインを返す。
     llm_task = celery_app.signature("llm.describe", args=[llm_req], queue="llm")
     callback_task = step_synthesize_all.s(payload=payload).set(queue="nav")
+    # callback_task = step_merge_llm_result.s(payload=payload).set(queue="nav", immutable=True)
     
     workflow = chain(llm_task, callback_task)
+    logger.info(f"payload at end of alongpoi_and_llm: {json.dumps(payload, indent=2, ensure_ascii=False)}")
     raise self.replace(workflow)
+
+@celery_app.task(name="nav.step.merge_llm_result", bind=True)
+def step_merge_llm_result(self, llm_out: dict, payload: dict):
+    """LLMの出力と元のペイロードをマージして、次の音声合成ステップに渡す。"""
+    logger.info(f"[{self.request.id}] Step 2>3: merge_llm_result")
+    payload["llm_items"] = llm_out.get("items", [])
+    
+    # 次のステップ（step_synthesize_all）を呼び出す
+    # ここでは self.replace は使わず、直接次のタスクを呼び出すシグネチャを生成する
+    raise self.replace(step_synthesize_all.s(payload))
 
 
 # --- ステップ3: 音声合成 (LLMタスクのコールバックとして実行) ---
 @celery_app.task(name="nav.step.synthesize_all", bind=True)
-def step_synthesize_all(self, llm_out: dict, *, payload: dict): # 戻り値の型ヒントを削除
+# def step_synthesize_all(self, llm_out: dict, *, payload: dict): # 戻り値の型ヒントを削除
+def step_synthesize_all(self, llm_out: dict, payload: dict): # 戻り値の型ヒントを削除
     logger.info(f"[{self.request.id}] Step 3: Voice Synthesis Chord triggered")
     payload["llm_items"] = llm_out.get("items", [])
 
     if not payload["llm_items"]:
-        sig = step_finalize.s(assets_results=[], payload=payload).set(queue="nav")
+        # sig = step_finalize.s(assets_results=[], payload=payload).set(queue="nav")
+        # sig = step_finalize.s([], payload).set(queue="nav")
+        sig = step_finalize.s(([], payload)).set(queue="nav")
         raise self.replace(sig)
 
     synthesis_tasks = group(
@@ -275,10 +293,20 @@ def step_synthesize_all(self, llm_out: dict, *, payload: dict): # 戻り値の�
         step_synthesize_one.s(payload["pack_id"], payload["language"], item).set(queue="nav")
         for item in payload["llm_items"]
     )
-    callback = step_finalize.s(payload=payload).set(queue="nav")
+    # callback = step_finalize.s(payload=payload).set(queue="nav")
+    # callback = step_finalize.s(payload).set(queue="nav")
+    callback = step_finalize_wrapper.s(payload=payload).set(queue="nav")
     
     raise self.replace(chord(synthesis_tasks, callback))
 
+@celery_app.task(name="nav.step.finalize_wrapper")
+def step_finalize_wrapper(voice_results: list[dict], *, payload: dict):
+    """
+    chord の結果と、チェインを通じて渡されたペイロードを
+    最終化タスクへ渡すためのラッパー。
+    """
+    # 最終化タスクを呼び出す
+    return step_finalize(voice_results, payload)
 
 # --- ステップ3a: 個別音声合成 ---
 @celery_app.task(name="nav.step.synthesize_one")
@@ -321,6 +349,7 @@ def step_finalize(voice_results: list[dict], payload: dict) -> dict:
     voice の戻りを assets にネスト化しつつ、
     legs に from/to 座標を付与し、manifest.json も生成・保存する。
     """
+    logger.info(f"payload in finalize: {json.dumps(payload, indent=2, ensure_ascii=False)}")
     pack_id = payload["pack_id"]
     language = payload.get("language", "ja")
 
@@ -331,6 +360,7 @@ def step_finalize(voice_results: list[dict], payload: dict) -> dict:
 
     # legs は indices ベースのことがあるため、ここで座標付与して最終形へ
     raw_legs = routing.get("legs", [])
+    logger.info(f"raw_legs: {json.dumps(raw_legs, indent=2, ensure_ascii=False)}")
     legs = _normalize_legs(raw_legs, polyline)
 
     along_pois = payload.get("along_pois", [])
