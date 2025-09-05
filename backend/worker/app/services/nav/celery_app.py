@@ -23,5 +23,4 @@ celery_app.autodiscover_tasks(["backend.worker.app.services.nav"], force=True)
 
 celery_app.conf.task_routes = {
     "nav.*": {"queue": "nav"},
-    "llm.*": {"queue": "llm"},
 }

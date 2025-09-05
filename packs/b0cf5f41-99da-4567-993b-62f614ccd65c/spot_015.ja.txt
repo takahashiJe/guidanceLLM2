@@ -1,0 +1,15 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at 鳥海山's 龍ヶ原湿原. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, include a safety note about weather, terrain, and wildlife without recommending excessive actions.
+
+First, the intro should be brief. Maybe start with welcoming visitors and mentioning the location. Next, key facts: it's a high-altitude wetland in the middle of Chokai, known for alpine plants like Watasgae and Nikkou Fireweed. Need to mention the POI description accurately.
+
+For the fun tidbit, perhaps something about the flowers blooming in summer or the view from there. Safety reminder should be concise, like checking the weather, being cautious on the terrain, and avoiding wildlife. Also, avoid speculation, so if there's any unknown info, just mention it briefly.
+
+Wait, the user specified to avoid over-the-top metaphors. So keep it straightforward. Also, make sure to include the safety note about weather, foot conditions, and wildlife. Let me check the constraints again: 45-60 seconds, 200-300 characters. Need to keep it self-contained, no references to documents. Output plain text only.
+
+Let me draft the intro: "皆様、こんにちは。龍ヶ原湿原へようこそ。" Then key facts: "鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育しています。" Fun tidbit: "夏には色とりどりの花が咲き、眼下に広がる景色は絶景です。" Safety reminder: "天候や足元に注意し、野生動物に遭遇しないよう心がけてください。" 
+
+Check the length. Maybe combine sentences to fit within the character limit. Ensure all parts are covered without being too verbose. Avoid any markdown, just plain text. Okay, that should work.
+</think>
+
+皆様、こんにちは。龍ヶ原湿原へようこそ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育しています。夏には色とりどりの花が咲き、眼下に広がる景色は絶景です。天候や足元に注意し、野生動物に遭遇しないよう心がけてください。

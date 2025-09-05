@@ -5,7 +5,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from backend.worker.app.services.llm import generator, prompt
-from backend.worker.app.services.llm.celery_app import celery_app
 
 app = FastAPI(title="llm service")
 
@@ -37,13 +36,15 @@ def describe_impl(payload: DescribeRequest) -> DescribeResponse:
         items.append(DescribeItem(spot_id=s.spot_id, text=text))
     return DescribeResponse(items=items)
 
-@celery_app.task(name="llm.describe", bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=2)
-def describe_task(self, payload: dict) -> dict:
+@app.post("/describe", response_model=DescribeResponse)
+def describe(req: DescribeRequest) -> DescribeResponse:
     """
-    Celery からは JSON(dict) が渡されるので、Pydantic で復元して同じ処理を実行。
-    戻り値も JSON(dict)（DescribeResponse と同じ形）で返す。
+    LLMでスポットの説明文を生成するエンドポイント。
+    入力・出力の形式は元のCeleryタスクと同一。
     """
-    req = DescribeRequest(**payload)
-    res = describe_impl(req)
-    # Celery の result_serializer='json' に合わせて Python dict にして返す
-    return res.model_dump()
+    # 中核ロジックを呼び出す
+    return describe_impl(req)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
