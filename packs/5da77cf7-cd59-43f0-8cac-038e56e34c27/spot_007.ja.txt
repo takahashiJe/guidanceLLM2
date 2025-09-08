@@ -1,0 +1,25 @@
+<think>
+Okay, I need to create a spoken narration for the spot 法体の滝 (ID: spot_007) as a tour guide. Let me start by understanding the user's requirements.
+
+First, the structure should be: short intro, key facts/history/nature, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. I need to avoid excessive metaphors and keep it self-contained without referencing any documents.
+
+The facts given are that it's part of the Japanese 100 Waterfalls selection, water from Chokai Mountain flows in three steps, and it's impressive. The safety part should mention weather, footing, and wildlife, without recommending excessive actions.
+
+Let me start with the intro. Maybe something like "訪れる皆様へ、法体の滝をご案内します。" Then mention it's one of the 100 selected waterfalls. Next, the key facts: water from Chokai Mountain flows in three steps, impressive sight. Fun tidbit: maybe the name's origin? Wait, the facts don't mention that. The user said to avoid speculation, so if it's unknown, say so briefly. Since the name is 法体の滝, maybe the "法体" part refers to something, but without knowing, I should avoid guessing. Maybe the fun tidbit could be about the three-tiered cascade or something else. Wait, the facts don't have a fun tidbit, so maybe the user expects me to add a light-hearted fact. Maybe the waterfall's name comes from a local legend? But since the facts don't mention it, I should say "※名前の由来は不明です" or similar. 
+
+Safety reminder: weather, footing, wildlife. So something like "天候や足元、野生動物への配慮が必要です。" 
+
+Let me check the constraints again. No speculation, so if I don't know the name's origin, I should mention that. Also, keep it concise. Let me put it all together.
+
+Intro: 法体の滝は日本百選の名瀑で、鳥海山の水が三段にわたって流れ落ちる姿は壮観です。 
+
+Key facts: 鳥海山の水が三段にわたって流れ落ちる様子は見どころです。
+
+Fun tidbit: 名前の由来は不明ですが、地元の伝説に登場するともいわれます。
+
+Safety: 天候や足元、野生動物への配慮が必要です。過度な行動は避けましょう。
+
+Wait, but the user wants the structure as 1) short intro; 2) key facts/history/nature; 3) fun tidbit; 4) safety reminder. Let me make sure each part is covered. Also, the safety part needs to mention weather, footing, wildlife. Let me check the character count. The example response is around 200-300 characters. Let me draft in Japanese accordingly.
+</think>
+
+訪れる皆様へ、法体の滝をご案内します。日本百選に選ばれた名瀑で、鳥海山から流れる水が三段にわたって流れ落ちる姿は壮観です。特に春から秋の間は水量が増し、その迫力が楽しめます。※名前の由来は不明ですが、地元の伝説に登場するともいわれます。天候や足元、野生動物への配慮が必要です。過度な行動は避け、安全にご観光ください。

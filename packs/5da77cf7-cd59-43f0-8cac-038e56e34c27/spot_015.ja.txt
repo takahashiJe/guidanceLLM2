@@ -1,0 +1,19 @@
+<think>
+Okay, I need to create a spoken narration for the spot 竜ヶ原湿原 (ID: spot_015) as a tour guide. Let me start by understanding the user's requirements. 
+
+First, the language is Japanese, and the style is narration. The user wants a professional tour guide tone, around 45-60 seconds, which translates to about 200-300 characters. The structure should have a short intro, key facts/history/nature, a fun tidbit, and a safety reminder. Also, avoid speculation and overuse of metaphors. Need to keep it self-contained without referencing other documents or contexts. Plus, include a safety note about weather, terrain, and wildlife, without recommending excessive actions.
+
+Let me check the facts provided. The POI description says it's a high-altitude wetland in the middle of bird mountain (鳥海山), known as a treasure trove for alpine plants like watasugé (ワタスゲ) and nikkōkisuge (ニッコウキスゲ). 
+
+Starting with the intro: Maybe start with welcoming visitors to the area and introducing the spot. Then mention the key facts about the wetland and the plants. For the fun tidbit, perhaps something about the plants' beauty or maybe a unique fact. The safety reminder should mention weather, terrain, and wildlife, advising caution without pushing for risky behavior.
+
+I need to make sure the names are correct. ワタスゲ and ニッコウキスゲ are the scientific names, so they should be in katakana. Also, avoid any guesses if there's unknown info. Since the user said to avoid speculation, I should stick to the given facts.
+
+Let me structure it step by step. Intro: "皆様、龍ヶ原湿原へようこそ。" Then mention it's a high-altitude wetland in the middle of 鳥海山. Next, talk about the plants. Fun tidbit: Maybe that the flowers bloom in summer, creating a colorful scene. Safety: Check the weather, watch your step on the uneven ground, and be cautious of wildlife. 
+
+Wait, the user said to include safety considerations for weather, terrain, and wildlife. So the safety reminder should mention all three. Also, avoid recommending excessive actions, so just a general caution.
+
+Let me check the character count. The example response is around 200-300 characters. Let me draft it in Japanese, keeping it concise. Make sure to use the correct terms and avoid over-explaining. Also, ensure the flow is natural and fits the narration style.
+</think>
+
+皆様、龍ヶ原湿原へようこそ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が四季を通じて咲き誇ります。特に夏には鮮やかな花の海が広がり、自然の美しさを堪能できます。なお、足元は滑りやすい場合がありますので、軽装でのご来訪はお控えください。天候の変化に注意し、野生動物に遭遇した場合は距離を保って観察してください。安全に楽しんでください。

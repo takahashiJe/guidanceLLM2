@@ -3,27 +3,43 @@
     <div v-if="navStore.isLoading" class="loading-overlay">
       <p>案内プランを生成中です...</p>
     </div>
-    <div v-else-if="plan" class="nav-container">
+    
+    <div v-else-if="plan && plan.waypoints_info" class="nav-container">
       <div class="map-wrapper">
         <NavMap ref="navMap" :plan="plan" />
       </div>
       <div class="controls">
         <button @click="toggleSpotList" class="spot-list-toggle">
-          {{ isSpotListVisible ? 'リストを隠す' : '周遊スポット一覧' }}
+          {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
         </button>
+        
         <div v-if="isSpotListVisible" class="spot-list">
+          
           <h3>周遊スポット</h3>
           <ul>
-            <li v-for="poi in sortedPois" :key="poi.spot_id">
+            <li v-for="(poi, index) in sortedWaypoints" :key="poi.spot_id">
               <button @click="focusOnSpot(poi)">
-                <span class="order-index">{{ poi.order_index }}</span>
+                <span class="order-index">{{ index + 1 }}</span>
                 {{ poi.name }}
               </button>
             </li>
           </ul>
+
+          <div v-if="sortedAlongPois.length > 0" class="nearby-section">
+            <h3 class="nearby-title">周辺のスポット</h3>
+            <ul>
+              <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
+                <button @click="focusOnSpot(poi)" class="nearby-button">
+                  {{ poi.name }}
+                </button>
+              </li>
+            </ul>
+          </div>
+
         </div>
-      </div>
+        </div>
     </div>
+    
     <div v-else class="error-view">
       <p>ナビゲーションプランが見つかりません。</p>
       <router-link to="/plan">プラン作成画面に戻る</router-link>
@@ -43,14 +59,24 @@ const plan = computed(() => navStore.plan);
 const navMap = ref(null);
 const isSpotListVisible = ref(true);
 
-// order_index を基準にPOIをソートする
-const sortedPois = computed(() => {
-  if (plan.value && plan.value.along_pois) {
-    // Array.prototype.slice() を使ってシャローコピーを作成してからソートする
-    return [...plan.value.along_pois].sort((a, b) => a.order_index - b.order_index);
+// ★修正 1: 周遊スポット (Waypoints) リスト。 nearest_idx (ルート上のインデックス) でソート
+const sortedWaypoints = computed(() => {
+  if (plan.value && plan.value.waypoints_info) {
+    // バックエンド(nav/tasks.py)が付与した nearest_idx (ルート座標列上の最近接点インデックス) でソート
+    return [...plan.value.waypoints_info].sort((a, b) => (a.nearest_idx || 0) - (b.nearest_idx || 0));
   }
   return [];
 });
+
+// ★修正 2: 周辺のスポット (AlongPOIs) リスト。 order_index (または nearest_idx) でソート
+const sortedAlongPois = computed(() => {
+  if (plan.value && plan.value.along_pois) {
+    // 元の実装(sortedPois)のロジックを引き継ぎ、order_index (または nearest_idx) でソート
+    return [...plan.value.along_pois].sort((a, b) => (a.order_index ?? a.nearest_idx ?? 0) - (b.order_index ?? b.nearest_idx ?? 0));
+  }
+  return [];
+});
+
 
 onMounted(() => {
   // navストアにプランがなければプラン作成ページにリダイレクト
@@ -105,6 +131,8 @@ function focusOnSpot(poi) {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  /* (★修正) 2つのリストが入るため、コントロール全体の高さを制限しスクロール可能に */
+  max-height: calc(100vh - 20px); 
 }
 
 .spot-list-toggle {
@@ -117,6 +145,7 @@ function focusOnSpot(poi) {
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   margin-bottom: 10px;
+  flex-shrink: 0; /* (★追加) トグルボタンが縮まないように */
 }
 
 .spot-list {
@@ -124,8 +153,8 @@ function focusOnSpot(poi) {
   border-radius: 5px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   padding: 10px;
-  max-height: 50vh;
-  overflow-y: auto;
+  max-height: 75vh; /* (★修正) リストコンテナの最大高さを確保 */
+  overflow-y: auto;   /* リストコンテナ自体をスクロールさせる */
   min-width: 250px;
 }
 
@@ -176,6 +205,22 @@ function focusOnSpot(poi) {
   margin-right: 10px;
   flex-shrink: 0;
 }
+
+/* ★ ここから追加 ★ */
+.nearby-section {
+  margin-top: 15px; /* 周遊スポットリストとの間隔 */
+}
+
+.nearby-title {
+  color: #555; /* タイトル色を少し変える */
+  font-size: 1.0rem; /* 少し小さく */
+}
+
+.nearby-button {
+    /* order-index がないため、テキストのインデントを調整 */
+  padding-left: 16px !important; 
+}
+/* ★ 追加ここまで ★ */
 
 
 .error-view {

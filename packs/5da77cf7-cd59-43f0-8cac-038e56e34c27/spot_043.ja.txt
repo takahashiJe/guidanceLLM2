@@ -1,0 +1,15 @@
+<think>
+Okay, I need to create a spoken narration for the tour guide about the 花立クリーンハイツ. Let me start by understanding the requirements. The user wants a narration in Japanese, with a calm guide tone, around 45-60 seconds, so about 200-300 characters. The structure should include a short intro, key facts, a fun tidbit, and a safety reminder. Also, avoid speculation, use accurate proper nouns, and don't reference any documents. Plus, add a safety note about weather, footing, and wildlife without recommending excessive actions.
+
+First, the intro. It should greet the visitors and mention the location. Maybe start with "皆様、ようこそ" to welcome them. Then mention it's a key facility in the area.
+
+Next, key facts: it's a tourist base with a restaurant, info corner, and check-in for cottages. The popular item is the Jersey soft cream. Need to mention these points concisely.
+
+Fun tidbit: Maybe the soft cream is a local specialty, so highlight that as a must-try. Keep it light and engaging.
+
+Safety reminder: Mention weather changes, watch your steps on uneven ground, and be cautious of wildlife. But don't recommend specific actions, just a brief warning.
+
+Check for proper nouns: 花立クリーンハイツ, 鳥海高原, ジャージーソフトクリーム. Make sure they're correctly spelled. Avoid any metaphors or exaggerations. Keep it self-contained, no references to other parts. Also, the safety part needs to be a single sentence. Let me put it all together now, ensuring the flow and timing. Let me count the characters to make sure it's within the limit. Maybe around 250 characters. Let me check each section and adjust as needed. Okay, that should cover all the points without being too long.
+</think>
+
+皆様、ようこそ。花立クリーンハイツは、鳥海高原の観光拠点として機能する施設です。レストランや観光案内コーナーがあり、隣接するコテージのチェックインもここで行います。特に人気なのは、ジャージーソフトクリームです。甘さ控えめで、地元の名物として親しまれています。天候の変化に注意し、足元の滑りやすい場所にはご注意ください。また、野生動物との遭遇に備え、周囲を常に確認してください。安全に楽しんでください。

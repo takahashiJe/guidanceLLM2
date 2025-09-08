@@ -19,6 +19,7 @@ class AlongRequest(BaseModel):
     polyline: List[List[float]]   # [[lon,lat], ...]
     segments: List[Segment]
     buffer: dict = Field(default_factory=lambda: {"car":300,"foot":10})
+    waypoints: List[str] = Field(default_factory=list) # spot_id のリストを受け取る
 
 class AlongResponse(BaseModel):
     pois: List[dict]
@@ -47,4 +48,14 @@ def along(payload: AlongRequest):
         foot_m = payload.buffer.get("foot", 10.0),
     )
     pois = reducer.reduce_hits_to_along_pois(hits, payload.polyline)
-    return AlongResponse(pois=pois, count=len(pois))
+    waypoint_id_set = set(payload.waypoints or [])
+
+    if waypoint_id_set:
+        # reducer が算出した POI リストから、waypoint ID Set に含まれるものを除外
+        filtered_pois = [p for p in pois if p.get("spot_id") not in waypoint_id_set]
+    else:
+        filtered_pois = pois
+
+    # フィルタリング後の「純粋な沿道POIリスト」を返す
+    return AlongResponse(pois=filtered_pois, count=len(filtered_pois))
+    # return AlongResponse(pois=pois, count=len(pois))

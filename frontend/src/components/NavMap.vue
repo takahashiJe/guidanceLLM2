@@ -18,7 +18,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
-// -- 修正点: 地図タイルの定義をコンポーネント内に記述 --
+// -- 地図タイルの定義 (変更なし) --
 const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
   attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>",
 });
@@ -38,7 +38,7 @@ const mapContainer = ref(null);
 const map = ref(null);
 let userLocationMarker = null;
 let routeLayer = null;
-let poiMarkers = [];
+let poiMarkers = []; // マーカーの配列 (変更なし)
 
 const flyToSpot = (lat, lon) => {
   if (map.value) {
@@ -48,10 +48,10 @@ const flyToSpot = (lat, lon) => {
     });
   }
 };
-defineExpose({ flyToSpot });
+defineExpose({ flyToSpot }); // (変更なし)
 
 
-const drawRoute = () => {
+const drawRoute = () => { // (変更なし)
   if (routeLayer) {
     map.value.removeLayer(routeLayer);
   }
@@ -67,20 +67,43 @@ const drawRoute = () => {
   }
 };
 
+// ===========================================
+// ★★★ ここから drawPois 関数を修正 ★★★
+// ===========================================
 const drawPois = () => {
+  // 1. 以前のマーカーをすべてクリア
   poiMarkers.forEach(marker => map.value.removeLayer(marker));
   poiMarkers = [];
 
-  if (props.plan && props.plan.along_pois) {
-    props.plan.along_pois.forEach(poi => {
-      const marker = L.marker([poi.lat, poi.lon]).addTo(map.value)
-        .bindPopup(`<b>${poi.name}</b><br>${poi.description || ''}`);
-      poiMarkers.push(marker);
-    });
+  if (!props.plan) return;
+
+  // 2. マーカーを追加する内部ヘルパー関数を定義
+  const addPoiMarker = (poi) => {
+    // lat/lon がないデータはスキップ
+    if (!poi || typeof poi.lat !== 'number' || typeof poi.lon !== 'number') {
+      return;
+    }
+    const marker = L.marker([poi.lat, poi.lon]).addTo(map.value)
+      .bindPopup(`<b>${poi.name}</b>`); // descriptionは重い場合があるのでPopupからは削除 (任意)
+    poiMarkers.push(marker);
+  };
+
+  // 3. (★修正★) 「周遊スポット (Waypoints)」を描画
+  if (props.plan.waypoints_info) {
+    props.plan.waypoints_info.forEach(addPoiMarker);
+  }
+
+  // 4. (★修正★) 「周辺のスポット (AlongPOIs)」も描画
+  if (props.plan.along_pois) {
+    props.plan.along_pois.forEach(addPoiMarker);
   }
 };
+// ===========================================
+// ★★★ drawPois 関数の修正ここまで ★★★
+// ===========================================
 
-const setupMap = () => {
+
+const setupMap = () => { // (変更なし)
   if (mapContainer.value && !map.value) {
     map.value = L.map(mapContainer.value).setView([39.145, 140.102], 10);
 
@@ -98,7 +121,7 @@ const setupMap = () => {
   }
 };
 
-const updateUserLocation = (lat, lng) => {
+const updateUserLocation = (lat, lng) => { // (変更なし)
   if (!map.value) return;
   const latlng = L.latLng(lat, lng);
   if (userLocationMarker) {
@@ -114,7 +137,7 @@ const updateUserLocation = (lat, lng) => {
   }
 };
 
-const startTracking = () => {
+const startTracking = () => { // (変更なし)
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
       (position) => {
@@ -133,21 +156,21 @@ const startTracking = () => {
   }
 };
 
-onMounted(() => {
+onMounted(() => { // (変更なし)
   setupMap();
 });
 
-onBeforeUnmount(() => {
+onBeforeUnmount(() => { // (変更なし)
   if (map.value) {
     map.value.remove();
     map.value = null;
   }
 });
 
-watch(() => props.plan, () => {
+watch(() => props.plan, () => { // (変更なし)
   if (map.value) {
     drawRoute();
-    drawPois();
+    drawPois(); // 修正されたdrawPoisが呼ばれる
   }
 }, { deep: true });
 </script>

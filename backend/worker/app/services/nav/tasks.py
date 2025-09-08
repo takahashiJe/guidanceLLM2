@@ -21,6 +21,7 @@ from backend.worker.app.services.nav.client_llm import post_describe # 修正し
 from backend.worker.app.services.nav.client_voice import post_synthesize_and_save
 
 from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
+from backend.worker.app.services.alongpoi.reducer import reduce_hits_to_along_pois
 
 import logging
 logger = logging.getLogger(__name__)
@@ -190,10 +191,13 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
 
     # --- 2. AlongPOI Service ---
     logger.info("Step 2: Calling AlongPOI service...")
+    waypoint_ids = [w.spot_id for w in req.waypoints if w.spot_id and w.spot_id != "current"]
+    waypoint_id_set = set(waypoint_ids)
     along_req = {
         "polyline": routing_result["polyline"],
         "segments": routing_result.get("segments", []),
         "buffer": req.buffer,
+        "waypoints": waypoint_ids
     }
     along_result = post_along(along_req)
     along_pois = along_result.get("pois", [])
@@ -242,9 +246,22 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     
     assets = _normalize_assets(voice_results, llm_items)
 
+    # 1. 全ガイド対象(spot_refs)から、WaypointのDBデータのみを抽出
+    waypoint_spot_refs = [s for s in spot_refs if s['spot_id'] in waypoint_id_set]
+    # 2. reducerを使い、Waypointリスト [A, B, C] にルート計算情報(nearest_idx等)を付与
+    waypoints_info = reduce_hits_to_along_pois(waypoint_spot_refs, polyline)
+
+    # (B) マニフェスト用に「全ガイドPOI」リストを作成 (Waypoint情報 + 純粋AlongPOI情報)
+    #    (マニフェストはデバッグと完全なオフラインパックのために全情報を持つべき)
+    manifest_guide_pois = waypoints_info + along_pois
+    #    ルート順にソートする
+    manifest_guide_pois.sort(key=lambda p: p.get("nearest_idx", 0))
+
     _write_manifest(
         pack_id, req.language, routing_result["feature_collection"],
-        polyline, routing_result["segments"], legs, along_pois, assets
+        polyline, routing_result["segments"], legs, 
+        manifest_guide_pois, 
+        assets
     )
 
     response = {
@@ -253,6 +270,7 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
         "polyline": polyline,
         "segments": routing_result["segments"],
         "legs": legs,
+        "waypoints_info": waypoints_info,
         "along_pois": along_pois,
         "assets": assets,
         "language": req.language,
