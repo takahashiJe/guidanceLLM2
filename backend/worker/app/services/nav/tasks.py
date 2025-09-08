@@ -7,10 +7,14 @@ import uuid
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import List, Literal, Optional, Dict, Any
+from typing import List, Literal, Optional, Dict, Any, Tuple
 
 from pydantic import BaseModel, Field
 from celery import Celery
+
+from shapely.geometry import Point, LineString
+from shapely.ops import transform
+from pyproj import Transformer
 
 from backend.worker.app.services.nav.celery_app import celery_app
 
@@ -21,7 +25,6 @@ from backend.worker.app.services.nav.client_llm import post_describe # 修正し
 from backend.worker.app.services.nav.client_voice import post_synthesize_and_save
 
 from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
-from backend.worker.app.services.alongpoi.reducer import reduce_hits_to_along_pois
 
 import logging
 logger = logging.getLogger(__name__)
@@ -67,7 +70,7 @@ class PlanResponse(BaseModel):
     manifest_url: str
 
 # =================================================================
-# ==== Helpers (ヘルパー関数) - 変更なし ====
+# ==== Helpers (ヘルパー関数) ====
 # =================================================================
 def _collect_unique_spot_ids(waypoints: List[Waypoint], along_pois: List[dict]) -> List[str]:
     planned = [w.spot_id for w in waypoints if w.spot_id and w.spot_id != "current"]
@@ -97,6 +100,8 @@ def _build_spot_refs(spot_ids: List[str], language: str) -> List[dict]:
             "name": row.name,
             "description": desc_text,
             "md_slug": row.md_slug,
+            "lon": row.lon,
+            "lat": row.lat,
         })
     return items
 
@@ -143,9 +148,22 @@ def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[
             "duration_s": vr.get("duration_s"),
             "format": vr.get("format"),
         })
+    audio_spot_ids = {a["spot_id"] for a in assets}
+    for item in (llm_items or []):
+        sid = item.get("spot_id")
+        if sid and sid not in audio_spot_ids:
+            assets.append({
+                "spot_id": sid,
+                "text": item.get("text", ""),
+                "audio_url": None,
+                "text_url": None,
+                "bytes": None,
+                "duration_s": None,
+                "format": None,
+            })
     return assets
 
-def _write_manifest(pack_id: str, language: str, route_fc: dict, polyline: list, segments: list, legs: list, along_pois: list, assets: list) -> None:
+def _write_manifest(pack_id: str, language: str, route_fc: dict, polyline: list, segments: list, legs: list, waypoints_info: list, along_pois: list, assets: list) -> None:
     root = Path(os.getenv("PACKS_ROOT") or "/packs")
     pack_dir = root / pack_id
     try:
@@ -153,7 +171,10 @@ def _write_manifest(pack_id: str, language: str, route_fc: dict, polyline: list,
         manifest = {
             "pack_id": pack_id, "language": language, "generated_at": datetime.utcnow().isoformat() + "Z",
             "route": route_fc, "polyline_len": len(polyline or []), "segments": segments,
-            "legs": legs, "along_pois": along_pois, "assets": assets,
+            "legs": legs, 
+            "waypoints_info": waypoints_info,
+            "along_pois": along_pois, 
+            "assets": assets,
         }
         p = pack_dir / "manifest.json"
         with open(p, "w", encoding="utf-8") as f:
@@ -163,6 +184,64 @@ def _write_manifest(pack_id: str, language: str, route_fc: dict, polyline: list,
         logger.info("NAV wrote manifest: %s", str(p))
     except Exception:
         logger.exception("NAV failed to write manifest.json for pack_id=%s", pack_id)
+
+def _proj() -> Transformer:
+    return Transformer.from_crs(4326, 3857, always_xy=True)
+
+def _reduce_hits_to_along_pois_local(hits: List[Dict], polyline: List[List[float]]) -> List[Dict]:
+    """
+    (navサービス内に複製されたReducerロジック)
+    DB等から得たヒット（少なくとも spot_id, lon, lat を含む dict 群）を、
+    ルート polyline に基づいて計算を付与して返す。
+    """
+    if not hits or not polyline or len(polyline) < 2:
+        return []
+
+    to3857 = _proj().transform
+
+    # ルートを 3857 に写像
+    line_lonlat = [(p[0], p[1]) for p in polyline]
+    line_3857 = transform(to3857, LineString(line_lonlat))
+
+    # 各「線分」（2点間） 3857 表現を準備
+    segs_3857 = []
+    for i in range(len(line_lonlat) - 1):
+        seg = LineString([line_lonlat[i], line_lonlat[i + 1]])
+        segs_3857.append(transform(to3857, seg))
+
+    out: List[Dict] = []
+    for h in hits:
+        # この関数が呼ばれる時点で h['lon'], h['lat'] が存在することを前提とする
+        lon, lat = float(h["lon"]), float(h["lat"])
+        pt_3857 = transform(to3857, Point(lon, lat))
+
+        # 最近距離 [m]
+        dist_m = float(line_3857.distance(pt_3857))
+
+        # 最近線分の index
+        best_idx = 0
+        best_d = float("inf")
+        for i, seg in enumerate(segs_3857):
+            d = seg.distance(pt_3857)
+            if d < best_d:
+                best_d = d
+                best_idx = i
+
+        distance_m = float(h.get("distance_m", dist_m))  # SQLの値があれば優先
+        out.append(
+            {
+                "spot_id": h.get("spot_id"),
+                "name": h.get("name"),
+                "lon": float(h.get("lon")) if "lon" in h else None,
+                "lat": float(h.get("lat")) if "lat" in h else None,
+                "kind": h.get("kind"),
+                "nearest_idx": int(best_idx), # ★キー名を alongpoi 互換で nearest_idx に変更
+                "distance_m": distance_m,
+                "source_segment_mode": h.get("source_segment_mode"),
+            }
+        )
+
+    return out
 
 # =================================================================
 # ==== Main Workflow Task (単一タスクにリファクタリング) ====
@@ -246,21 +325,23 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     
     assets = _normalize_assets(voice_results, llm_items)
 
-    # 1. 全ガイド対象(spot_refs)から、WaypointのDBデータのみを抽出
-    waypoint_spot_refs = [s for s in spot_refs if s['spot_id'] in waypoint_id_set]
-    # 2. reducerを使い、Waypointリスト [A, B, C] にルート計算情報(nearest_idx等)を付与
-    waypoints_info = reduce_hits_to_along_pois(waypoint_spot_refs, polyline)
+    # (A) 全ガイド対象(spot_refs [lon/latキーを含む])から、Waypointのデータのみを抽出
+    waypoint_spot_data = [s for s in spot_refs if s['spot_id'] in waypoint_id_set]
+    
+    # (B) (修正点3で)ローカルにコピーしたReducerを使い、Waypointリスト [A, B, C] にルート計算情報を付与
+    #     これには lon/lat が含まれているため、KeyErrorは発生しない
+    waypoints_info = _reduce_hits_to_along_pois_local(waypoint_spot_data, polyline)
 
-    # (B) マニフェスト用に「全ガイドPOI」リストを作成 (Waypoint情報 + 純粋AlongPOI情報)
-    #    (マニフェストはデバッグと完全なオフラインパックのために全情報を持つべき)
+    # (C) マニフェスト用に「全ガイドPOI」リストを作成 (Waypoint情報 + 純粋AlongPOI情報)
     manifest_guide_pois = waypoints_info + along_pois
-    #    ルート順にソートする
-    manifest_guide_pois.sort(key=lambda p: p.get("nearest_idx", 0))
+    #     ルート順 (nearest_idx) にソートする
+    manifest_guide_pois.sort(key=lambda p: p.get("nearest_idx", p.get("leg_index", 0)))
 
     _write_manifest(
         pack_id, req.language, routing_result["feature_collection"],
         polyline, routing_result["segments"], legs, 
-        manifest_guide_pois, 
+        waypoints_info,  # マニフェスト引数 (修正点6,7)
+        along_pois,
         assets
     )
 

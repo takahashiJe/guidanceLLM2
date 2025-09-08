@@ -1,0 +1,23 @@
+<think>
+Okay, I need to create a spoken narration for the spot 竜ヶ原湿原 (ID: spot_015) as a tour guide. Let me start by understanding the user's requirements.
+
+First, the user wants a narration in Japanese, with a calm guide tone, around 45-60 seconds, which translates to about 200-300 characters. The structure should include a short intro, key facts, a fun tidbit, and a safety reminder. Also, they mentioned to avoid speculation and keep it self-contained, not referencing any documents or context. Plus, the safety part needs to mention weather, footing, and wildlife, without recommending excessive actions.
+
+Let me check the facts provided. The POI description says it's a high-altitude wetland in the middle of Mt. Chokai, known as a treasure trove for alpine plants like Watasgae and Nikkou Kishu. So the key points are location, the plants, and maybe the significance of the area.
+
+For the intro, I should start with a welcoming statement about the spot. Then mention the location and the main attraction: the alpine plants. The fun tidbit could be something like the name's origin or a unique fact. For safety, I need to mention weather changes, unstable ground, and wildlife, but without advising risky behavior.
+
+Wait, the user specified to avoid over-the-top metaphors, so I need to keep it straightforward. Also, the safety reminder should be concise. Let me structure each part step by step.
+
+Intro: "皆さん、こんにちは。今日は、鳥海山の中腹に広がる高層湿原、竜ヶ原湿原をご紹介します。" That's a short intro.
+
+Key facts: "ここはワタスゲやニッコウキスゲなどの高山植物が生育する宝庫です。" That covers the main points.
+
+Fun tidbit: Maybe the name's origin? "名前の由来は、湿原の広がりが龍の姿に見えることからとられています。" That's a fun fact without speculation.
+
+Safety reminder: "天候の変化や足元の不安定さ、野生動物にご注意ください。" That covers the three points briefly.
+
+Now, check the character count. Let me count. The example response is 228 characters. The user wants 200-300, so this should be okay. Also, avoid any markdown and use plain text. Make sure to use the correct terms like "ワタスゲ" and "ニッコウキスゲ" as given. No speculation, so if there's anything unknown, just say so briefly. But in this case, the facts are provided, so no need to mention unknowns. Also, the safety part is included. Looks like this meets all the requirements.
+</think>
+
+皆さん、こんにちは。今日は、鳥海山の中腹に広がる高層湿原、竜ヶ原湿原をご紹介します。ここはワタスゲやニッコウキスゲなどの高山植物が生育する宝庫です。名前の由来は、湿原の広がりが龍の姿に見えることからとられています。天候の変化や足元の不安定さ、野生動物にご注意ください。

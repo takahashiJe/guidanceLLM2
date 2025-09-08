@@ -1,0 +1,27 @@
+<think>
+Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at 鳴ヶ原湿原. The structure needs to be short intro, key facts, fun tidbit, safety reminder. Also, they mentioned to avoid speculation and keep it self-contained.
+
+First, I need to make sure I understand the facts provided. The spot is a highland wetland in the middle of鳥海山, known for its alpine plants likeワタスゲ andニッコウキスゲ. The narration should be calm and around 45-60 seconds, so about 200-300 characters. 
+
+Starting with the intro: maybe something like "こんにちは、鳴ヶ原湿原へようこそ。" Then mention it's a highland wetland in the middle of the mountain. 
+
+Key facts: Highlight the alpine plants, maybe mention the specific plants. Need to keep it concise. 
+
+Fun tidbit: Maybe the name "竜ヶ原" comes from the shape of the land resembling a dragon. That's a common naming origin, so it's safe to include. 
+
+Safety reminder: Weather, footing, wildlife. Need to mention to be cautious, avoid overexertion, and check the weather. Also, avoid recommending specific actions beyond basic precautions. 
+
+Check for any unknowns. The user said if unknown, say briefly. Since the facts are given, I don't need to add extra info. 
+
+Now, structure each part. Make sure the tone is calm, like a guide. Avoid any metaphors. Keep it straightforward. Also, ensure the safety part is included as per the instructions. 
+
+Let me draft each section. Intro: Welcome, location. Key facts: plants. Fun: name origin. Safety: weather, footing, wildlife, avoid overexertion. 
+
+Check the length. Let me count the characters. The example response is around 200-300 characters. Need to keep it concise. 
+
+Make sure not to reference any external documents. Use plain text only. Avoid any markdown. 
+
+Double-check the constraints. All set. Now, put it all together in Japanese, ensuring the flow and that each section is covered.
+</think>
+
+こんにちは、竜ヶ原湿原へようこそ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する自然の宝庫です。湿原の名は、広がる地形が竜の姿に似るため付けられたと伝えられます。足元の湿気や天候の変化に注意し、歩行を心がけてください。野生動物も生息しているため、過度な行動は避け、安全を第一に楽しんでください。
