@@ -1,0 +1,29 @@
+<think>
+Okay, I need to create a spoken narration in Japanese for the Fubagawa Shrine (祓川神社) as a tour guide. Let me start by understanding the requirements.
+
+First, the structure: short intro, key facts/history/nature, fun tidbit, safety reminder. The user wants a calm guide tone, around 45-60 seconds, so 200-300 characters. Must use correct proper nouns, avoid excessive metaphors. Also, include safety considerations about weather, footing, wildlife, without recommending excessive actions.
+
+The facts given are that it's a shrine at the base of Chokai Mountain, near the Fubagawa River, and it's busy with hikers praying for safe climbs. The shrine is at the登山口 (mountain access point). 
+
+Intro should mention the shrine's location. Key facts: location, purpose (praying for safety), maybe some history if available. But the facts provided don't mention history, so maybe just the location and purpose. 
+
+Fun tidbit: Maybe something about the name or local lore. The river is called Fubagawa, which might relate to purification, since "fubu" can mean purification. So maybe the shrine is associated with purifying the path before climbing. 
+
+Safety reminder: Check weather, watch footing, be aware of wildlife. Avoid recommending risky behavior, just a brief mention.
+
+Now, translate this into Japanese, keeping it concise. Let me check the proper nouns: 祓川神社, 鳥海山矢島口, 祓川. 
+
+Intro: 祓川神社は、鳥海山矢島口にある神社で、登山口として知られています。
+
+Key facts: 登山者たちが安全を祈願し、賑わいます。神社の近くには祓川が流れており、自然が広がっています。
+
+Fun tidbit: 祓川の名は「祓う」から来ており、登山の安全を象徴するとも言われます。
+
+Safety: 天候や足元、野生動物に注意し、無理な行動は避けましょう。
+
+Now, check the length. Let me count the characters. The example response is about 250 characters. Need to make sure it's within 200-300. Also, avoid speculation. The facts don't mention history, so I shouldn't add anything about that. The fun tidbit about the name is acceptable since it's based on the given name. Safety points are covered. Make sure to mention the river's name and the shrine's location. 
+
+I think that's all. Let me put it all together in Japanese, keeping the structure and constraints.
+</think>
+
+祓川神社は、鳥海山矢島口にある登山口の神社で、多くの登山者が安全を祈願して参拝します。神社の近くには祓川が流れる自然の風景が広がり、季節ごとに美しさを披露します。ちなみにもともと「祓う」という意味の名前で、登山の安全を願う気持ちが込められているようです。天候や足元、野生動物に注意し、無理な行動は避けましょう。

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 # LLMサービスのベースURLを設定 (環境変数 or デフォルト値)
 LLM_BASE = os.getenv("LLM_BASE", "http://svc-llm:9103")
-REQ_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "60")) # LLMは時間がかかる可能性があるので少し長めに
+REQ_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "300")) # LLMは時間がかかる可能性があるので少し長めに
 
 def post_describe(payload: dict) -> dict:
     """
