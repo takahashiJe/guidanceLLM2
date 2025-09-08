@@ -1,9 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the Fushikawa Shrine (spot_024). The facts provided mention it's at the base of Mount Chokai, serves as a starting point for climbers, and is a place where many climbers pray for safety.
-
-First, I need to structure it into four parts: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid any metaphors and stick to facts. Also, include a safety note about weather, footing, and wildlife without recommending risky behavior.
-
-Start with the intro: introduce the shrine as a significant spot. Then mention its location and purpose. The fun fact could be about the shrine's name origin. For safety, remind visitors to check weather, watch their steps, and be aware of wildlife. Make sure to use the correct names and avoid speculation if anything is unknown. Keep it self-contained without referencing external documents. Let me check the character count to ensure it's within the limit. Also, ensure the safety part is concise and adds value without being too verbose. Alright, time to put it all together.
-</think>
-
-ご案内しますのは、鳥海山矢島口にある祓川神社です。登山口近くに位置し、多くの登山者が安全を祈願して参拝します。神社の名は「祓いの川」を意味し、古くから山の守り神として崇められてきました。面白いのは、参拝者に「厄除けの御守」を無料で配る習慣があること。登山前にはぜひ立ち寄ってみてください。安全配慮として、天候や足元の確認、野生動物への配慮をお忘れなく。

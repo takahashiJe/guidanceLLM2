@@ -1,9 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about 赤滝 (spot_025). The facts mention it's near 祓川 and has powerful waterfalls during snowmelt. 
-
-First, I need to structure the narration as per the constraints: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid overused metaphors and keep it self-contained. Also, include a safety note about weather, footing, and wildlife without recommending risky behavior.
-
-Start with the intro: mention the location and the main feature. Then the key facts about the waterfall and snowmelt. The fun tidbit could be something like the name meaning "red cascade" or a local legend. For safety, remind visitors to check weather, watch their steps, and be aware of wildlife. Need to make sure all proper nouns are correct and avoid any speculation if unsure. Let me check the facts again to ensure accuracy. The name 赤滝 translates to "Red Waterfall," so that's a good tidbit. Safety reminder should be concise. Alright, putting it all together now.
-</think>
-
-赤滝は、祓川の近くに位置する滝で、春の雪解け時期には水量が増し、迫力が際立つスポットです。名前の由来は「赤い水の流れ」を意味し、周辺の自然が映えるおすすめの場所です。地元の民話では、滝の水が昔の戦いの血に似た赤みを帯びると伝えられています。天候や足元の状態に注意し、野生動物との遭遇に配慮してご観光ください。

@@ -1,9 +1,0 @@
-<think>
-Okay, let me tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about the Ryugetsu Gen Marsh (竜ヶ原湿原). The facts mention it's a high-altitude marsh with plants like Watasuge and Nikkou Kishuge. 
-
-First, I need to structure it into four parts: intro, key facts, fun tidbit, safety reminder. The tone should be calm and informative, around 45-60 seconds, so 200-300 characters. Avoid overusing metaphors and keep it self-contained. Also, include a safety note about weather, terrain, and wildlife.
-
-Starting with the intro: mention the location and its status as a marsh. Then key facts about the plants. The fun tidbit could be about the name origin. For safety, warn about weather changes and wildlife. Need to check if all info is accurate. Since the user said to avoid speculation, I'll stick to the given facts. Make sure to use the correct terms like ワタスゲ and ニッコウキスゲ. Also, mention the safety aspects briefly. Let me put it all together concisely.
-</think>
-
-竜ヶ原湿原は、鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲなどの高山植物が生育する珍しい場所です。標高の高さから四季の気候が変わりやすく、足元は湿気で滑りやすくなります。また、カモシカやイノシシなどの野生動物も時折現れます。歩行時は周囲の環境に注意し、無理な行動は控えてください。天候の急変や足元の危険に留意し、安全に楽しんでください。

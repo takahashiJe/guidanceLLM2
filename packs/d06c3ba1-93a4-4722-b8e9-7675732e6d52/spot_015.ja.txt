@@ -1,9 +1,0 @@
-<think>
-Okay, I need to create a spoken narration for the spot 竜ヶ原湿原. Let me start by understanding the requirements.
-
-First, the user wants a professional tour guide narration in Japanese, about 45-60 seconds, so around 200-300 characters. The structure should have a short intro, key facts, a fun tidbit, and a safety reminder. Also, avoid speculation and keep it self-contained. Need to mention the POI description accurately, which is a highland wetland in the middle of Chokai Mountain, known for alpine plants like Watasgae and Nikkou Kishu. Also, add a safety note about weather, terrain, and wildlife without recommending excessive actions.
-
-Let me outline each part. The intro should welcome and mention the location. Key facts: it's a highland wetland with specific plants. Fun tidbit: maybe the name's origin or something unique about the plants. Safety: check weather, watch steps, be aware of wildlife. Make sure not to use any metaphors and keep it factual. Also, ensure the safety part is concise and not too long. Let me check the character count to stay within the limit. Avoid any markdown and just plain text. Need to confirm the POI description is correctly included. Also, make sure the safety reminder is included as per the instruction. Alright, let me put it all together now.
-</think>
-
-龍ヶ原湿原は、鳥海山の中腹に広がる高層湿原です。ワタスゲやニッコウキスゲなどの高山植物が生育し、自然の宝庫として知られています。特に春には花の海が広がる様子は見どころです。なお、湿原周辺では足元の滑りやすさに注意し、天候の変化に備えて防寒を心がけてください。また、野生動物に遭遇する可能性もあるため、安静に過ごすことが安全です。

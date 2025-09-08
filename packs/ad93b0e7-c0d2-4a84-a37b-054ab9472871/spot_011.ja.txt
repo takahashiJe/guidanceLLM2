@@ -1,7 +1,0 @@
-<think>
-Okay, let's see. The user wants a narration for a tour guide at the 道の駅象潟. The facts mention it's a viewpoint with a hot spring overlooking the Japan Sea, sells local specialties and seafood, and has a restaurant. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, keep it around 45-60 seconds, so 200-300 characters. Need to use the correct names, avoid overused metaphors. Safety part should mention weather, footing, wildlife, and avoid recommending excessive activities.
-
-First, start with a short intro. Maybe something like "こんにちは、道の駅象潟へようこそ。" Then mention the view of the Japan Sea and the hot spring. Next, key facts: the restaurant and local products. Fun tidbit could be about the name "象潟" meaning "elephant marsh," but I should check if that's accurate. Wait, maybe it's a local name, so maybe it's better to say it's a local name with a story. Wait, the facts don't mention the name's origin, so maybe avoid speculation. The user said to avoid speculation if unknown. So maybe the fun tidbit is that the restaurant serves fresh seafood. Safety reminder: check the weather, watch your step on slippery paths, and be cautious of wildlife like deer. But don't recommend specific activities. Let me make sure the safety part is concise. Also, keep the tone calm and informative. Let me put it all together now.
-</think>
-
-こんにちは、道の駅象潟へようこそ。日本海を望む展望温泉が人気のスポットで、地元の特産品や海産物を購入できます。レストランも併設されており、美味しい料理が味わえます。ちなみに、駅名の「象潟」は地元の伝説に由来するそうですが、詳しくはぜひ現地でご確認ください。天候や足元にご注意いただき、野生動物との遭遇には警戒心を持ちましょう。過度な行動は避け、安全に楽しんでください。

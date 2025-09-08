@@ -1,7 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at 赤滝. The facts mention it's near 赓川, and the water is powerful in spring. The structure needs to be short intro, key facts, fun tidbit, safety reminder. Also, safety considerations like weather, footing, wildlife.
-
-First, I need to start with a welcoming intro. Maybe something like "ようこそ、赤滝へ。" Then mention its location near 赓川. Next, the key fact about the water flow in spring. The fun tidbit could be about the name meaning "red waterfall" from the red algae. For safety, remind visitors to check weather, watch their steps, and be aware of wildlife. Avoid speculation, so stick to what's given. Keep it concise, around 200-300 characters. Make sure to use correct terms and avoid overused metaphors. Check for any unknowns and mention them briefly if needed. Also, ensure it's self-contained without referencing other documents. Let me put that together.
-</think>
-
-ようこそ、赤滝へ。fsp_025はfsp_007の近くに位置し、春の雪解けで水量が増す時期には迫力が際立つスポットです。名前の由来は、滝の周辺に生える赤い藻からとられ、色合いが際立つのが特徴です。意外なことに、かつてはこの滝の近くに小さな神社があり、地域の信仰の中心となっていたと伝わります。訪れる際は、天候や足元の悪化に注意し、野生動物との遭遇に備えてください。過度な近づきは避けて安全に楽しみましょう。

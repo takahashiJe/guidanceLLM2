@@ -1,7 +1,0 @@
-<think>
-Okay, I need to create a spoken narration for the Nihonkai City Shōgata Village Museum. Let me start by understanding the user's query. The user wants a professional tour guide narration in Japanese, around 45-60 seconds, so about 200-300 characters. The structure has four parts: short intro, key facts/history/nature, fun tidbit, safety reminder. Also, they want safety considerations about weather, terrain, and wildlife, without recommending excessive activities.
-
-First, the intro should be brief. Maybe start with welcoming visitors to the museum. Then, the key facts: the museum showcases the history and culture of the Shōgata area, and it's known as "Higashi no Matsumoto" (East Matsushima) in the past. The fun tidbit could be that the name comes from the shape of the bay, which is like an elephant's trunk. For safety, mention checking the weather, being cautious on slippery paths, and avoiding loud noises to prevent startling wildlife. Need to make sure not to use any metaphors excessively and keep it factual. Also, check that all proper nouns are correct, like the museum's name and the historical title. Let me put that all together concisely.
-</think>
-
-にかほ市象潟郷土資料館へようこそ。象潟地域の歴史や文化を紹介する施設で、かつて「東の松島」と称された地域の変遷が学べます。象潟の名は、湾の形状に似た「象の鼻」を連想させたことから付けられました。お気軽にお越しください。天候や足元にご注意ください。湿った岩場には滑りやすい場所がありますので、軽装での行動は控えましょう。また、野生動物の出没にはご注意ください。大きな音を避けて静かにご来館ください。

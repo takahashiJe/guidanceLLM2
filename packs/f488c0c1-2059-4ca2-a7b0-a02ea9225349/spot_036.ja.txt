@@ -1,9 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the 鳥海高原花立牧場公園. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, include a safety note about weather, terrain, and wildlife. 
-
-First, the intro should be a welcoming statement. Then mention the location and main attractions: the farm, go-kart, park golf, and animal interaction area. The fun tidbit could be about the Jersey cows, maybe their milk or something unique. Safety reminder needs to be concise, mentioning weather, footing, and wildlife without recommending risky behavior.
-
-Check the constraints: no speculation, keep it self-contained, avoid overused metaphors. Use accurate place names. Let me make sure the facts are correctly presented. The user specified 45-60 seconds, so around 200-300 characters. Need to keep it natural and calm. Also, the safety part should be a brief note at the end. Let me structure each part step by step to fit the requirements.
-</think>
-
-鳥海高原花立牧場公園は、鳥海山の北麓に広がるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場が楽しめる家族向け施設です。特に、牧場では毎日ミルクを搾る姿を間近で見られるのも見どころです。天候や足元の変化に注意し、野生動物との遭遇には配慮していただきますようお願いいたします。

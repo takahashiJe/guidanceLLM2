@@ -1,7 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 法体の滝 (spot_007). The facts mention it's part of the Japanese 100 Waterfalls selection, with water from Bird's Mountain cascading in three steps. The constraints are to keep it calm, around 45-60 seconds, 200-300 characters. Structure includes intro, key facts, fun tidbit, safety reminder. Avoid speculation, use plain text, and add safety considerations.
-
-First, I need to start with a short intro. Maybe something like "歓迎します。法体の滝へようこそ。" Then mention it's part of the 100 Waterfalls. Next, describe the three-step cascade from Bird's Mountain. The fun tidbit could be that it's a popular spot for photos. For safety, mention weather, footing, and wildlife. Need to keep it concise and avoid any markdown. Check the character count to ensure it's within the limit. Also, make sure not to reference any external documents. Let me piece it together now.
-</think>
-
-歓迎します。法体の滝へようこそ。日本の滝百選に選ばれたこの名瀑は、鳥海山から流れる水が三段にわたって流れ落ちる様子が見どころです。特に春から夏にかけての水量は圧巻です。お手洗いには注意が必要で、周辺の足元は滑りやすくなります。また、野生動物の出没に留意し、自然の中での行動には十分な配慮をおすすめします。

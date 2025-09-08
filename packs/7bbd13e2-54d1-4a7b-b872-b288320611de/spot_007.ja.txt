@@ -1,9 +1,0 @@
-<think>
-Okay, I need to create a spoken narration for the visitor guide about 法体の滝. Let me start by understanding the requirements. The user wants a 45-60 second narration in Japanese, with a calm guide tone. The structure should be intro, key facts, fun tidbit, safety reminder. Also, include safety considerations for weather, footing, and wildlife, without recommending excessive actions.
-
-First, the introduction should mention the spot's name and its status as one of Japan's 100 Famous Waterfalls. Then, the key facts: it's part of the 100 selection, water from Chokai Mountain flows in three steps. The fun tidbit could be that the name "Hōtei" relates to the Buddhist deity, which adds a cultural note. For safety, mention weather changes, unstable ground, and wildlife like snakes. Avoid speculation, so if I'm unsure about anything, I should state that briefly. Keep it self-contained and use plain text only.
-
-Wait, the user specified to avoid over-the-top metaphors. So I need to keep descriptions straightforward. Also, check the facts again: the POI description says it's part of the 100 Famous Waterfalls, and the water flows in three steps. The fun fact about the name Hōtei is from the Buddhist deity, which is a good cultural point. Safety: remind about weather, footing, and wildlife. Make sure not to mention anything beyond that. Let me structure each part step by step, keeping each section concise. Let me count the characters to ensure it's around 200-300 words. Alright, putting it all together now.
-</think>
-
-法体の滝は、日本の滝百選に選ばれた名瀑です。鳥海山から流れる水が三段にわたって流れ落ちる姿は、自然の力を感じさせます。この滝の名前は、仏教の「法体」を象徴するもので、歴史的にも注目されています。また、春には周辺の山々が紅葉し、景色が一層美しくなります。ただし、天候の変化や足元の滑りやすさに注意が必要です。また、夏場はカモメやヘビの出没もあるため、立ち入りは控えましょう。安全に楽しんでください。

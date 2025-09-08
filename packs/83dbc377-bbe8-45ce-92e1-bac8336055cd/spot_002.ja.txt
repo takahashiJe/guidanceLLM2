@@ -1,9 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the Chokai area, specifically about the "赤田の大仏" (spot_002). The facts mention it's a large Buddha at the long valley temple in Yonezawa City, known for its calm expression.
-
-First, I need to structure it as per the constraints: intro, key facts, fun tidbit, safety reminder. The tone should be calm and professional, around 45-60 seconds, so 200-300 characters. Avoid any speculation, so if there's unknown info, just mention it briefly. Also, include a safety note about weather, terrain, and wildlife without recommending excessive actions.
-
-Starting with the intro: Greeting and introduction of the spot. Then key facts: location, description, and the calm expression. Fun tidbit could be about the size or how it's placed. Safety reminder should mention weather, terrain, and wildlife, but not encourage risky behavior. Need to check for any unknowns—since the facts are provided, maybe the history isn't detailed, so just stick to the given info. Avoid using any metaphors, keep it straightforward. Also, ensure all proper nouns are correct, like the city and temple name. Let me piece this together concisely in Japanese.
-</think>
-
-皆様、赤田の大仏をご案内します。秋田県由利本荘市にある長谷寺に安置され、穏やかな表情で知られる大仏です。高さ約11メートル、仏像の端正な彫刻が特徴です。お参りの際は、静かな気持ちで近づいてみてください。なお、山間の気候は急変する場合がありますので、雨具の携帯や足元の注意をおすすめします。また、自然に生息する動物に配慮し、騒がしい行動は避けましょう。安全に楽しんでください。

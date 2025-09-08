@@ -1,9 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the Nika-ho City Zōgata Village Folk Museum. The structure needs to be intro, key facts, fun tidbit, safety reminder. Keep it around 45-60 seconds, so 200-300 characters. No speculation, just facts. Also, include a safety note about weather, terrain, and wildlife without recommending excessive actions.
-
-First, the intro should mention the museum's location and purpose. Then key facts: the museum showcases the history and culture of Zōgata, and it was once called "The Eastern Matsushima." The fun tidbit could be about the nickname and its significance. For safety, mention weather changes, uneven ground, and wildlife like deer. Avoid any advice on specific actions, just a brief warning.
-
-Need to check for correct terminology and avoid overused metaphors. Keep the tone calm and informative. Let me structure each part concisely. Make sure the safety part is a single sentence. Let me count the characters to stay within the limit. Also, ensure that all proper nouns are correctly spelled. Alright, let's put it all together.
-</think>
-
-にかほ市にある象潟郷土資料館は、地域の歴史や文化を紹介する博物館です。かつて「東の松島」と呼ばれた象潟の変遷を学べます。館内では、地域の伝統や自然についての資料が展示されています。興味深いのは、象潟が「東の松島」として知られた理由で、海の美しさが評価されたこと。天候や足元の変化に注意し、野生動物（例：鹿）に遭遇する可能性もあるため、ご注意ください。

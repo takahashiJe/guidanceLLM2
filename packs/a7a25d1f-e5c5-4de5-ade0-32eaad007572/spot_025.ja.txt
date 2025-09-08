@@ -1,7 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 赤滝 (spot_025). The facts mention it's near 赓川, and during snowmelt, it's impressive. The structure needs a short intro, key facts, a fun tidbit, and a safety reminder. Also, the tone should be calm, around 45-60 seconds, so about 200-300 characters. Avoid speculation, use accurate terms, and include safety considerations like weather, footing, and wildlife.
-
-First, the intro should greet and introduce the spot. Then mention the location near 赓川 and the snowmelt period. The fun fact could be about the name meaning "red waterfall" due to iron oxide. Safety reminder needs to mention weather, footing, and wildlife without recommending risky actions. Let me check the constraints again: no references to the document, self-contained, plain text. Avoid over-the-top metaphors. Make sure to include the safety note about weather, terrain, and wildlife. Keep it concise. Let me draft that.
-</think>
-
-赤滝は、賡川の近くに位置する滝で、春の雪解け時期には迫力が際立つスポットです。名前の由来は、水の色に赤みがかったことからで、自然の美しさが伝わります。少々の急な段差があるため、足元にはご注意ください。また、天候の急変や野生動物の出没に留意し、安全に楽しんでください。

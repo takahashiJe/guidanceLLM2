@@ -1,9 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration for a tour guide in Japanese, focusing on the 鳥海高原花立牧場公園. The structure needs to be short intro, key facts, fun tidbit, and safety reminder. Also, they mentioned to include safety considerations regarding weather, terrain, and wildlife, without recommending excessive activities.
-
-First, I need to make sure the introduction is welcoming and sets the scene. The key facts include the location at the foot of Chokai Mountain, the main attractions like the Jersey cow farm, go-kart, park golf, and the animal interaction area. The fun tidbit could be about the cows being friendly, which adds a personal touch. For safety, I should mention weather checks, careful foot placement, and wildlife awareness. Need to avoid speculation, so if there's any unknown info, just state it briefly. Keep it self-contained and avoid any references to external documents. Also, keep the tone calm and professional, around 200-300 characters.
-
-Wait, the user specified to avoid overused metaphors, so I should keep the language straightforward. Let me check the facts again to ensure accuracy. The POI description mentions it's a leisure spot in the north foot of Chokai Mountain, with the Jersey cow farm as the center, and other facilities. The fun tidbit could be that the cows are approachable, which is a nice detail. For safety, mention weather, terrain, and wildlife. Maybe something like "天候や足元、野生動物への配慮を忘れずに" to cover all points. Need to make sure the safety reminder is concise. Also, avoid any markdown and keep it plain text. Let me piece it all together now.
-</think>
-
-鳥海山の北麓に広がるレジャースポット、鳥海高原花立牧場公園は、ジャージー牛の牧場を中心にゴーカートやパークゴルフ、動物とのふれあい広場など、家族で楽しめる施設が集積しています。自然豊かなエリアでは、季節ごとの花々も見どころです。牛たちとの触れ合いは、子供たちに人気のスポットです。天候や足元、野生動物への配慮を忘れずに、安全に楽しんでください。

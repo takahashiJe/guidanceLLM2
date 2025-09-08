@@ -1,7 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about 法体の滝. The facts mention it's part of the Japanese 100 Waterfalls selection, with water cascading in three steps from Mount Chokai. The structure needs a short intro, key facts, a fun tidbit, and a safety reminder. Also, they want the tone calm and professional, around 45-60 seconds, so 200-300 characters. Avoid overused metaphors and speculation. Keep it self-contained, no references to documents. And add a safety note about weather, footing, and wildlife.
-
-First, the intro should greet and introduce the spot. Then mention it's one of the 100 selected waterfalls. Next, describe the three-tier cascade from Mount Chokai. The fun fact could be about the name meaning "the water of the law" or something related to its history. For safety, remind visitors to check weather, watch their steps, and be cautious of wildlife. Need to make sure all the points are covered concisely. Also, check for any unknowns—since the facts provided are limited, don't add extra info. Keep it natural and straightforward.
-</think>
-
-法体の滝は、日本の滝百選に選ばれた名瀑です。鳥海山から流れる水が三段にわたって流れ落ち、迫力ある姿が見られます。この滝の名は「法体」という言葉から来るとされ、その美しさが称賛されたものです。足元には滑りやすさに注意し、天候の変化に備えて行動を調整してください。また、野生動物への配慮も忘れず、自然を楽しみながら探索してください。

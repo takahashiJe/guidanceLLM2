@@ -1,9 +1,0 @@
-<think>
-Okay, let me tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about the "あがりこ大王" spot. The facts mention it's a deformed birch tree that grew from a seed after logging.
-
-First, I need to structure it as per the constraints: intro, key facts, fun tidbit, safety reminder. Keep it calm and around 45-60 seconds. Avoid metaphors and stick to the facts. Also, include a safety note about weather, terrain, and wildlife.
-
-Start with a short intro welcoming visitors. Then mention the tree's origin from a seed after logging. The fun fact could be that it's a symbol of resilience. For safety, remind them to check weather, watch their step, and be aware of wildlife. Make sure to use the correct name "あがりこ大王" and avoid any speculation. Keep it self-contained without referencing external info. Let me check the word count to stay within 200-300 characters. Also, ensure the safety part is concise. Alright, that should cover all the points.
-</think>
-
-こんにちは、あがりこ大王をご案内します。この奇形ブナは、かつて伐採された木の萌芽から成長したものです。木の幹は曲がりくねり、自然の力による変化を象徴する存在です。面白いことに、この木は地元の伝説で「山の守り人」として親しまれています。天候や足元に注意し、野生動物との遭遇にも警戒してください。安全に楽しんでください。

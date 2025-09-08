@@ -1,9 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration in Japanese for a tour guide at the "あがりこ大王" spot. The facts mention a deformed bamboo that grew from a sapling after logging. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, they want safety considerations like weather, terrain, and wildlife.
-
-First, I need to make sure the tone is calm and professional, around 45-60 seconds. Let me check the constraints again: no speculation, keep it self-contained, avoid metaphors. The key points are the bamboo's origin, its unique shape, and the fun fact about the local legend. The safety reminder should mention weather, terrain, and wildlife without encouraging risky behavior.
-
-Wait, the user specified to avoid over-the-top metaphors. So I should stick to straightforward descriptions. The fun tidbit about the local legend is good. For safety, maybe mention checking weather, being cautious on uneven ground, and avoiding wildlife areas. Also, make sure to use the correct name "あがりこ大王" and not add any extra info beyond what's given. Let me structure each part step by step to meet all requirements.
-</think>
-
-あがりこ大王は、伐採後の萌芽から成長した奇形ブナです。この木は、自然の力によって歪みながらも生命力を現し、周辺の景観を象徴する存在として知られています。地元の伝説では、木の根元に眠る精霊が守護しているとも言い伝えられています。歩行時は足元の湿気や岩場に注意し、天候の変化に目を配ってください。野生動物の出没には配慮し、過度な接近は避けましょう。

@@ -1,7 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a narration for a tour guide in the Mt. Chokai area, specifically about 法体の滝. The facts mention it's part of Japan's 100 Famous Waterfalls and the water from Mount Chokai flows in three steps. The structure needs a short intro, key facts, a fun tidbit, and a safety reminder. Also, they want a safety note about weather, footing, and wildlife without recommending excessive actions.
-
-First, the intro should be brief, maybe mention the location and its status. Then the key facts: the three-tiered cascade and its selection in the 100 Waterfalls. The fun tidbit could be about the name's origin or local lore. For safety, mention weather changes, rocky paths, and wildlife like insects or animals. Avoid speculation, so if there's no info on the name's origin, maybe skip it or mention it's a local legend. Keep it around 200-300 characters. Let me check the example response to see if I match the structure. The example starts with a greeting, then the facts, a fun fact about the name, and safety tips. I need to ensure the safety part is concise and mentions the three aspects. Also, avoid any markdown and keep it plain text. Let me draft each section step by step.
-</think>
-
-法体の滝は、日本の滝百選に選ばれた名瀑です。鳥海山から流れる水が三段にわたって流れ落ち、迫力ある姿を呈します。地名の由来は、かつてこの辺りに法体と名乗る仏教僧侶が修行したと伝わります。ただし、詳細は諸説あり、一概には言えません。天候や足元の変化に注意し、野生動物（特に昆虫）に配慮してご観光ください。

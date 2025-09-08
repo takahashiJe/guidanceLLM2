@@ -1,9 +1,0 @@
-<think>
-Okay, let me tackle this query. The user wants a spoken narration in Japanese for a tour guide at Mt. Chokai's あがりこ大王 spot. The facts mention a deformed bamboo that grew from a seed after logging. 
-
-First, I need to structure it with a short intro, key facts, a fun tidbit, and a safety reminder. The tone should be calm and professional, around 45-60 seconds. I should avoid speculation and keep it self-contained. Also, include a safety note about weather, terrain, and wildlife without recommending excessive actions.
-
-Starting with the intro: Greet the visitors and mention the spot. Then explain the bamboo's origin. The fun fact could be about its unique appearance. For safety, remind them to check the weather and watch their steps. Maybe mention wildlife briefly. Need to keep it concise, around 200-300 characters. Let me check the example response to ensure I'm following the structure correctly. Avoid any markdown and use plain text. Make sure the place name is correct and no excessive metaphors. Alright, time to put it all together.
-</think>
-
-こんにちは、あがりこ大王へようこそ。この場所は、かつて伐採された後、萌芽して成長した奇形ブナが立ち並ぶスポットです。木の歪みは、成長過程での環境変化が原因とされており、自然の力を感じられる貴重な存在です。足元の注意が必要なため、歩行にはご用心ください。天候や地形に配慮し、安全に楽しんでください。

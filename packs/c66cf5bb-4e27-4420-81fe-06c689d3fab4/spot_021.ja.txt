@@ -1,7 +1,0 @@
-<think>
-Okay, let me start by understanding the user's query. They want a spoken narration in Japanese for a tour guide at the Ganmomi Temple (ID: spot_021) in the Mount Chokai area. The facts provided mention it's a Jodo-shu temple in Ohashi, visited by Matsuo Basho, who wrote a haiku about it. The structure needs to be intro, key facts/history, fun tidbit, and safety reminder. Also, the tone should be calm and professional, around 45-60 seconds, 200-300 characters. Avoid speculation, use accurate terms, and include a safety note about weather, footing, and wildlife without recommending excessive actions.
-
-First, I'll start with a short intro. Maybe something like "ようこそ、甘満寺へ。" Then mention it's a Jodo-shu temple in Ohashi. Next, the key facts: Basho visited and wrote a haiku. Need to mention the location and the temple's significance. Then a fun tidbit, perhaps the haiku itself. For safety, mention weather, footing, and wildlife, advising to be cautious. Make sure to keep it concise and self-contained, no references to other documents. Check for any unknowns and state them briefly if needed. Avoid overused metaphors. Let me piece that together, ensuring the flow and character count.
-</think>
-
-ようこそ、甘満寺へ。象潟に位置する曹洞宗の寺院で、松尾芭蕉が「おくのほそ道」の旅で訪れ、句を詠んだ歴史があります。境内は自然豊かな環境に包まれており、四季折々の風景が楽しめます。興味深いのは、芭蕉の句「甘満寺の」が残っていること。天候や足元の悪化、野生動物に注意し、ごゆっくりお楽しみください。
