@@ -40,7 +40,7 @@ let userLocationMarker = null;
 let routeLayer = null;
 let poiMarkers = []; // マーカーの配列 (変更なし)
 
-const flyToSpot = (lat, lon) => {
+const flyToSpot = (lat, lon) => { // (変更なし)
   if (map.value) {
     map.value.flyTo([lat, lon], 16, {
       animate: true,
@@ -51,26 +51,59 @@ const flyToSpot = (lat, lon) => {
 defineExpose({ flyToSpot }); // (変更なし)
 
 
-const drawRoute = () => { // (変更なし)
+// ===========================================
+// ★★★ ここから drawRoute 関数を修正 ★★★
+// ===========================================
+const drawRoute = () => {
   if (routeLayer) {
     map.value.removeLayer(routeLayer);
   }
   if (props.plan && props.plan.route) {
-    routeLayer = L.geoJSON(props.plan.route, {
-      style: {
-        color: '#ff0000',
+
+    // GeoJSONのフィーチャー(セグメント)ごとにスタイルを動的に決定する関数
+    const styleFunction = (feature) => {
+      const mode = feature?.properties?.mode;
+      
+      if (mode === 'car') {
+        // 車ルートのスタイル
+        return {
+          color: '#007bff',  // 青色
+          weight: 5,
+          opacity: 0.7,
+        };
+      } 
+      else if (mode === 'foot') {
+        // 徒歩ルートのスタイル
+        return {
+          color: '#ff8c00',  // オレンジ色
+          weight: 4,
+          opacity: 0.8,
+          dashArray: '5, 10', // 破線
+        };
+      }
+      
+      // フォールバック (万が一 mode がない場合など)
+      return { 
+        color: '#ff0000', // 元の赤色
         weight: 5,
         opacity: 0.7,
-      },
+      };
+    };
+
+    // L.geoJSON の style オプションに静的オブジェクトではなく、上記で定義した関数を渡す
+    routeLayer = L.geoJSON(props.plan.route, {
+      style: styleFunction, // ★修正点
     }).addTo(map.value);
+
     map.value.fitBounds(routeLayer.getBounds());
   }
 };
+// ===========================================
+// ★★★ drawRoute 関数の修正ここまで ★★★
+// ===========================================
 
-// ===========================================
-// ★★★ ここから drawPois 関数を修正 ★★★
-// ===========================================
-const drawPois = () => {
+
+const drawPois = () => { // (変更なし: waypoints_info と along_pois を描画)
   // 1. 以前のマーカーをすべてクリア
   poiMarkers.forEach(marker => map.value.removeLayer(marker));
   poiMarkers = [];
@@ -84,23 +117,20 @@ const drawPois = () => {
       return;
     }
     const marker = L.marker([poi.lat, poi.lon]).addTo(map.value)
-      .bindPopup(`<b>${poi.name}</b>`); // descriptionは重い場合があるのでPopupからは削除 (任意)
+      .bindPopup(`<b>${poi.name}</b>`); 
     poiMarkers.push(marker);
   };
 
-  // 3. (★修正★) 「周遊スポット (Waypoints)」を描画
+  // 3. 「周遊スポット (Waypoints)」を描画
   if (props.plan.waypoints_info) {
     props.plan.waypoints_info.forEach(addPoiMarker);
   }
 
-  // 4. (★修正★) 「周辺のスポット (AlongPOIs)」も描画
+  // 4. 「周辺のスポット (AlongPOIs)」も描画
   if (props.plan.along_pois) {
     props.plan.along_pois.forEach(addPoiMarker);
   }
 };
-// ===========================================
-// ★★★ drawPois 関数の修正ここまで ★★★
-// ===========================================
 
 
 const setupMap = () => { // (変更なし)
@@ -115,7 +145,7 @@ const setupMap = () => { // (変更なし)
     L.control.layers(baseMaps).addTo(map.value);
     L.control.scale({ imperial: false, metric: true }).addTo(map.value);
 
-    drawRoute();
+    drawRoute(); // 修正されたdrawRouteが呼ばれる
     drawPois();
     startTracking();
   }
@@ -169,8 +199,8 @@ onBeforeUnmount(() => { // (変更なし)
 
 watch(() => props.plan, () => { // (変更なし)
   if (map.value) {
-    drawRoute();
-    drawPois(); // 修正されたdrawPoisが呼ばれる
+    drawRoute(); // 修正されたdrawRouteが呼ばれる
+    drawPois(); 
   }
 }, { deep: true });
 </script>

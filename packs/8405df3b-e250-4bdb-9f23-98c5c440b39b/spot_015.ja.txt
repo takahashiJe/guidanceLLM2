@@ -1,0 +1,11 @@
+<think>
+Okay, the user wants me to act as a tour guide for visitors around Mt. Chokai area, specifically for the spot 竜ヶ原湿原. Let me start by understanding the requirements.
+
+First, the narration needs to be in Japanese, with a calm guide tone, around 45-60 seconds, so about 200-300 characters. I have to make sure to include the structure: short intro, key facts, fun tidbit, safety reminder. Also, avoid speculation and keep it self-contained without referencing any documents.
+
+The facts given are that it's a high-altitude wetland in the middle of bird mountain, known for its alpine plants like Watasgae and Nikkou Kishu. The fun tidbit should be something interesting but not too exaggerated. Safety reminder needs to mention weather, footing, and wildlife, without recommending excessive actions.
+
+I need to check if all the key points are covered. Start with a welcoming intro, mention the location and its reputation for plants. Then add a fun fact about the plants. Safety part should be concise, maybe mention checking the weather, being cautious on uneven ground, and keeping a distance from wildlife. Make sure to use correct terminology and avoid any metaphors. Keep it natural and straightforward. Let me put it all together now.
+</think>
+
+皆様、ようこそ。竜ヶ原湿原へ。鳥海山の中腹に広がる高層湿原で、ワタスゲやニッコウキスゲといった高山植物が季節に応じて咲き乱れます。特に夏には色彩豊かな花畑が広がり、自然の魅力を堪能できます。なお、湿原の植物はやさぐれやすい特性があるため、踏み乱さないようご注意ください。天候の変化に敏感で、足元は滑りやすくなる場合があります。また、野生動物の出没もご用心ください。安全に楽しんでいただけますようお願いいたします。
