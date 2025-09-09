@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Literal, Dict, Any
 
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 try:
     from TTS.api import TTS as CoquiTTS 
     import torch.serialization
-    from torch.serialization import safe_globals
+    from torch.serialization import add_safe_globals, safe_globals
     from TTS.tts.configs.xtts_config import XttsConfig
     from TTS.tts.models.xtts import XttsAudioConfig
     from TTS.config.shared_configs import BaseDatasetConfig
@@ -124,11 +125,16 @@ class TTSRuntime:
 # -----------------------
 _ALLOWED: list[type] = []
 
-def _load_xtts(model_name: str) -> CoquiTTS:
-    """PyTorch 2.6 (weights_only=True) の安全リストを自動追加しながら XTTS をロード"""
+def _load_xtts(model_name: str):
+    """
+    PyTorch 2.6 の weights_only=True で発生する UnpicklingError に対応。
+    例外メッセージに出るクラスを allowlist に追加しながらロードする。
+    """
+    allowed = []
     while True:
         try:
-            with safe_globals(_ALLOWED):
+            with safe_globals(allowed):
+                # Coqui の TTS API を生成（例: from TTS.api import TTS as CoquiTTS）
                 return CoquiTTS(model_name)
         except Exception as e:
             m = re.search(r"Unsupported global: GLOBAL\s+([\w\.]+)\.([A-Za-z_]\w*)", str(e))
@@ -136,7 +142,9 @@ def _load_xtts(model_name: str) -> CoquiTTS:
                 raise
             mod = importlib.import_module(m.group(1))
             cls = getattr(mod, m.group(2))
-            add_safe_globals([cls]); _ALLOWED.append(cls)
+            add_safe_globals([cls])
+            allowed.append(cls)
+            logger.info("allowlist追加: %s.%s", m.group(1), m.group(2))
 
 MODEL_NAME = os.getenv("TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
 VOICE_REFS_DIR = os.getenv("VOICE_REFS_DIR", "/app/refs")
