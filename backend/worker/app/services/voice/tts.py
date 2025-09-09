@@ -109,7 +109,7 @@ class TTSRuntime:
             return
         try:
             # モデルは一度だけロード。XTTS v2 など多言語モデル想定。
-            self._coqui_model = CoquiTTS(self.cfg.model_name)
+            self._coqui_model = _load_xtts(self.cfg.model_name)
             self._coqui_ready = True
         except Exception:
             # ロード失敗時はフォールバックへ
@@ -147,7 +147,7 @@ def _load_xtts(model_name: str):
             logger.info("allowlist追加: %s.%s", m.group(1), m.group(2))
 
 MODEL_NAME = os.getenv("TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
-VOICE_REFS_DIR = os.getenv("VOICE_REFS_DIR", "/app/refs")
+VOICE_REFS_DIR = os.getenv("VOICE_REFS_DIR", "/app/backend/worker/app/services/voice/refs")
 PACKS_ROOT = os.getenv("PACKS_ROOT", "/packs")
 
 # 言語ごとのデフォルト voice_key
@@ -172,7 +172,10 @@ def synthesize_and_save(
     fmt: str = "mp3",
     bitrate_kbps: int = 64,
 ) -> str:
-    """音声合成して PACKS_ROOT 配下 (or 絶対パス) に保存。返り値は実際の保存パス。"""
+    """
+    音声合成して PACKS_ROOT 配下 (or 絶対パス) に保存。返り値は実際の保存パス。
+    A案: まずWAVで出してから、必要に応じてffmpegでMP3化。
+    """
     key = voice_key or DEFAULT_BY_LANG.get(lang, "ja_female_1")
     if key not in VOICE_REGISTRY:
         raise ValueError(f"unknown voice_key '{key}'")
@@ -185,22 +188,36 @@ def synthesize_and_save(
         path = os.path.join(PACKS_ROOT, path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    # 拡張子をフォーマットに合わせる
     base, _ = os.path.splitext(path)
-    path = f"{base}.{fmt}"
+    tmp_wav = Path(base + ".__tmp__.wav")      # 一時WAV
+    out_wav = Path(base + ".wav")              # 最終WAV
+    out_mp3 = Path(base + ".mp3")              # 最終MP3（必要な場合）
 
-    # “バスガイド風” の聞きやすさ向けに、ほんの少しだけ落ち着かせる（任意）
-    _tts.tts_to_file(
-        text=text,
-        language=cfg["language"],
-        speaker_wav=cfg["speaker_wav"],
-        file_path=path,
-        enable_text_splitting=True,
-        # 軽微な調整（必要に応じて微調整してOK）
-        speed=1.02,         # ほんのわずか速く
-        temperature=0.7,    # ランダム性控えめ
-    )
-    return path
+    # XTTS で一旦WAVを出力
+    api_kwargs = {
+        "text": text,
+        "language": cfg["language"],           # 'ja' / 'en' / 'zh'（XTTSは 'zh-cn' でもOK。必要ならマッピングしても良い）
+        "speaker_wav": cfg["speaker_wav"],
+        "file_path": str(tmp_wav),
+        "enable_text_splitting": True,
+    }
+    # “バスガイド風”の軽い調整はTypeErrorガード付きで
+    try:
+        _tts.tts_to_file(speed=1.02, temperature=0.7, **api_kwargs)
+    except TypeError:
+        _tts.tts_to_file(**api_kwargs)
+
+    # 生成WAVを読み込み
+    wav_bytes = tmp_wav.read_bytes()
+    tmp_wav.unlink(missing_ok=True)
+
+    if fmt.lower() == "mp3":
+        mp3_bytes = ffmpeg_convert_wav_to_mp3(wav_bytes, bitrate_kbps=bitrate_kbps)
+        out_mp3.write_bytes(mp3_bytes)
+        return str(out_mp3)
+    else:
+        out_wav.write_bytes(wav_bytes)
+        return str(out_wav)
 
 def ensure_packs_root(packs_root: Path) -> None:
     packs_root.mkdir(parents=True, exist_ok=True)

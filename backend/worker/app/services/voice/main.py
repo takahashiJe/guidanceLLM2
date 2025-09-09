@@ -16,6 +16,7 @@ from .tts import (
     ffmpeg_convert_wav_to_mp3,
     estimate_wav_duration_sec,
     try_ffprobe_duration_sec,
+    VOICE_REGISTRY, DEFAULT_BY_LANG,
 )
 
 logger = logging.getLogger("svc-voice")
