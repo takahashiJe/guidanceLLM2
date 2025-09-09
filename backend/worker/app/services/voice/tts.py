@@ -265,22 +265,48 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
             pass
 
     # 2) Coqui CLI（`tts` コマンド）
-    #    例: tts --text "こんにちは" --model_name tts_models/multilingual/multi-dataset/xtts_v2 --out_path out.wav
     if shutil_which("tts"):
         try:
             import tempfile
             with tempfile.TemporaryDirectory() as td:
                 out_path = Path(td) / "out.wav"
-                cmd = [
-                    "tts",
+                cli_args = [
+                    "tts",  # sys.argv[0] プレースホルダー
                     "--text", text,
                     "--model_name", runtime.cfg.model_name,
                     "--out_path", str(out_path),
                 ]
-                # 話者指定（モデルにより有効/無効）
                 spk = runtime.cfg.select_voice(language)
                 if spk:
-                    cmd += ["--speaker_idx", spk]
+                    cli_args += ["--speaker_idx", spk]
+
+                # [修正] 実行するPythonコードの文字列を定義
+                
+                # 1. torch_patch.py と同じパッチコード
+                patch_code = (
+                    "import torch.serialization; "
+                    "from TTS.tts.configs.xtts_config import XttsConfig; "
+                    "import TTS.tts.configs.xtts_config; "
+                    "torch.serialization.add_safe_globals([XttsConfig, TTS.tts.configs.xtts_config.XttsConfig]);"
+                )
+                
+                # 2. 'tts' コマンドが内部的に実行している main 関数を呼び出すコード
+                run_code = (
+                    "import sys; "
+                    "from TTS.bin.synthesize import main; "
+                    "sys.exit(main());" # ttsコマンドと同様にmain()を実行
+                )
+
+                # [修正] python -c を使って、引数をセットし、パッチと本体を実行するコマンドを構築
+                cmd = [
+                    "python",
+                    "-c",
+                    (
+                        f"import sys; sys.argv = {cli_args!r}; " # !r は Pythonリストを文字列として安全に埋め込む
+                        f"{patch_code} "
+                        f"{run_code}"
+                    )
+                ]
 
                 _run_subprocess(cmd)
                 return out_path.read_bytes()
