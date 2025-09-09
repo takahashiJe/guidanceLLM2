@@ -56,6 +56,8 @@ class TTSConfig:
 
     @classmethod
     def from_env(cls) -> "TTSConfig":
+        def _p(x: Optional[str]) -> Optional[Path]:
+            return Path(x).resolve() if x else None
         return cls(
             # model_name=os.getenv("COQUI_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
             model_name=os.getenv("COQUI_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"), 
@@ -75,6 +77,15 @@ class TTSConfig:
             return self.voice_en
         if lang == "zh":
             return self.voice_zh
+        return None
+    
+    def select_voice_ref(self, lang: str) -> Optional[Path]:
+        if lang == "ja":
+            return self.voice_ja_ref
+        if lang == "en":
+            return self.voice_en_ref
+        if lang == "zh":
+            return self.voice_zh_ref
         return None
 
 
@@ -114,6 +125,8 @@ class TTSRuntime:
 def ensure_packs_root(packs_root: Path) -> None:
     packs_root.mkdir(parents=True, exist_ok=True)
 
+def _map_lang_for_xtts(lang: str) -> str:
+    return "zh-cn" if lang == "zh" else lang
 
 def _sine_wav(duration_sec: float = 1.0, sr: int = 22050, freq: float = 440.0) -> bytes:
     """フォールバック用の簡易WAV（1ch 16bit PCM, 正弦波）。"""
@@ -249,31 +262,31 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
             import tempfile
             with tempfile.TemporaryDirectory() as td:
                 out_path = Path(td) / "out.wav"
-
-                # API呼び出し用のkwargsを準備
-                kwargs: Dict[str, Any] = {}
+                mapped = _map_lang_for_xtts(language)
+                ref = runtime.cfg.select_voice_ref(language)
+                spk = runtime.cfg.select_voice(language)  # REF が無いときの保険
                 
-                # 話者があれば指定（★このロジックを元に戻す）
-                # (APIは speaker=ID を受け取らないので、これは意図的にAPI呼び出しを失敗させ、
-                #  speaker_idx を使えるCLIフォールバック(Strategy 2)に進むためのロジック）
-                spk = runtime.cfg.select_voice(language)
-                if spk:
-                    kwargs["speaker"] = spk
+                # 参照音声があれば API に渡す（安定）
+                api_kwargs: Dict[str, Any] = {"language": mapped}
+                if ref:
+                    api_kwargs["speaker_wav"] = str(ref)
+                elif spk:
+                    # 一部のモデルは speaker= を受け付けないため try/except で吸収
+                    api_kwargs["speaker"] = spk
 
-                # API 差異を吸収 (この呼び出しは "speaker=ja_female_1" を解釈できず TypeError となる)
                 try:
                     runtime._coqui_model.tts_to_file(
                         text=text,
                         file_path=str(out_path),
-                        **kwargs,
+                        **api_kwargs,
                     )
                 except TypeError:
-                    # モデルによっては text_lang を要求 (ここでも TypeError が発生)
+                    # 古いラッパの差異を吸収
                     runtime._coqui_model.tts_to_file(
                         text=text,
                         file_path=str(out_path),
-                        speaker=spk if spk else None,
-                        language=language,
+                        language=mapped,
+                        **({k: v for k, v in api_kwargs.items() if k in ("speaker_wav","speaker")}),
                     )
 
                 return out_path.read_bytes()
@@ -294,8 +307,13 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                     "--model_name", runtime.cfg.model_name,
                     "--out_path", str(out_path),
                 ]
+                mapped = _map_lang_for_xtts(language)
+                cli_args += ["--language_idx", mapped]
+                ref = runtime.cfg.select_voice_ref(language)
                 spk = runtime.cfg.select_voice(language)
-                if spk:
+                if ref:
+                    cli_args += ["--speaker_wav", str(ref)]
+                elif spk:
                     cli_args += ["--speaker_idx", spk]
                 
                 lang_arg = "zh-cn" if language == "zh" else language
