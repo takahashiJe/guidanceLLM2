@@ -311,6 +311,10 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
 
                 torch.serialization.add_safe_globals([c for c in allow if c is not None])
                 """
+                # 実行コードの先頭に連結して -c に渡す
+                code = patch_code + "; " + \
+                    f"import sys; sys.argv={argv_repr}; from TTS.bin.synthesize import main; raise SystemExit(main())"
+                cmd = ["python", "-c", code]
 
                 
                 # 2. 'tts' コマンドが内部的に実行している main 関数を呼び出すコード
