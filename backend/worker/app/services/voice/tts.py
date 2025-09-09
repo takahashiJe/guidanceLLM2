@@ -291,9 +291,10 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                 spk = runtime.cfg.select_voice(language)
                 if spk:
                     cli_args += ["--speaker_idx", spk]
-
-                # [修正] 実行するPythonコードの文字列を定義
                 
+                lang_arg = "zh-cn" if language == "zh" else language
+                cli_args += ["--language_idx", lang_arg]
+
                 # 1. torch_patch.py と同じパッチコード
                 patch_code = r"""
                 import sys, inspect, torch, torch.serialization
@@ -344,8 +345,8 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
 
                 _run_subprocess(cmd)
                 return out_path.read_bytes()
-        except Exception as e2:
-            logger.exception(f"TTS(CLI) failed. Using sine wave fallback. Error: {e2}")
+        except (TypeError, ValueError) as e1:
+            logger.exception(f"TTS(API) failed. Attempting CLI fallback. Error: {e1}")
             pass
 
     # 3) フォールバック：簡易WAV（1秒）

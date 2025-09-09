@@ -285,7 +285,6 @@ services:
       STATIC_DB_PASSWORD: static_db
     volumes:
       - ./backend:/app/backend
-      - ./data:/app/data:ro
       - /var/www/packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
     ports: ["9100:9100"]
