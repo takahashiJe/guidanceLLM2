@@ -256,6 +256,7 @@ services:
       "
     gpus: all
     environment:
+      COQUI_TOS_AGREED: "1"
       COQUI_DEVICE: cuda
       PACKS_ROOT: /packs
       VOICE_JA: "ja_female_1"

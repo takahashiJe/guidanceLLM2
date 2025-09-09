@@ -1,2 +1,4 @@
+# PyTorch (CUDA 12.1 build) - TTSがGPU(cuda)を使えるようにする
+torch --index-url https://download.pytorch.org/whl/cu121
 # Voice Service (svc-voice) 専用の追加依存ライブラリ
 TTS
