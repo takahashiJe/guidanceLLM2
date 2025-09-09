@@ -19,11 +19,13 @@ try:
     from TTS.tts.configs.xtts_config import XttsConfig
     import TTS.tts.configs.xtts_config
     from TTS.tts.models.xtts import XttsAudioConfig
+    from TTS.config.shared_configs import BaseDatasetConfig
     # PyTorch 2.6+ のセキュリティエラー(UnpicklingError)対策
     torch.serialization.add_safe_globals([
         XttsConfig, 
         TTS.tts.configs.xtts_config.XttsConfig, 
-        XttsAudioConfig
+        XttsAudioConfig,
+        BaseDatasetConfig,
     ])
     # torch.serialization.add_safe_globals([XttsConfig])
     
@@ -137,6 +139,11 @@ def _run_subprocess(cmd: list[str], input_bytes: Optional[bytes] = None) -> byte
     # diagnostic_path = Path("/opt/torch_patch.py")
     # path_exists = diagnostic_path.exists()
     # raise RuntimeError(f"[DIAGNOSTIC_CHECK] Path checked: {diagnostic_path}, Path.exists() returned: {path_exists}")
+
+    if isinstance(input_bytes, Path):
+        input_bytes = input_bytes.read_bytes()
+    elif isinstance(input_bytes, str):
+        input_bytes = input_bytes.encode("utf-8")
     
     # 1. パッチファイルの「文字列パス」を変数として定義
     patch_path_str = str(_TORCH_PATCH_FILE)
