@@ -31,6 +31,11 @@ DEFAULT_BITRATE = int(os.getenv("VOICE_BITRATE_KBPS", "64"))
 # 起動前に保存先を用意
 ensure_packs_root(PACKS_ROOT)
 
+LANG_MAP = {
+    "ja": "ja", "ja-jp": "ja", "ja_jp": "ja",
+    "en": "en", "en-us": "en", "en_us": "en", "en-gb": "en", "en_gb": "en",
+    "zh": "zh", "zh-cn": "zh", "zh_cn": "zh", "zh-hans": "zh", "zh_hans": "zh",
+}
 
 # ----- スキーマ -----
 class SingleSynthRequest(BaseModel):
@@ -105,20 +110,21 @@ def _write_manifest(pack_dir: Path, pack_id: str, language: str, items: list[dic
     }
     _safe_write_text(manifest_path, json.dumps(payload, ensure_ascii=False, indent=2))
 
+def normalize_lang(s: str) -> str:
+    k = s.strip().lower().replace("_", "-")
+    return LANG_MAP.get(k, s)
+
 # ----- ヘルスチェック -----
 @app.get("/health")
-def health() -> Dict[str, Any]:
+def health():
     return {
         "status": "ok",
-        "packs_root": str(PACKS_ROOT),
-        "default_format": DEFAULT_FORMAT,
-        "default_bitrate": DEFAULT_BITRATE,
-        "model": _cfg.model_name,
-        "voices": {
-            "ja": _cfg.voice_ja,
-            "en": _cfg.voice_en,
-            "zh": _cfg.voice_zh,
-        },
+        "packs_root": os.getenv("PACKS_ROOT", "/packs"),
+        "default_format": "mp3",
+        "default_bitrate": 64,
+        "model": os.getenv("TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
+        "voices": {k: v["language"] for k, v in VOICE_REGISTRY.items()},
+        "default_by_lang": DEFAULT_BY_LANG,
     }
 
 

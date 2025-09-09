@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-import os
+import os, re, importlib
 import subprocess
 import sys
 import wave
@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 try:
     from TTS.api import TTS  # type: ignore
     import torch.serialization
+    from torch.serialization import safe_globals
     from TTS.tts.configs.xtts_config import XttsConfig
     import TTS.tts.configs.xtts_config
     from TTS.tts.models.xtts import XttsAudioConfig
@@ -122,6 +123,78 @@ class TTSRuntime:
 # -----------------------
 # ユーティリティ
 # -----------------------
+_ALLOWED: list[type] = []
+
+def _load_xtts(model_name: str) -> TTS:
+    """PyTorch 2.6 (weights_only=True) の安全リストを自動追加しながら XTTS をロード"""
+    while True:
+        try:
+            with safe_globals(_ALLOWED):
+                return TTS(model_name)
+        except Exception as e:
+            m = re.search(r"Unsupported global: GLOBAL\s+([\w\.]+)\.([A-Za-z_]\w*)", str(e))
+            if not m:
+                raise
+            mod = importlib.import_module(m.group(1))
+            cls = getattr(mod, m.group(2))
+            add_safe_globals([cls]); _ALLOWED.append(cls)
+
+MODEL_NAME = os.getenv("TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2")
+VOICE_REFS_DIR = os.getenv("VOICE_REFS_DIR", "/app/refs")
+PACKS_ROOT = os.getenv("PACKS_ROOT", "/packs")
+
+# 言語ごとのデフォルト voice_key
+DEFAULT_BY_LANG = {"ja": "ja_female_1", "en": "en_female_1", "zh": "zh_female_1"}
+
+# 参照音声レジストリ（環境変数 VOICE_REFS_DIR 基準）
+VOICE_REGISTRY = {
+    "ja_female_1": {"language": "ja", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_ja.wav")},
+    "en_female_1": {"language": "en", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_en_safe.wav")},
+    "zh_female_1": {"language": "zh", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_zh.wav")},
+}
+
+# グローバルに一度だけロード
+_tts = _load_xtts(MODEL_NAME)
+
+def synthesize_and_save(
+    *,
+    text: str,
+    lang: str,
+    outfile: str,
+    voice_key: Optional[str] = None,
+    fmt: str = "mp3",
+    bitrate_kbps: int = 64,
+) -> str:
+    """音声合成して PACKS_ROOT 配下 (or 絶対パス) に保存。返り値は実際の保存パス。"""
+    key = voice_key or DEFAULT_BY_LANG.get(lang, "ja_female_1")
+    if key not in VOICE_REGISTRY:
+        raise ValueError(f"unknown voice_key '{key}'")
+
+    cfg = VOICE_REGISTRY[key]
+
+    # 出力パス（相対なら PACKS_ROOT 配下）
+    path = outfile
+    if not os.path.isabs(path):
+        path = os.path.join(PACKS_ROOT, path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    # 拡張子をフォーマットに合わせる
+    base, _ = os.path.splitext(path)
+    path = f"{base}.{fmt}"
+
+    # “バスガイド風” の聞きやすさ向けに、ほんの少しだけ落ち着かせる（任意）
+    _tts.tts_to_file(
+        text=text,
+        language=cfg["language"],
+        speaker_wav=cfg["speaker_wav"],
+        file_path=path,
+        enable_text_splitting=True,
+        # 軽微な調整（必要に応じて微調整してOK）
+        speed=1.02,         # ほんのわずか速く
+        temperature=0.7,    # ランダム性控えめ
+    )
+    return path
+
 def ensure_packs_root(packs_root: Path) -> None:
     packs_root.mkdir(parents=True, exist_ok=True)
 
