@@ -289,7 +289,7 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                 
                 # 1. torch_patch.py と同じパッチコード
                 patch_code = r"""
-                import torch, torch.serialization
+                import torch, torch.serialization, inspect
                 import TTS.tts.models.xtts as xtts_mod
                 from TTS.tts.configs.xtts_config import XttsConfig
                 from TTS.tts.models.xtts import XttsAudioConfig
@@ -302,7 +302,7 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                 allow = set()
                 for name in dir(xtts_mod):
                     obj = getattr(xtts_mod, name, None)
-                    if isinstance(obj, type) and (name.endswith('Args') or name.endswith('Config') or name.endswith('AudioConfig')):
+                    if inspect.isclass(obj) and (name.endswith('Args') or name.endswith('Config') or name.endswith('AudioConfig')):
                         allow.add(obj)
 
                 allow.update({XttsConfig, XttsAudioConfig, getattr(xtts_mod, 'XttsArgs', None), BaseDatasetConfig})
@@ -311,6 +311,7 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
 
                 torch.serialization.add_safe_globals([c for c in allow if c is not None])
                 """
+
                 
                 # 2. 'tts' コマンドが内部的に実行している main 関数を呼び出すコード
                 run_code = (
