@@ -18,10 +18,15 @@ try:
     import torch.serialization
     from TTS.tts.configs.xtts_config import XttsConfig
     import TTS.tts.configs.xtts_config
+    from TTS.tts.models.xtts import XttsAudioConfig
     # PyTorch 2.6+ のセキュリティエラー(UnpicklingError)対策
-    torch.serialization.add_safe_globals([XttsConfig, TTS.tts.configs.xtts_config.XttsConfig])
+    torch.serialization.add_safe_globals([
+        XttsConfig, 
+        TTS.tts.configs.xtts_config.XttsConfig, 
+        XttsAudioConfig
+    ])
     # torch.serialization.add_safe_globals([XttsConfig])
-
+    
     _HAS_COQUI = True
 
 except Exception as e:
@@ -287,7 +292,12 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                     "import torch.serialization; "
                     "from TTS.tts.configs.xtts_config import XttsConfig; "
                     "import TTS.tts.configs.xtts_config; "
-                    "torch.serialization.add_safe_globals([XttsConfig, TTS.tts.configs.xtts_config.XttsConfig]);"
+                    "from TTS.tts.models.xtts import XttsAudioConfig; " 
+                    "torch.serialization.add_safe_globals(["
+                    "  XttsConfig, "
+                    "  TTS.tts.configs.xtts_config.XttsConfig, "
+                    "  XttsAudioConfig"  
+                    "]);"
                 )
                 
                 # 2. 'tts' コマンドが内部的に実行している main 関数を呼び出すコード
