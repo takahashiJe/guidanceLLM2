@@ -1,7 +1,0 @@
-<think>
-Okay, let's tackle this query. The user wants a spoken narration for a tour guide in the Mt. Chokai area, specifically about the 鳥海高原花立牧場公園. The facts provided mention it's a resort spot in the northern foot of Chokai Mountain, featuring a Jersey cow farm, go-karts, park golf, and an animal interaction area. The structure needs to be intro, key facts, fun tidbit, safety reminder. Also, the safety part must include weather, footing, and wildlife considerations without recommending excessive activities.
-
-First, the intro should be short and welcoming. Then, key facts: location, main attractions. The fun tidbit could be about the animal interaction area. For safety, mention weather changes, uneven ground, and wildlife. Need to keep it around 200-300 characters, 45-60 seconds. Avoid speculation, so stick to given info. Make sure to use the correct name and avoid overused metaphors. Also, the output should be plain text only. Let me check the constraints again to make sure I don't miss anything. Alright, time to put it all together in a natural, calm guide tone.
-</think>
-
-鳥海高原花立牧場公園は、鳥海山の北麓にあるレジャースポットです。ジャージー牛の牧場を中心に、ゴーカートやパークゴルフ、動物とのふれあい広場が楽しめる家族向けスポットです。特に、乳牛と触れ合う体験は人気です。天候の急変や足元の滑りやすさ、野生動物の出没に注意し、安全に楽しんでください。

@@ -9,6 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Literal, Dict, Any
 
+import logging
+logger = logging.getLogger(__name__)
+
 # Coqui TTS を優先して使う。未導入・失敗時はフォールバック。
 try:
     from TTS.api import TTS  # type: ignore
@@ -31,7 +34,8 @@ class TTSConfig:
     @classmethod
     def from_env(cls) -> "TTSConfig":
         return cls(
-            model_name=os.getenv("COQUI_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
+            # model_name=os.getenv("COQUI_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
+            model_name=os.getenv("COQUI_MODEL", "tts_models/xtts"), 
             voice_ja=os.getenv("VOICE_JA", None),
             voice_en=os.getenv("VOICE_EN", None),
             voice_zh=os.getenv("VOICE_ZH", None),
@@ -197,8 +201,8 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                     )
 
                 return out_path.read_bytes()
-        except Exception:
-            # 次の手段へ
+        except Exception as e1:
+            logger.exception(f"TTS(API) failed. Attempting CLI fallback. Error: {e1}")
             pass
 
     # 2) Coqui CLI（`tts` コマンド）
@@ -221,7 +225,8 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
 
                 _run_subprocess(cmd)
                 return out_path.read_bytes()
-        except Exception:
+        except Exception as e2:
+            logger.exception(f"TTS(CLI) failed. Using sine wave fallback. Error: {e2}")
             pass
 
     # 3) フォールバック：簡易WAV（1秒）
