@@ -6,6 +6,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1
 
+ENV COQUI_TOS_AGREED=1
+
 # Voiceサービスに必要なシステム依存 (ffmpeg のみ)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
