@@ -24,7 +24,6 @@ try:
     # PyTorch 2.6+ のセキュリティエラー(UnpicklingError)対策
     torch.serialization.add_safe_globals([
         XttsConfig, 
-        TTS.tts.configs.xtts_config.XttsConfig, 
         XttsAudioConfig,
         BaseDatasetConfig,
     ])
@@ -151,13 +150,17 @@ VOICE_REFS_DIR = os.getenv("VOICE_REFS_DIR", "/app/backend/worker/app/services/v
 PACKS_ROOT = os.getenv("PACKS_ROOT", "/packs")
 
 # 言語ごとのデフォルト voice_key
-DEFAULT_BY_LANG = {"ja": "ja_female_1", "en": "en_female_1", "zh": "zh_female_1"}
+DEFAULT_BY_LANG = {
+    "ja": "alison_ja",
+    "en": "alison_en_safe",
+    "zh": "alison_zh",
+}
 
 # 参照音声レジストリ（環境変数 VOICE_REFS_DIR 基準）
 VOICE_REGISTRY = {
-    "ja_female_1": {"language": "ja", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_ja.wav")},
-    "en_female_1": {"language": "en", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_en_safe.wav")},
-    "zh_female_1": {"language": "zh", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_zh.wav")},
+    "alison_ja": {"language": "ja", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_ja.wav")},
+    "alison_en": {"language": "en", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_en_safe.wav")},
+    "alison_zh": {"language": "zh", "speaker_wav": os.path.join(VOICE_REFS_DIR, "alison_zh.wav")},
 }
 
 # グローバルに一度だけロード
