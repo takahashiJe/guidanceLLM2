@@ -289,7 +289,7 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                 
                 # 1. torch_patch.py と同じパッチコード
                 patch_code = r"""
-                import torch, torch.serialization, inspect
+                import sys, inspect, torch, torch.serialization
                 import TTS.tts.models.xtts as xtts_mod
                 from TTS.tts.configs.xtts_config import XttsConfig
                 from TTS.tts.models.xtts import XttsAudioConfig
