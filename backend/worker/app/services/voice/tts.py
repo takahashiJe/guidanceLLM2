@@ -26,8 +26,11 @@ except Exception as e:
     logger.warning(f"Failed to import Coqui TTS or apply patch: {e}. Voice synthesis will fall back to sine wave.")
     _HAS_COQUI = False
 
-_SERVICE_ROOT_DIR = Path(__file__).parent.resolve()
-_TORCH_PATCH_FILE = _SERVICE_ROOT_DIR / "torch_patch.py"
+# _SERVICE_ROOT_DIR = Path(__file__).parent.resolve()
+# _TORCH_PATCH_FILE = _SERVICE_ROOT_DIR / "torch_patch.py"
+
+rel_path = os.path.relpath(str(_SERVICE_ROOT_DIR), os.getcwd())
+_TORCH_PATCH_FILE = Path(rel_path) / "torch_patch.py"
 
 
 # -----------------------
