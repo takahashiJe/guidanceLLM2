@@ -14,11 +14,10 @@ logger = logging.getLogger(__name__)
 
 # Coqui TTS を優先して使う。未導入・失敗時はフォールバック。
 try:
-    from TTS.api import TTS  # type: ignore
+    from TTS.api import TTS as CoquiTTS 
     import torch.serialization
     from torch.serialization import safe_globals
     from TTS.tts.configs.xtts_config import XttsConfig
-    import TTS.tts.configs.xtts_config
     from TTS.tts.models.xtts import XttsAudioConfig
     from TTS.config.shared_configs import BaseDatasetConfig
     # PyTorch 2.6+ のセキュリティエラー(UnpicklingError)対策
@@ -109,7 +108,7 @@ class TTSRuntime:
             return
         try:
             # モデルは一度だけロード。XTTS v2 など多言語モデル想定。
-            self._coqui_model = TTS(self.cfg.model_name)
+            self._coqui_model = CoquiTTS(self.cfg.model_name)
             self._coqui_ready = True
         except Exception:
             # ロード失敗時はフォールバックへ
@@ -125,12 +124,12 @@ class TTSRuntime:
 # -----------------------
 _ALLOWED: list[type] = []
 
-def _load_xtts(model_name: str) -> TTS:
+def _load_xtts(model_name: str) -> CoquiTTS:
     """PyTorch 2.6 (weights_only=True) の安全リストを自動追加しながら XTTS をロード"""
     while True:
         try:
             with safe_globals(_ALLOWED):
-                return TTS(model_name)
+                return CoquiTTS(model_name)
         except Exception as e:
             m = re.search(r"Unsupported global: GLOBAL\s+([\w\.]+)\.([A-Za-z_]\w*)", str(e))
             if not m:
