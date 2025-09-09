@@ -242,7 +242,9 @@ services:
     ports: ["9103:9103"]
 
   svc-voice:
-    build: { context: ., dockerfile: ./backend/Dockerfile }
+    build:
+      context: .
+      dockerfile: ./backend/worker/app/services/voice/Dockerfile
     command: |
       bash -lc "
       set -euo pipefail;
@@ -250,11 +252,11 @@ services:
       ffmpeg -hide_banner -version || { echo 'ERROR: ffmpeg not found in PATH'; exit 1; };
       mkdir -p /home/junta_takahashi/guidanceLLM2/packs;
       export OMP_NUM_THREADS=1;
-      pip install TTS;
       uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104
       "
+    gpus: all
     environment:
-      COQUI_DEVICE: cpu
+      COQUI_DEVICE: cuda
       PACKS_ROOT: /packs
       VOICE_JA: "ja_female_1"
       VOICE_EN: "en_female_1"
@@ -262,7 +264,6 @@ services:
       VOICE_DEFAULT: "neutral_1"
     volumes:
       - ./backend:/app/backend
-      - ./data:/app/data:ro
       - /var/www/packs:/packs
     ports: ["9104:9104"]
 

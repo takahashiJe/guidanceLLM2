@@ -1,0 +1,2 @@
+# Voice Service (svc-voice) 専用の追加依存ライブラリ
+TTS
