@@ -28,10 +28,7 @@ except Exception as e:
 
 # _SERVICE_ROOT_DIR = Path(__file__).parent.resolve()
 # _TORCH_PATCH_FILE = _SERVICE_ROOT_DIR / "torch_patch.py"
-
-rel_path = os.path.relpath(str(_SERVICE_ROOT_DIR), os.getcwd())
-_TORCH_PATCH_FILE = Path(rel_path) / "torch_patch.py"
-
+_TORCH_PATCH_FILE = Path("/opt/torch_patch.py")
 
 # -----------------------
 # 設定
@@ -127,30 +124,59 @@ def estimate_wav_duration_sec(wav_bytes: bytes) -> float:
 
 
 def _run_subprocess(cmd: list[str], input_bytes: Optional[bytes] = None) -> bytes:
-    # 現在の環境変数をコピー
+    """汎用サブプロセス実行（タイムアウト・環境変数パッチ適用付き）"""
+    
+    # diagnostic_path = Path("/opt/torch_patch.py")
+    # path_exists = diagnostic_path.exists()
+    # raise RuntimeError(f"[DIAGNOSTIC_CHECK] Path checked: {diagnostic_path}, Path.exists() returned: {path_exists}")
+    
+    # 1. パッチファイルの「文字列パス」を変数として定義
+    patch_path_str = str(_TORCH_PATCH_FILE)
+
+    # 2. 現在の環境変数をコピー
     env = os.environ.copy()
 
-    # PYTHONSTARTUP環境変数を設定し、サブプロセスでもPyTorchパッチが適用されるようにする
+    # 3. パッチファイルが存在するかチェック
     if _TORCH_PATCH_FILE.exists():
-        env["PYTHONSTARTUP"] = str(_TORCH_PATCH_FILE)
-        logger.debug(f"Injecting PYTHONSTARTUP={_TORCH_PATCH_FILE} for subprocess.")
+        env["PYTHONSTARTUP"] = patch_path_str
+        # デバッグログ①：パッチを注入することをログに出力（これがログに出るはず）
+        logger.info(f"DEBUG: Injecting PYTHONSTARTUP env: {patch_path_str}")
     else:
-        # この警告が出た場合、DockerfileのCOPY漏れかパス間違い
+        # デバッグログ①'：ファイルが見つからなかった場合（lsの結果から、これは出ないはず）
         logger.warning(
-            f"Torch patch file not found at {_TORCH_PATCH_FILE}. "
+            f"Torch patch file NOT FOUND at {patch_path_str}. "
             "Subprocess TTS CLI will likely fail with UnpicklingError."
         )
         
-    p = subprocess.Popen(
-        cmd,
-        stdin=subprocess.PIPE if input_bytes is not None else None,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        env=env
-    )
-    out, err = p.communicate(input=input_bytes)
+    try:
+        # 4. 修正した環境変数(env=env)を使ってサブプロセスを実行
+        p = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE if input_bytes is not None else None,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env
+        )
+        out, err = p.communicate(input=input_bytes) # タイムアウトは一旦削除（元のコードに合わせて）
+
+    except Exception as e:
+        # Popenやcommunicate自体が失敗した場合
+        logger.error(f"Subprocess execution failed BEFORE return code check. Error: {e}")
+        raise RuntimeError(f"Subprocess Popen/Communicate failed: {e}") from e
+
+    # 5. サブプロセスから返された標準エラー出力(stderr)をデコード
+    err_decoded = err.decode(errors='ignore')
+
+    # デバッグログ②：サブプロセスのstderrをすべて出力
+    # （ここに torch_patch.py のログ「patch applied successfully」が含まれているかを調査）
+    logger.info(f"DEBUG: Subprocess stderr capture:\n---\n{err_decoded}\n---")
+
+    # 6. リターンコードのチェック
     if p.returncode != 0:
-        raise RuntimeError(f"subprocess failed: {' '.join(cmd)}\n{err.decode(errors='ignore')}")
+        # サブプロセスがエラー終了した場合
+        logger.error(f"Subprocess returned non-zero code {p.returncode}. Command: {' '.join(cmd)}")
+        raise RuntimeError(f"subprocess failed: {' '.join(cmd)}\n{err_decoded}")
+
     return out
 
 
@@ -192,27 +218,28 @@ def try_ffprobe_duration_sec(media_bytes: bytes) -> Optional[float]:
 # -----------------------
 def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja", "en", "zh"]) -> bytes:
     """
-    WAV バイト列で返す（最終的な保存フォーマットは呼び出し側で ffmpeg に渡す）。
-    1) Coqui（Python API） → 2) Coqui CLI → 3) フォールバックの順で試行。
+    WAV バイト列で返す（...中略...）
     """
     runtime.ensure_loaded()
 
     # 1) Coqui Python API
     if runtime.coqui_ready and runtime._coqui_model is not None:
         try:
-            # XTTS v2 は多言語合成が可能。必要なら speaker_wav / speaker_id を追加。
-            # python API は基本ファイル出力なので、一旦 temp へ出してから読む。
             import tempfile
             with tempfile.TemporaryDirectory() as td:
                 out_path = Path(td) / "out.wav"
-                # language 引数を accept するモデルなら渡す（XTTS v2 は text_lang が必要なケースあり）
+
+                # API呼び出し用のkwargsを準備
                 kwargs: Dict[str, Any] = {}
-                # 話者があれば指定（モデルによって指定方法が異なる場合あり）
+                
+                # 話者があれば指定（★このロジックを元に戻す）
+                # (APIは speaker=ID を受け取らないので、これは意図的にAPI呼び出しを失敗させ、
+                #  speaker_idx を使えるCLIフォールバック(Strategy 2)に進むためのロジック）
                 spk = runtime.cfg.select_voice(language)
                 if spk:
                     kwargs["speaker"] = spk
 
-                # API 差異を吸収
+                # API 差異を吸収 (この呼び出しは "speaker=ja_female_1" を解釈できず TypeError となる)
                 try:
                     runtime._coqui_model.tts_to_file(
                         text=text,
@@ -220,7 +247,7 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
                         **kwargs,
                     )
                 except TypeError:
-                    # モデルによっては text_lang を要求
+                    # モデルによっては text_lang を要求 (ここでも TypeError が発生)
                     runtime._coqui_model.tts_to_file(
                         text=text,
                         file_path=str(out_path),
@@ -230,6 +257,7 @@ def synthesize_wav_bytes(runtime: TTSRuntime, text: str, language: Literal["ja",
 
                 return out_path.read_bytes()
         except Exception as e1:
+            # ★APIが失敗すると、ここに入り、Strategy 2 (CLI) に進む (これが期待動作)
             logger.exception(f"TTS(API) failed. Attempting CLI fallback. Error: {e1}")
             pass
 

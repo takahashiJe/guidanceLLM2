@@ -26,5 +26,7 @@ RUN pip install -r /app/voice_requirements.txt
 
 # 共通Dockerfileに合わせて /packs を作成
 RUN mkdir -p /packs && chmod 777 /packs
+# COPY ./backend/worker/app/services/voice/torch_patch.py /app/backend/worker/app/services/voice/torch_patch.py
+COPY backend/worker/app/services/voice/torch_patch.py /opt/torch_patch.py
 
 EXPOSE 9104
