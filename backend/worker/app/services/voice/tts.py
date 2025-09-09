@@ -49,6 +49,9 @@ class TTSConfig:
     voice_ja: Optional[str]
     voice_en: Optional[str]
     voice_zh: Optional[str]
+    voice_ja_ref: Optional[str] = None
+    voice_en_ref: Optional[str] = None
+    voice_zh_ref: Optional[str] = None
     sample_rate: int = 22050  # フォールバック生成時の SR
 
     @classmethod
@@ -59,6 +62,9 @@ class TTSConfig:
             voice_ja=os.getenv("VOICE_JA", None),
             voice_en=os.getenv("VOICE_EN", None),
             voice_zh=os.getenv("VOICE_ZH", None),
+            voice_ja_ref=os.getenv("VOICE_JA_REF"),
+            voice_en_ref=os.getenv("VOICE_EN_REF"),
+            voice_zh_ref=os.getenv("VOICE_ZH_REF"),
             sample_rate=int(os.getenv("TTS_SAMPLE_RATE", "22050")),
         )
 
