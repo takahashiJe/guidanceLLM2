@@ -15,9 +15,19 @@ logger = logging.getLogger(__name__)
 # Coqui TTS を優先して使う。未導入・失敗時はフォールバック。
 try:
     from TTS.api import TTS  # type: ignore
+    import torch.serialization
+    from TTS.tts.configs.xtts_config import XttsConfig
+    # PyTorch 2.6+ のセキュリティエラー(UnpicklingError)対策
+    torch.serialization.add_safe_globals([XttsConfig])
+
     _HAS_COQUI = True
-except Exception:
+
+except Exception as e:
+    logger.warning(f"Failed to import Coqui TTS or apply patch: {e}. Voice synthesis will fall back to sine wave.")
     _HAS_COQUI = False
+
+_SERVICE_ROOT_DIR = Path(__file__).parent.resolve()
+_TORCH_PATCH_FILE = _SERVICE_ROOT_DIR / "torch_patch.py"
 
 
 # -----------------------
@@ -35,7 +45,7 @@ class TTSConfig:
     def from_env(cls) -> "TTSConfig":
         return cls(
             # model_name=os.getenv("COQUI_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
-            model_name=os.getenv("COQUI_MODEL", "tts_models/xtts"), 
+            model_name=os.getenv("COQUI_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"), 
             voice_ja=os.getenv("VOICE_JA", None),
             voice_en=os.getenv("VOICE_EN", None),
             voice_zh=os.getenv("VOICE_ZH", None),
@@ -114,11 +124,26 @@ def estimate_wav_duration_sec(wav_bytes: bytes) -> float:
 
 
 def _run_subprocess(cmd: list[str], input_bytes: Optional[bytes] = None) -> bytes:
+    # 現在の環境変数をコピー
+    env = os.environ.copy()
+
+    # PYTHONSTARTUP環境変数を設定し、サブプロセスでもPyTorchパッチが適用されるようにする
+    if _TORCH_PATCH_FILE.exists():
+        env["PYTHONSTARTUP"] = str(_TORCH_PATCH_FILE)
+        logger.debug(f"Injecting PYTHONSTARTUP={_TORCH_PATCH_FILE} for subprocess.")
+    else:
+        # この警告が出た場合、DockerfileのCOPY漏れかパス間違い
+        logger.warning(
+            f"Torch patch file not found at {_TORCH_PATCH_FILE}. "
+            "Subprocess TTS CLI will likely fail with UnpicklingError."
+        )
+        
     p = subprocess.Popen(
         cmd,
         stdin=subprocess.PIPE if input_bytes is not None else None,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env
     )
     out, err = p.communicate(input=input_bytes)
     if p.returncode != 0:
