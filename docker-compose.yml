@@ -259,6 +259,9 @@ services:
       COQUI_TOS_AGREED: 1
       COQUI_DEVICE: cuda
       PACKS_ROOT: /packs
+      VOICE_JA_REF: /app/backend/worker/app/services/voice/refs/alison_ja.wav
+      VOICE_EN_REF: /app/backend/worker/app/services/voice/refs/alison_en_safe.wav
+      VOICE_ZH_REF: /app/backend/worker/app/services/voice/refs/alison_zh.wav
       VOICE_JA: "ja_female_1"
       VOICE_EN: "en_female_1"
       VOICE_ZH: "zh_female_1"
