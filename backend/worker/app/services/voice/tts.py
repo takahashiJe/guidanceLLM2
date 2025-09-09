@@ -17,8 +17,10 @@ try:
     from TTS.api import TTS  # type: ignore
     import torch.serialization
     from TTS.tts.configs.xtts_config import XttsConfig
+    import TTS.tts.configs.xtts_config
     # PyTorch 2.6+ のセキュリティエラー(UnpicklingError)対策
-    torch.serialization.add_safe_globals([XttsConfig])
+    torch.serialization.add_safe_globals([XttsConfig, TTS.tts.configs.xtts_config.XttsConfig])
+    # torch.serialization.add_safe_globals([XttsConfig])
 
     _HAS_COQUI = True
 
@@ -28,6 +30,7 @@ except Exception as e:
 
 # _SERVICE_ROOT_DIR = Path(__file__).parent.resolve()
 # _TORCH_PATCH_FILE = _SERVICE_ROOT_DIR / "torch_patch.py"
+# _TORCH_PATCH_FILE = Path("/opt/torch_patch.py")
 _TORCH_PATCH_FILE = Path("/opt/torch_patch.py")
 
 # -----------------------

@@ -1,4 +1,4 @@
-# この内容で torch_patch.py という名前のファイルを tts.py と同じディレクトリに作成します
+# backend/worker/app/services/voice/torch_patch.py
 
 import logging
 import sys
@@ -12,9 +12,11 @@ logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 try:
     import torch.serialization
     from TTS.tts.configs.xtts_config import XttsConfig
+    import TTS.tts.configs.xtts_config
 
     # PyTorch 2.6+ セキュリティパッチ (UnpicklingError対策)
-    torch.serialization.add_safe_globals([XttsConfig])
+    # torch.serialization.add_safe_globals([XttsConfig])
+    torch.serialization.add_safe_globals([XttsConfig, TTS.tts.configs.xtts_config.XttsConfig])
     logger.debug("Torch safe_globals patch applied successfully for subprocess environment.")
 
 except ImportError:
