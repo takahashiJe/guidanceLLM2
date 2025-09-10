@@ -5,7 +5,8 @@ import json
 import os
 import threading
 import time
-from typing import Dict, Optional, TypedDict
+from typing import Dict, Optional
+from typing_extensions import TypedDict
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -20,16 +21,16 @@ router = APIRouter(prefix="/rt", tags=["realtime"])
 # ==============================
 # 返却ペイロード（極小JSON）
 # ==============================
-# weather(now): 0=sun,1=cloud,2=rain
-# upcoming:     0=none,1=to_cloud,2=to_rain,3=to_sun  （u>0 のときのみ h を付与）
-# congestion:   0..4
+# w (now): 0=sun,1=cloud,2=rain
+# u (upcoming): 0=none,1=to_cloud,2=to_rain,3=to_sun
+# h: hours ahead (u>0 のときのみ出現)
+# c: congestion 0..4
 class RTDoc(TypedDict, total=False):
-    s: str   # spot_id
-    w: int   # now: 0=sun,1=cloud,2=rain
-    u: int   # upcoming: 0=none,1=to_cloud,2=to_rain,3=to_sun
-    h: int   # hours ahead (required only when u>0)
-    c: int   # congestion 0..4
-    t: int   # unix epoch seconds
+    s: str
+    w: int
+    u: int
+    h: Optional[int]
+    c: int
 
 # メモリ上に最新値のみ保持（spot_id -> RTDoc）
 _state: Dict[str, RTDoc] = {}
@@ -62,20 +63,17 @@ def _on_message(client, userdata, msg):
         return
     try:
         doc = json.loads(msg.payload.decode("utf-8"))
-        # 期待形式：{"w":<0..2>, "u":<0..3>, "h":<int(任意)>, "c":<0..4>}
+        # 期待形式：{"w":0..2, "u":0..3, "h":<int 任意>, "c":0..4}
         w = int(doc.get("w"))
         u = int(doc.get("u"))
         c = int(doc.get("c"))
-        # 範囲を軽くバリデーション（不正値は無視）
-        if w not in (0, 1, 2) or u not in (0, 1, 2, 3) or not (0 <= c <= 4):
-            return
-        item: RTDoc = {"s": spot_id, "w": w, "u": u, "c": c, "t": int(time.time())}
-        # u>0 のときのみ h を採用
-        if u > 0 and "h" in doc:
+        item: RTDoc = {"s": spot_id, "w": w, "u": u, "c": c}
+        # u>0 のときのみ h を保持（省バイトのため）
+        if u > 0 and "h" in doc and doc["h"] is not None:
             item["h"] = int(doc["h"])
         _state[spot_id] = item
     except Exception:
-        # 壊れたメッセージは無視（必要ならログ出力）
+        # 壊れたメッセージは無視（必要ならログに出す）
         return
 
 def _mqtt_worker():
@@ -124,18 +122,17 @@ def _shutdown_mqtt():
 def get_spot_rt(spot_id: str):
     """
     返却例:
-      {"s":"spotA","w":0,"u":0,"c":2,"t":1690000000}
-      {"s":"spotB","w":1,"u":3,"h":3,"c":1,"t":1690000123}  # 3時間後に晴れ
-      {"s":"spotC","w":0,"u":2,"h":2,"c":1,"t":1690000456}  # 2時間後に雨
+      {"s":"spotA","w":0,"u":0,"c":1}
+      {"s":"spotB","w":0,"u":2,"h":2,"c":3}
+      {"s":"spotC","w":1,"u":3,"h":3,"c":0}
     """
     item = _state.get(spot_id)
     if not item:
         # データ未到達時は 204 No Content（フロントはリトライ）
         return JSONResponse(status_code=204, content=None)
-    # 仕様上: u==0 のとき h は含めない想定（MQTT取り込み時に整形済み）
-    if item.get("u", 0) in (0, None) and "h" in item:
-        item = dict(item)
-        item.pop("h", None)
+    # 余計なキーを持たないように，u==0 のとき h を除去して返す（保守的）
+    if item.get("u", 0) == 0 and "h" in item:
+        item = {k: v for k, v in item.items() if k != "h"}
     return JSONResponse(content=item)
 
 # ---（開発用）モック注入エンドポイント（本番では外すか認証で保護） ---
@@ -144,14 +141,13 @@ def _mock_push(spot_id: str, body: RTDoc):
     """
     開発用にHTTPから直接最新値を書き込む（LoRa/MQTTなしで疎通確認可能）
     例:
-      {"w":1,"u":3,"h":2,"c":0}  # 2時間後に晴れ
-      {"w":0,"u":0,"c":3}
+      {"w":0,"u":2,"h":2,"c":1}
+      {"w":1,"u":0,"c":3}
+      {"w":2,"u":3,"h":4,"c":2}
     """
-    body = dict(body)
     body["s"] = spot_id
-    body.setdefault("t", int(time.time()))
-    # 仕様: u==0 のときは h を持たせない
-    if body.get("u", 0) in (0, None) and "h" in body:
+    # u==0 のときは h を持たせない
+    if body.get("u", 0) == 0 and "h" in body:
         body.pop("h", None)
-    _state[spot_id] = body  # type: ignore
+    _state[spot_id] = body
     return {"ok": True}

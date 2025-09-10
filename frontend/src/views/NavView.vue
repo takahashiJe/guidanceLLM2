@@ -1,417 +1,425 @@
 <template>
   <div class="nav-view">
-    <!-- ローディング -->
     <div v-if="navStore.isLoading" class="loading-overlay">
       <p>案内プランを生成中です...</p>
     </div>
-
-    <!-- プラン本体 -->
+    
     <div v-else-if="plan && plan.waypoints_info" class="nav-container">
       <div class="map-wrapper">
-        <!-- 既存の地図コンポーネント -->
         <NavMap ref="navMap" :plan="plan" />
       </div>
-
-      <!-- 右パネル：操作・一覧・RT最新情報 -->
-      <div class="side-panel">
-        <div class="controls">
-          <button @click="toggleSpotList" class="spot-list-toggle">
-            {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
-          </button>
-        </div>
-
-        <!-- スポット一覧（周遊スポット） -->
-        <section v-if="isSpotListVisible" class="spot-list">
+      <div class="controls">
+        <button @click="toggleSpotList" class="spot-list-toggle">
+          {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
+        </button>
+        
+        <div v-if="isSpotListVisible" class="spot-list">
+          
           <h3>周遊スポット</h3>
-          <ol class="spot-ol">
-            <li v-for="(wp, idx) in sortedWaypoints" :key="wp.spot_id" class="spot-li">
-              <div class="spot-row">
-                <span class="order-index">{{ idx + 1 }}</span>
-                <span class="spot-name">{{ wp.name || wp.spot_id }}</span>
-              </div>
-
-              <!-- RT最新情報（常時参照可能） -->
-              <div class="rt-latest" v-if="latestById[wp.spot_id]">
-                <span class="rt-badge">{{ formatWeather(latestById[wp.spot_id]) }}</span>
-                <span class="rt-badge rt-upcoming" v-if="latestById[wp.spot_id].u > 0">
-                  {{ formatUpcoming(latestById[wp.spot_id]) }}
-                </span>
-                <span class="rt-badge rt-cong">
-                  混雑: {{ latestById[wp.spot_id].c }}
-                </span>
-              </div>
-
-              <div class="rt-latest rt-empty" v-else>
-                <span class="rt-muted">リアルタイム情報を待機中…</span>
-              </div>
-            </li>
-          </ol>
-        </section>
-
-        <!-- （任意）沿道スポット -->
-        <section v-if="isSpotListVisible && sortedAlongPois.length" class="poi-list">
-          <h3>沿道スポット</h3>
           <ul>
-            <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
-              {{ poi.name || poi.spot_id }}
+            <li v-for="(poi, index) in sortedWaypoints" :key="poi.spot_id">
+              <button @click="focusOnSpot(poi)">
+                <span class="order-index">{{ index + 1 }}</span>
+                {{ poi.name }}
+                <!-- ★ ここから追加：リアルタイムの最新情報バッジ -->
+                <span class="rt-badges" v-if="latestBySpot(poi.spot_id)">
+                  <span class="rt-badge weather" :title="weatherTitle(latestBySpot(poi.spot_id))">
+                    {{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}
+                  </span>
+                  <span
+                    v-if="latestBySpot(poi.spot_id)?.u > 0"
+                    class="rt-badge upcoming"
+                    :title="upcomingTitle(latestBySpot(poi.spot_id))"
+                  >
+                    {{ upcomingEmoji(latestBySpot(poi.spot_id)?.u) }}
+                    <small v-if="typeof latestBySpot(poi.spot_id)?.h === 'number'">{{ latestBySpot(poi.spot_id)?.h }}h</small>
+                  </span>
+                  <span class="rt-badge crowd" :title="crowdTitle(latestBySpot(poi.spot_id))">
+                    {{ crowdBar(latestBySpot(poi.spot_id)?.c) }}
+                  </span>
+                </span>
+                <!-- ★ 追加ここまで -->
+              </button>
             </li>
           </ul>
-        </section>
-      </div>
 
-      <!-- 画面右上：変更があった時だけ通知（トースト） -->
+          <div v-if="sortedAlongPois.length > 0" class="nearby-section">
+            <h3 class="nearby-title">周辺のスポット</h3>
+            <ul>
+              <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
+                <button @click="focusOnSpot(poi)" class="nearby-button">
+                  {{ poi.name }}
+                </button>
+              </li>
+            </ul>
+          </div>
+
+        </div>
+        </div>
+
+      <!-- ★ ここから追加：トースト通知（内容が変わった時だけ） -->
       <div class="toast-stack">
         <div
           v-for="t in toasts"
           :key="t.id"
           class="toast"
           role="status"
-          @click="dismissToast(t.id)"
+          aria-live="polite"
         >
-          <div class="toast-title">
-            {{ t.title }}
-          </div>
-          <div class="toast-body">
-            <div>{{ t.message }}</div>
-            <div v-if="t.diff" class="toast-diff">
-              <span v-if="t.diff.w">天気: {{ t.diff.w }}</span>
-              <span v-if="t.diff.u">／変化: {{ t.diff.u }}</span>
-              <span v-if="typeof t.diff.h === 'number'">／{{ t.diff.h }}時間後</span>
-              <span v-if="typeof t.diff.c === 'number'">／混雑: {{ t.diff.c }}</span>
-            </div>
-          </div>
+          <strong>{{ t.title }}</strong>
+          <div class="toast-body">{{ t.body }}</div>
         </div>
       </div>
-    </div>
+      <!-- ★ 追加ここまで -->
 
-    <!-- プランなし（リダイレクト保険） -->
+    </div>
+    
     <div v-else class="error-view">
-      <p>プランが見つかりませんでした。プラン作成に戻ります。</p>
+      <p>ナビゲーションプランが見つかりません。</p>
+      <router-link to="/plan">プラン作成画面に戻る</router-link>
     </div>
   </div>
 </template>
 
 <script setup>
-/**
- * 既存の NavView の構造を踏襲しつつ、RT(LoRa/MQTT) 連携を最小追加。
- * - navStore.plan から waypoints を取得
- * - 1分ごとに A→B→A→B… の順で /api/rt/spot/:id を叩く（rtストアに実装済み）
- * - 変更があった時のみ通知（toasts）
- * - 各スポットの最新情報（常時参照可能）を一覧に表示
- */
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import NavMap from '@/components/NavMap.vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useNavStore } from '@/stores/nav';
+import { useRouter } from 'vue-router';
+import NavMap from '@/components/NavMap.vue';
 
-import { useNavStore } from '@/stores/nav'
-import { useRtStore } from '@/stores/rt'
+/* ★ 追加：リアルタイム用ストア */
+import { useRtStore } from '@/stores/rt';
 
-// 既存と同名の参照・計算値を維持
-const navStore = useNavStore()
-const router = useRouter()
-const plan = computed(() => navStore.plan)
-const navMap = ref(null)
-const isSpotListVisible = ref(true)
+const navStore = useNavStore();
+const rtStore = useRtStore();
+const router = useRouter();
+const plan = computed(() => navStore.plan);
+const navMap = ref(null);
+const isSpotListVisible = ref(true);
 
-// 周遊スポット：order_index -> nearest_idx -> そのまま
+// ★修正 1: 周遊スポット (Waypoints) リスト。 nearest_idx (ルート上のインデックス) でソート
 const sortedWaypoints = computed(() => {
-  const w = plan.value?.waypoints_info ?? []
-  return [...w].sort((a, b) => {
-    const ao = (a.order_index ?? Number.MAX_SAFE_INTEGER)
-    const bo = (b.order_index ?? Number.MAX_SAFE_INTEGER)
-    if (ao !== bo) return ao - bo
-    const an = (a.nearest_idx ?? Number.MAX_SAFE_INTEGER)
-    const bn = (b.nearest_idx ?? Number.MAX_SAFE_INTEGER)
-    if (an !== bn) return an - bn
-    // 最後に spot_id で安定ソート
-    return String(a.spot_id).localeCompare(String(b.spot_id))
-  })
-})
+  if (plan.value && plan.value.waypoints_info) {
+    // バックエンド(nav/tasks.py)が付与した nearest_idx (ルート座標列上の最近接点インデックス) でソート
+    return [...plan.value.waypoints_info].sort((a, b) => (a.nearest_idx || 0) - (b.nearest_idx || 0));
+  }
+  return [];
+});
 
-// 沿道POI：order_index -> nearest_idx
+// ★修正 2: 周辺のスポット (AlongPOIs) リスト。 order_index (または nearest_idx) でソート
 const sortedAlongPois = computed(() => {
-  const p = plan.value?.along_pois ?? []
-  return [...p].sort((a, b) => {
-    const ao = (a.order_index ?? Number.MAX_SAFE_INTEGER)
-    const bo = (b.order_index ?? Number.MAX_SAFE_INTEGER)
-    if (ao !== bo) return ao - bo
-    const an = (a.nearest_idx ?? Number.MAX_SAFE_INTEGER)
-    const bn = (b.nearest_idx ?? Number.MAX_SAFE_INTEGER)
-    return an - bn
-  })
-})
-
-// === Realtime Store 連携 ===
-const rt = useRtStore()
-
-// 最新値を spot_id -> RTDoc の形で使いやすく
-const latestById = computed(() => {
-  const map = {}
-  for (const wp of plan.value?.waypoints_info ?? []) {
-    const sid = wp.spot_id
-    const doc = rt.getLatest(sid)
-    if (doc) map[sid] = doc
+  if (plan.value && plan.value.along_pois) {
+    // 元の実装(sortedPois)のロジックを引き継ぎ、order_index (または nearest_idx) でソート
+    return [...plan.value.along_pois].sort((a, b) => (a.order_index ?? a.nearest_idx ?? 0) - (b.order_index ?? b.nearest_idx ?? 0));
   }
-  return map
-})
+  return [];
+});
 
-// 変更通知（トースト）キュー（シンプル版）
-const toasts = ref([])
-/** @param {string} id */
-const dismissToast = (id) => {
-  toasts.value = toasts.value.filter(t => t.id !== id)
-}
-
-// 通知を生成（diff を人間可読に変換）
-const spotNameById = computed(() => {
-  const m = {}
-  for (const wp of plan.value?.waypoints_info ?? []) {
-    m[wp.spot_id] = wp.name || wp.spot_id
+/* ★ 追加：spot_id → name のマップ（通知用に名前表示） */
+const spotNameMap = computed(() => {
+  const m = new Map();
+  if (plan.value?.waypoints_info) {
+    for (const wp of plan.value.waypoints_info) {
+      if (wp.spot_id) m.set(wp.spot_id, wp.name || wp.spot_id);
+    }
   }
-  return m
-})
-
-watch(() => rt.notifyLog.length, (len, prev) => {
-  if (len <= prev) return
-  const ev = rt.notifyLog[len - 1]
-  const name = spotNameById.value[ev.spot_id] || ev.spot_id
-  const prevMsg = ev.prev ? makeSummary(ev.prev) : '（初回取得）'
-  const nextMsg = makeSummary(ev.next)
-  const diff = makeDiff(ev.prev, ev.next)
-
-  const id = `${ev.spot_id}-${ev.at}`
-  toasts.value.push({
-    id,
-    title: `更新: ${name}`,
-    message: `${prevMsg} → ${nextMsg}`,
-    diff
-  })
-  // 自動で数秒後に消す
-  setTimeout(() => dismissToast(id), 5000)
-})
-
-// === 表示用の整形 ===
-/** @param {import('@/stores/rt').RTDoc} doc */
-function formatWeather(doc) {
-  // w: 0=sun,1=cloud,2=rain
-  return doc.w === 0 ? '☀ 晴れ' : doc.w === 1 ? '☁ 曇り' : '☔ 雨'
-}
-/** @param {import('@/stores/rt').RTDoc} doc */
-function formatUpcoming(doc) {
-  // u: 1=to_cloud,2=to_rain,3=to_sun
-  if (doc.u === 1) return `${doc.h ?? '?'}時間後に曇り`
-  if (doc.u === 2) return `${doc.h ?? '?'}時間後に雨`
-  if (doc.u === 3) return `${doc.h ?? '?'}時間後に晴れ`
-  return ''
-}
-/** @param {import('@/stores/rt').RTDoc} doc */
-function makeSummary(doc) {
-  const now = doc.w === 0 ? '晴れ' : doc.w === 1 ? '曇り' : '雨'
-  const up =
-    doc.u === 1 ? `${doc.h ?? '?'}時間後に曇り` :
-    doc.u === 2 ? `${doc.h ?? '?'}時間後に雨` :
-    doc.u === 3 ? `${doc.h ?? '?'}時間後に晴れ` : ''
-  const cong = `混雑:${doc.c}`
-  return up ? `${now}（${up}）／${cong}` : `${now}／${cong}`
-}
-/** @param {import('@/stores/rt').RTDoc|null} prev @param {import('@/stores/rt').RTDoc} next */
-function makeDiff(prev, next) {
-  if (!prev) return { w: next.w, u: next.u, h: next.u > 0 ? next.h : undefined, c: next.c }
-  const d = {}
-  if (prev.w !== next.w) d.w = `${toW(prev.w)}→${toW(next.w)}`
-  if (prev.u !== next.u) d.u = `${toU(prev.u)}→${toU(next.u)}`
-  if (next.u > 0) {
-    const ah = typeof prev.h === 'number' ? prev.h : undefined
-    const bh = typeof next.h === 'number' ? next.h : undefined
-    if (ah !== bh) d.h = bh
+  if (plan.value?.along_pois) {
+    for (const p of plan.value.along_pois) {
+      if (p.spot_id && !m.has(p.spot_id)) m.set(p.spot_id, p.name || p.spot_id);
+    }
   }
-  if (prev.c !== next.c) d.c = `${prev.c}→${next.c}`
-  return d
-}
-function toW(w) { return w === 0 ? '晴' : w === 1 ? '曇' : '雨' }
-function toU(u) { return u === 1 ? '曇へ' : u === 2 ? '雨へ' : u === 3 ? '晴へ' : '変化なし' }
+  return m;
+});
 
-// === ライフサイクル ===
-function toggleSpotList() {
-  isSpotListVisible.value = !isSpotListVisible.value
+/* ★ 追加：トースト通知（最新の変更だけ順次表示） */
+const toasts = ref([]);
+/** make toast */
+function pushToast(title, body, timeoutMs = 4000) {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  toasts.value.push({ id, title, body });
+  setTimeout(() => {
+    toasts.value = toasts.value.filter(t => t.id !== id);
+  }, timeoutMs);
 }
 
+// navストアにプランがなければプラン作成ページにリダイレクト
 onMounted(() => {
-  // プラン未取得ならプラン作成に戻す
   if (!navStore.plan) {
-    router.push('/plan')
-    return
+    router.push('/plan');
+    return;
   }
-  // 周遊順でポーリング開始
-  rt.startPolling(plan.value.waypoints_info)
-})
+  // ★ 追加：ポーリング開始（A→B→A→B…）
+  // waypoints_info をそのまま渡せば、rtストア内で spot_id 抽出・順序設定される
+  rtStore.startPolling(plan.value?.waypoints_info || []);
+});
 
 onUnmounted(() => {
-  rt.stopPolling()
-})
+  // ★ 追加：ポーリング停止
+  rtStore.stopPolling();
+});
+
+function toggleSpotList() {
+  isSpotListVisible.value = !isSpotListVisible.value;
+}
+
+function focusOnSpot(poi) {
+  if (navMap.value) {
+    // NavMapコンポーネントで公開されたメソッドを呼び出す
+    navMap.value.flyToSpot(poi.lat, poi.lon);
+  }
+}
+
+/* ★ 追加：UI表示用の小ユーティリティ */
+function weatherEmoji(w) {
+  if (w === 0) return '☀';
+  if (w === 1) return '☁';
+  if (w === 2) return '☂';
+  return '▫';
+}
+function upcomingEmoji(u) {
+  if (u === 1) return '↗☁';
+  if (u === 2) return '↗☔';
+  if (u === 3) return '↗☀';
+  return '';
+}
+function weatherTitle(doc) {
+  if (!doc) return '';
+  const nowMap = { 0: '晴れ', 1: '曇り', 2: '雨' };
+  return `現在: ${nowMap[doc.w] ?? '-'}`;
+}
+function upcomingTitle(doc) {
+  if (!doc || !doc.u || doc.u === 0) return '';
+  const toMap = { 1: '曇りに', 2: '雨に', 3: '晴れに' };
+  const h = typeof doc.h === 'number' ? `${doc.h}時間後` : '';
+  return `${h}${toMap[doc.u] ?? ''}変化`;
+}
+function crowdBar(c) {
+  // 0..4 を 5個のドットで表現（●=混雑, ○=空き）
+  const n = Number.isFinite(c) ? Math.max(0, Math.min(4, c)) : 0
+  return '○'.repeat(4 - n) + '●'.repeat(n + 1 - 1) // ざっくり視覚化
+}
+function crowdTitle(doc) {
+  if (!doc) return '';
+  const labels = ['とても空いている', 'やや空き', 'ふつう', 'やや混雑', 'とても混雑'];
+  const c = Math.max(0, Math.min(4, Number(doc.c ?? 0)));
+  return `混雑: ${labels[c]}`;
+}
+/* リストの中で参照しやすいようにラッパ */
+function latestBySpot(spotId) {
+  return rtStore.getLatest?.(spotId) ?? null;
+}
+
+/* ★ 追加：変更時のみ通知（rt.notifyLog を監視） */
+watch(
+  () => rtStore.notifyLog.length,
+  (len, prev) => {
+    if (len <= prev) return;
+    const ev = rtStore.notifyLog[len - 1];
+    const name = spotNameMap.value.get(ev.spot_id) || ev.spot_id;
+
+    // 何が変わったか簡易に要約
+    const diffs = [];
+    if (!ev.prev || ev.prev.w !== ev.next.w) {
+      const nowMap = { 0: '晴れ', 1: '曇り', 2: '雨' };
+      diffs.push(`現在天気: ${ev.prev ? (nowMap[ev.prev.w] ?? '-') + '→' : ''}${nowMap[ev.next.w] ?? '-'}`);
+    }
+    if (!ev.prev || ev.prev.u !== ev.next.u || (ev.next.u > 0 && ev.prev?.h !== ev.next.h)) {
+      if (ev.next.u > 0) {
+        const toMap = { 1: '曇り', 2: '雨', 3: '晴れ' };
+        const htxt = typeof ev.next.h === 'number' ? `${ev.next.h}時間後` : '近く';
+        diffs.push(`${htxt}に${toMap[ev.next.u] ?? ''}`);
+      } else {
+        // 変化予報が解除されたケース
+        if (ev.prev && ev.prev.u > 0) diffs.push('変化予報なし');
+      }
+    }
+    if (!ev.prev || ev.prev.c !== ev.next.c) {
+      const labels = ['とても空き','やや空き','ふつう','やや混雑','とても混雑'];
+      diffs.push(`混雑: ${ev.prev ? labels[ev.prev.c] + '→' : ''}${labels[ev.next.c]}`);
+    }
+
+    const body = diffs.join(' / ');
+    pushToast(name, body || '更新がありました');
+  }
+);
 </script>
 
 <style scoped>
 .nav-view {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 100%;
+  position: relative;
+  width: 100%;
+  height: 100vh;
 }
 
 .loading-overlay {
-  padding: 24px;
-  text-align: center;
-  color: #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  font-size: 1.2rem;
 }
 
 .nav-container {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 12px;
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 .map-wrapper {
-  position: relative;
-  min-height: 60vh;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-}
-
-/* 右パネル */
-.side-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  width: 100%;
+  height: 100%;
 }
 
 .controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
   display: flex;
-  gap: 8px;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
+  /* (★修正) 2つのリストが入るため、コントロール全体の高さを制限しスクロール可能に */
+  max-height: calc(100vh - 20px); 
 }
 
 .spot-list-toggle {
-  background: #0ea5e9;
+  padding: 10px 15px;
+  font-size: 1rem;
+  background-color: #007bff;
   color: white;
   border: none;
-  padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
-}
-.spot-list-toggle:hover {
-  background: #0284c7;
-}
-
-.spot-list, .poi-list {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 12px;
-}
-.spot-list h3, .poi-list h3 {
-  margin: 0 0 8px 0;
-  font-size: 14px;
-  color: #374151;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  margin-bottom: 10px;
+  flex-shrink: 0; /* (★追加) トグルボタンが縮まないように */
 }
 
-.spot-ol {
+.spot-list {
+  background: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  padding: 10px;
+  max-height: 75vh; /* (★修正) リストコンテナの最大高さを確保 */
+  overflow-y: auto;   /* リストコンテナ自体をスクロールさせる */
+  min-width: 250px;
+}
+
+.spot-list h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
+.spot-list ul {
   list-style: none;
-  margin: 0;
   padding: 0;
+  margin: 0;
 }
-.spot-li + .spot-li {
-  margin-top: 8px;
-}
-.spot-row {
+
+.spot-list li button {
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.order-index {
-  display: inline-flex;
-  width: 22px;
-  height: 22px;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: white;
-  background: #9ca3af;
-  border-radius: 50%;
-}
-.spot-name {
-  font-size: 14px;
-  color: #111827;
-  font-weight: 600;
+
+.spot-list li:last-child button {
+  border-bottom: none;
 }
 
-/* RT最新表示 */
-.rt-latest {
-  margin-top: 4px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
+.spot-list li button:hover {
+  background-color: #f5f5f5;
 }
-.rt-empty .rt-muted {
-  color: #9ca3af;
-  font-size: 12px;
+
+.order-index {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 50%;
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+/* ★ ここから追加 ★ */
+.nearby-section {
+  margin-top: 15px; /* 周遊スポットリストとの間隔 */
+}
+
+.nearby-title {
+  color: #555; /* タイトル色を少し変える */
+  font-size: 1.0rem; /* 少し小さく */
+}
+
+.nearby-button {
+    /* order-index がないため、テキストのインデントを調整 */
+  padding-left: 16px !important; 
+}
+
+/* リアルタイムバッジ */
+.rt-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 .rt-badge {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: 12px;
   font-size: 12px;
-  background: #f3f4f6;
-  color: #374151;
+  line-height: 1;
+  background: #f1f3f5;
+  color: #333;
 }
-.rt-upcoming {
-  background: #fff7ed;
-  color: #9a3412;
-}
-.rt-cong {
-  background: #eef2ff;
-  color: #3730a3;
-}
+.rt-badge.weather { background: #ffe9a8; }
+.rt-badge.upcoming { background: #dff0ff; }
+.rt-badge.crowd { background: #eee; }
 
-/* トースト通知 */
+/* トースト */
 .toast-stack {
-  position: fixed;
-  right: 16px;
-  top: 16px;
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 9999;
+  z-index: 1100;
 }
 .toast {
-  min-width: 260px;
-  max-width: 360px;
-  background: #111827;
-  color: #f9fafb;
-  border-radius: 8px;
+  background: rgba(30, 30, 30, 0.95);
+  color: #fff;
   padding: 10px 12px;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-  cursor: pointer;
+  border-radius: 8px;
+  min-width: 240px;
+  max-width: 360px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
 }
-.toast-title {
-  font-weight: 700;
-  font-size: 14px;
+.toast strong {
+  display: block;
   margin-bottom: 4px;
+  font-size: 0.95rem;
 }
 .toast-body {
-  font-size: 13px;
-  opacity: 0.95;
+  font-size: 0.9rem;
 }
-.toast-diff {
-  margin-top: 2px;
-  font-size: 12px;
-  opacity: 0.9;
-}
+/* ★ 追加ここまで ★ */
 
-/* エラー表示 */
 .error-view {
   padding: 20px;
   text-align: center;
