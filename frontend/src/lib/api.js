@@ -65,6 +65,15 @@ export async function pollPlan(taskId, onTick) {
   }
 }
 
+// --- Realtime (LoRaWAN/MQTT) ---
+export async function fetchRealtimeBySpotId(spotId) {
+  const { status, body } = await apiFetch(`/rt/spot/${encodeURIComponent(spotId)}`);
+  if (status === 204) return null;          // 未到達（今は値なし）
+  // 期待ペイロード: { s, w(0..2), u(0..3), h?, c(0..4) }
+  return body;
+}
+
+
 // 互換用エイリアス（既存コード対策）
 export const fetchPlanResult = pollPlan;
 export const fetchPlanTask   = pollPlan;

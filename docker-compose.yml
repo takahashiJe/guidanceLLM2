@@ -162,6 +162,8 @@ services:
       APP_DB_PASSWORD: app_runtime
       # --- NAVサービス ---
       NAV_BASE: http://svc-nav:9100
+    env_file:
+      - .env
     volumes:
       - ./backend:/app/backend
     depends_on:
