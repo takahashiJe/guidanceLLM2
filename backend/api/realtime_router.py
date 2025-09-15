@@ -10,6 +10,7 @@ from typing_extensions import TypedDict
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from starlette.responses import Response
 
 try:
     import paho.mqtt.client as mqtt
@@ -129,7 +130,7 @@ def get_spot_rt(spot_id: str):
     item = _state.get(spot_id)
     if not item:
         # データ未到達時は 204 No Content（フロントはリトライ）
-        return JSONResponse(status_code=204, content=None)
+        return Response(status_code=204)
     # 余計なキーを持たないように，u==0 のとき h を除去して返す（保守的）
     if item.get("u", 0) == 0 and "h" in item:
         item = {k: v for k, v in item.items() if k != "h"}
