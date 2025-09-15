@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">chokai-guide</string>
+    <string name="title_activity_main">chokai-guide</string>
+    <string name="package_name">com.example.chokai</string>
+    <string name="custom_url_scheme">com.example.chokai</string>
+</resources>

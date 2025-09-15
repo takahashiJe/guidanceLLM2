@@ -1,6 +1,7 @@
 // src/main.js
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { buildSpotCodeMap } from '@/lib/spotCodes'
 import router from './router'
 import App from './App.vue'
 import './assets/base.css'
@@ -10,6 +11,7 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.mount('#app')
+buildSpotCodeMap()
 
 // Service Worker（public/sw.js がある前提）
 if ('serviceWorker' in navigator) {

@@ -126,10 +126,14 @@ export const useRtStore = defineStore('rt', {
       // 次回カーソルを先に進めておく
       this.cursor = (this.cursor + 1) % this.spotOrder.length
 
-      const { status, body } = await fetchSpotRT(spotId)
+      // ★ 追加：前回値から etag（軽ハッシュ）を作成し、fetch に渡す
+      const prev = this.lastBySpot[spotId] ?? null
+      const etag = this._calcEtag(prev)
+
+      const { status, body } = await fetchSpotRT(spotId, { etag })
 
       if (status === 204 || status === 0) {
-        // 204=未到達, 0=失敗 → 何もしない（次周期へ）
+        // 204=未到達 or 変更なし(null) / 0=失敗 → 何もしない（次周期へ）
         return
       }
       if (status !== 200 || !body) {
@@ -137,7 +141,6 @@ export const useRtStore = defineStore('rt', {
       }
 
       // 差分判定
-      const prev = this.lastBySpot[spotId] ?? null
       const next = /** @type {RTDoc} */ (body)
       const changed = !this._isSame(prev, next)
 
@@ -175,6 +178,24 @@ export const useRtStore = defineStore('rt', {
         if (ah !== bh) return false
       }
       return true
+    },
+
+    /**
+     * etag（1バイト程度の軽ハッシュ）を生成
+     * - 値がなければ undefined（LoRa側で downlink 省略判定には使わない）
+     * - 変更検知レベルなので衝突許容、実装は簡易でOK
+     * @param {RTDoc|null} doc
+     * @returns {number|undefined}
+     */
+    _calcEtag(doc) {
+      if (!doc) return undefined
+      // bit パッキング: [ w(2) | u(2) | c(3) | hbit(1) ] = 8bit
+      // hbit は (u>0 && hが数値) のとき 1、それ以外 0
+      const w = (doc.w & 0b11) << 6
+      const u = (doc.u & 0b11) << 4
+      const c = (doc.c & 0b111) << 1
+      const hbit = (doc.u > 0 && typeof doc.h === 'number') ? 1 : 0
+      return (w | u | c | hbit) & 0xff
     },
 
     /**

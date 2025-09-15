@@ -1,0 +1,20 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.lorart" >
+4
+5    <uses-sdk android:minSdkVersion="22" />
+6
+7    <uses-feature
+7-->/home/junta_takahashi/guidanceLLM2/frontend/node_modules/@guidance/lorart/android/src/main/AndroidManifest.xml:3:3-84
+8        android:name="android.hardware.usb.host"
+8-->/home/junta_takahashi/guidanceLLM2/frontend/node_modules/@guidance/lorart/android/src/main/AndroidManifest.xml:3:17-57
+9        android:required="false" />
+9-->/home/junta_takahashi/guidanceLLM2/frontend/node_modules/@guidance/lorart/android/src/main/AndroidManifest.xml:3:58-82
+10
+11    <application>
+11-->/home/junta_takahashi/guidanceLLM2/frontend/node_modules/@guidance/lorart/android/src/main/AndroidManifest.xml:4:3-6:17
+12
+13        <!-- 後で BroadcastReceiver 等を追加予定 -->
+14    </application>
+15
+16</manifest>

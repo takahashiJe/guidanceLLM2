@@ -9,6 +9,35 @@
         <NavMap ref="navMap" :plan="plan" />
       </div>
       <div class="controls">
+        <!-- ★ 追加: 接続状態＆LoRa制御 -->
+        <div class="conn-panel">
+          <div class="conn-row">
+            <span class="chip" :class="online ? 'ok' : 'warn'">
+              {{ online ? 'Online' : 'Offline' }}
+            </span>
+            <span class="chip" :class="prefetchDone ? 'ok' : 'muted'">
+              {{ prefetchDone ? 'プリフェッチ完了' : 'プリフェッチ中' }}
+            </span>
+            <span class="chip" :class="loraConnected ? 'ok' : (loraJoining ? 'busy' : 'muted')">
+              LoRa: 
+              <template v-if="loraConnected">接続済み</template>
+              <template v-else-if="loraJoining">接続中...</template>
+              <template v-else>未接続</template>
+            </span>
+          </div>
+          <div class="conn-row">
+            <button
+              class="join-btn"
+              :disabled="!prefetchDone || loraJoining || loraConnected"
+              @click="manualJoin"
+              title="プリフェッチ完了後に押下（USB許可ダイアログが出る場合があります）"
+            >
+              LoRa接続開始
+            </button>
+          </div>
+        </div>
+        <!-- ★ 追加ここまで -->
+
         <button @click="toggleSpotList" class="spot-list-toggle">
           {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
         </button>
@@ -21,7 +50,6 @@
               <button @click="focusOnSpot(poi)">
                 <span class="order-index">{{ index + 1 }}</span>
                 {{ poi.name }}
-                <!-- ★ ここから追加：リアルタイムの最新情報バッジ -->
                 <span class="rt-badges" v-if="latestBySpot(poi.spot_id)">
                   <span class="rt-badge weather" :title="weatherTitle(latestBySpot(poi.spot_id))">
                     {{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}
@@ -38,7 +66,6 @@
                     {{ crowdBar(latestBySpot(poi.spot_id)?.c) }}
                   </span>
                 </span>
-                <!-- ★ 追加ここまで -->
               </button>
             </li>
           </ul>
@@ -57,7 +84,6 @@
         </div>
         </div>
 
-      <!-- ★ ここから追加：トースト通知（内容が変わった時だけ） -->
       <div class="toast-stack">
         <div
           v-for="t in toasts"
@@ -70,7 +96,6 @@
           <div class="toast-body">{{ t.body }}</div>
         </div>
       </div>
-      <!-- ★ 追加ここまで -->
 
     </div>
     
@@ -87,8 +112,10 @@ import { useNavStore } from '@/stores/nav';
 import { useRouter } from 'vue-router';
 import NavMap from '@/components/NavMap.vue';
 
-/* ★ 追加：リアルタイム用ストア */
+/* リアルタイム用ストア */
 import { useRtStore } from '@/stores/rt';
+/* ★ 追加: LoRa ブリッジ */
+import { isAvailable as loraAvailable, join as loraJoin } from '@/lib/loraBridge';
 
 const navStore = useNavStore();
 const rtStore = useRtStore();
@@ -97,7 +124,18 @@ const plan = computed(() => navStore.plan);
 const navMap = ref(null);
 const isSpotListVisible = ref(true);
 
-// ★修正 1: 周遊スポット (Waypoints) リスト。 nearest_idx (ルート上のインデックス) でソート
+/* ★ 追加: 接続状態 */
+const online = ref(navigator.onLine);
+const prefetchDone = ref(false);
+const loraJoining = ref(false);
+const loraConnected = ref(false);
+
+/* Online/Offline の変化を反映 */
+function _updateOnline() { online.value = navigator.onLine; }
+window.addEventListener('online', _updateOnline);
+window.addEventListener('offline', _updateOnline);
+
+/* ★ 周遊スポット (Waypoints) リスト。 nearest_idx (ルート上のインデックス) でソート */
 const sortedWaypoints = computed(() => {
   if (plan.value && plan.value.waypoints_info) {
     // バックエンド(nav/tasks.py)が付与した nearest_idx (ルート座標列上の最近接点インデックス) でソート
@@ -106,7 +144,7 @@ const sortedWaypoints = computed(() => {
   return [];
 });
 
-// ★修正 2: 周辺のスポット (AlongPOIs) リスト。 order_index (または nearest_idx) でソート
+/* ★ 周辺のスポット (AlongPOIs) リスト。 order_index (または nearest_idx) でソート */
 const sortedAlongPois = computed(() => {
   if (plan.value && plan.value.along_pois) {
     // 元の実装(sortedPois)のロジックを引き継ぎ、order_index (または nearest_idx) でソート
@@ -115,7 +153,7 @@ const sortedAlongPois = computed(() => {
   return [];
 });
 
-/* ★ 追加：spot_id → name のマップ（通知用に名前表示） */
+/* spot_id → name のマップ（通知用に名前表示） */
 const spotNameMap = computed(() => {
   const m = new Map();
   if (plan.value?.waypoints_info) {
@@ -131,9 +169,8 @@ const spotNameMap = computed(() => {
   return m;
 });
 
-/* ★ 追加：トースト通知（最新の変更だけ順次表示） */
+/* トースト通知（最新の変更だけ順次表示） */
 const toasts = ref([]);
-/** make toast */
 function pushToast(title, body, timeoutMs = 4000) {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   toasts.value.push({ id, title, body });
@@ -142,20 +179,95 @@ function pushToast(title, body, timeoutMs = 4000) {
   }, timeoutMs);
 }
 
+/* ==== プリフェッチ完了検知 → LoRa JOIN ==== */
+/**
+ * Cache Storage を覗いて、/packs-{pack_id} に assets の音声が揃っていれば完了判定
+ */
+async function checkPrefetchDone() {
+  try {
+    if (!plan.value?.pack_id || !Array.isArray(plan.value?.assets)) return false;
+    if (!('caches' in window)) return false;
+
+    const cacheName = `packs-${plan.value.pack_id}`;
+    const cache = await caches.open(cacheName);
+    const urls = plan.value.assets
+      .map(a => a?.audio?.url)
+      .filter(Boolean);
+
+    if (urls.length === 0) return false;
+
+    const results = await Promise.all(urls.map(u => cache.match(u)));
+    return results.every(r => !!r);
+  } catch {
+    return false;
+  }
+}
+
+/** プリフェッチをポーリングで確認（初回のみ成功したら止める） */
+let _prefetchPollId = null;
+async function startPrefetchWatcher() {
+  // 即時一回
+  const ok = await checkPrefetchDone();
+  if (ok) {
+    prefetchDone.value = true;
+    autoJoin();
+    return;
+  }
+  // 一定間隔で再確認（5秒）
+  _prefetchPollId = window.setInterval(async () => {
+    const ready = await checkPrefetchDone();
+    if (ready) {
+      prefetchDone.value = true;
+      stopPrefetchWatcher();
+      autoJoin();
+    }
+  }, 5000);
+}
+function stopPrefetchWatcher() {
+  if (_prefetchPollId) {
+    clearInterval(_prefetchPollId);
+    _prefetchPollId = null;
+  }
+}
+
+/** LoRa 自動JOIN（ユーザー操作なしでも、プリフェッチ完了後に一度だけ試みる） */
+async function autoJoin() {
+  if (loraConnected.value || loraJoining.value || !prefetchDone.value) return;
+  // ネットワーク状態は無関係。USBダイアログ対策で失敗する場合もあり
+  loraJoining.value = true;
+  try {
+    const ok = await loraJoin();
+    loraConnected.value = !!ok || loraAvailable();
+  } finally {
+    loraJoining.value = false;
+  }
+}
+/** 手動JOIN（ボタン用） */
+async function manualJoin() {
+  await autoJoin();
+}
+
+/* ====== 既存のナビ起動フロー ====== */
 // navストアにプランがなければプラン作成ページにリダイレクト
 onMounted(() => {
   if (!navStore.plan) {
     router.push('/plan');
     return;
   }
-  // ★ 追加：ポーリング開始（A→B→A→B…）
+  // プリフェッチ完了の監視を開始
+  startPrefetchWatcher();
+
+  // ポーリング開始（A→B→A→B…）
   // waypoints_info をそのまま渡せば、rtストア内で spot_id 抽出・順序設定される
   rtStore.startPolling(plan.value?.waypoints_info || []);
 });
 
 onUnmounted(() => {
-  // ★ 追加：ポーリング停止
+  // ポーリング停止
   rtStore.stopPolling();
+  stopPrefetchWatcher();
+  window.removeEventListener('online', _updateOnline);
+  window.removeEventListener('offline', _updateOnline);
 });
 
 function toggleSpotList() {
@@ -169,7 +281,7 @@ function focusOnSpot(poi) {
   }
 }
 
-/* ★ 追加：UI表示用の小ユーティリティ */
+/* UI表示用の小ユーティリティ */
 function weatherEmoji(w) {
   if (w === 0) return '☀';
   if (w === 1) return '☁';
@@ -209,7 +321,7 @@ function latestBySpot(spotId) {
   return rtStore.getLatest?.(spotId) ?? null;
 }
 
-/* ★ 追加：変更時のみ通知（rt.notifyLog を監視） */
+/* 変更時のみ通知（rt.notifyLog を監視） */
 watch(
   () => rtStore.notifyLog.length,
   (len, prev) => {
@@ -278,8 +390,50 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  /* (★修正) 2つのリストが入るため、コントロール全体の高さを制限しスクロール可能に */
+  /* 2つのリストが入るため、コントロール全体の高さを制限しスクロール可能に */
   max-height: calc(100vh - 20px); 
+}
+
+/* ★ 追加: 接続状態パネル */
+.conn-panel {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  margin-bottom: 10px;
+  min-width: 250px;
+}
+.conn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.conn-row:last-child { margin-bottom: 0; }
+.chip {
+  display: inline-block;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f1f3f5;
+  color: #333;
+}
+.chip.ok { background: #e6ffec; color: #137333; }
+.chip.warn { background: #fff4e5; color: #8a5a00; }
+.chip.busy { background: #e7f0ff; color: #0b57d0; }
+.chip.muted { background: #eee; color: #666; }
+.join-btn {
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  background: #0b57d0;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.join-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .spot-list-toggle {
@@ -292,7 +446,7 @@ watch(
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   margin-bottom: 10px;
-  flex-shrink: 0; /* (★追加) トグルボタンが縮まないように */
+  flex-shrink: 0; /* トグルボタンが縮まないように */
 }
 
 .spot-list {
@@ -354,7 +508,6 @@ watch(
   flex-shrink: 0;
 }
 
-/* ★ ここから追加 ★ */
 .nearby-section {
   margin-top: 15px; /* 周遊スポットリストとの間隔 */
 }
@@ -418,7 +571,6 @@ watch(
 .toast-body {
   font-size: 0.9rem;
 }
-/* ★ 追加ここまで ★ */
 
 .error-view {
   padding: 20px;
