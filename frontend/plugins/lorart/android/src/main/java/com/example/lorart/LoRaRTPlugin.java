@@ -3,22 +3,29 @@ package com.example.lorart;
 import android.app.PendingIntent;
 import android.content.*;
 import android.hardware.usb.*;
-import com.getcapacitor.*;
+import android.util.Log;
 
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "LoRaRT")
 public class LoRaRTPlugin extends Plugin {
+    private static final String TAG = "LoRaRT";
     private static final String ACTION_USB_PERMISSION = "com.example.lorart.USB_PERMISSION";
+
     private UsbUart uart;
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
 
     private final BroadcastReceiver usbPermReceiver = new BroadcastReceiver() {
         @Override public void onReceive(Context ctx, Intent intent) {
             if (ACTION_USB_PERMISSION.equals(intent.getAction())) {
-                // 端末の許可ダイアログの結果。ここでは何もしない（再度 join を呼んでもらう運用）
+                // ここでは特に何もしない（JS 側で join を再実行する運用）
+                Log.d(TAG, "USB permission result received");
             }
         }
     };
@@ -31,6 +38,7 @@ public class LoRaRTPlugin extends Plugin {
         // USB Permission 受け取り
         IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
         getContext().registerReceiver(usbPermReceiver, filter);
+        Log.d(TAG, "LoRaRT plugin loaded");
     }
 
     @Override
@@ -39,6 +47,7 @@ public class LoRaRTPlugin extends Plugin {
         try { getContext().unregisterReceiver(usbPermReceiver); } catch (Exception ignore) {}
         if (uart != null) uart.close();
         exec.shutdownNow();
+        Log.d(TAG, "LoRaRT plugin destroyed");
     }
 
     private void requestUsbPermission(UsbDevice d) {
@@ -50,23 +59,27 @@ public class LoRaRTPlugin extends Plugin {
         mgr.requestPermission(d, pi);
     }
 
-    @PluginMethod
+    @com.getcapacitor.PluginMethod
     public void join(PluginCall call) {
-        Integer vid = null, pid = null;
-        if (call.getData().has("vid")) vid = call.getInt("vid");
-        if (call.getData().has("pid")) pid = call.getInt("pid");
+        // ★ ラムダで使うために final コピーを作る
+        final Integer fVid = call.getData().has("vid") ? call.getInt("vid") : null;
+        final Integer fPid = call.getData().has("pid") ? call.getInt("pid") : null;
 
-        PluginCall saved = call;
+        final PluginCall saved = call;
         exec.submit(() -> {
             JSObject ret = new JSObject();
             try {
-                boolean ok = uart.open(vid, pid);
+                Log.d(TAG, "join() called vid=" + fVid + " pid=" + fPid);
+                boolean ok = uart.open(fVid, fPid);
                 if (!ok) {
                     if (uart.hasDeviceNoPermission()) {
                         // 権限がない → リクエストして false を返す
                         UsbManager mgr = (UsbManager) getContext().getSystemService(Context.USB_SERVICE);
                         for (UsbDevice d : mgr.getDeviceList().values()) {
-                            if ((vid == null || d.getVendorId() == vid) && (pid == null || d.getProductId() == pid)) {
+                            boolean vidOk = (fVid == null || d.getVendorId() == fVid);
+                            boolean pidOk = (fPid == null || d.getProductId() == fPid);
+                            if (vidOk && pidOk) {
+                                Log.d(TAG, "requesting USB permission for device " + d);
                                 requestUsbPermission(d);
                                 break;
                             }
@@ -82,19 +95,19 @@ public class LoRaRTPlugin extends Plugin {
                     return;
                 }
 
-                // ここから AT コマンド（例: エコーOFF→JOIN）
+                // AT 初期化 → JOIN
                 uart.writeLine("AT", 500);
                 uart.readLine(500);
                 uart.writeLine("ATE0", 1000);
                 uart.readLine(1000);
 
                 uart.writeLine("AT+JOIN", 1000);
-                // 成否待ち（最大 ~15秒）
                 boolean joined = false;
-                for (int i = 0; i < 30; i++) {
+                for (int i = 0; i < 30; i++) { // ~15秒
                     String ln = uart.readLine(500);
                     if (ln == null) continue;
-                    String s = ln.toUpperCase();
+                    String s = ln.trim().toUpperCase();
+                    Log.d(TAG, "JOIN resp: " + s);
                     if (s.contains("JOINED") || s.equals("OK")) { joined = true; break; }
                     if (s.contains("ERROR")) { break; }
                 }
@@ -102,6 +115,7 @@ public class LoRaRTPlugin extends Plugin {
                 ret.put("value", joined);
                 saved.resolve(ret);
             } catch (Exception e) {
+                Log.e(TAG, "join() error", e);
                 ret.put("value", false);
                 ret.put("error", e.toString());
                 saved.resolve(ret);
@@ -109,34 +123,39 @@ public class LoRaRTPlugin extends Plugin {
         });
     }
 
-    @PluginMethod
+    @com.getcapacitor.PluginMethod
     public void fetch(PluginCall call) {
-        Integer code = call.getInt("code");
-        Integer etag = call.getInt("etag");
+        final Integer fCode = call.getInt("code");
+        final Integer fEtag = call.getInt("etag");
+        final PluginCall saved = call;
 
-        if (code == null) { call.resolve(); return; }
+        if (fCode == null) {
+            saved.resolve(); // null 相当
+            return;
+        }
 
-        PluginCall saved = call;
         exec.submit(() -> {
             try {
-                // ポート未オープンなら試行（権限無ければJSにnull返す→再join運用でOK）
+                // ポート未オープンなら試行（権限無ければJSにnull返す→HTTPにフォールバック）
                 if (uart == null || !uart.open(null, null)) {
-                    saved.resolve(); // null相当
+                    Log.d(TAG, "fetch() uart not open");
+                    saved.resolve();
                     return;
                 }
 
-                // uplink（例: 01 <code> <etag>）→ 実機ATに合わせて調整
-                String hex = String.format("01%02X%02X", code & 0xFF, (etag != null ? (etag & 0xFF) : 0));
+                // uplink（例: 01 <code> <etag>）→ 実機 AT に合わせて要調整
+                String hex = String.format("01%02X%02X", (fCode & 0xFF), (fEtag != null ? (fEtag & 0xFF) : 0));
+                Log.d(TAG, "uplink hex=" + hex);
                 uart.writeLine("AT+SENDB=" + hex, 2000);
 
-                // downlink待ち（最大 ~8秒）
+                // downlink 待ち（~8秒）
                 byte[] dl = null;
                 long until = System.currentTimeMillis() + 8000;
                 while (System.currentTimeMillis() < until) {
                     String ln = uart.readLine(1000);
                     if (ln == null) continue;
                     String u = ln.toUpperCase();
-                    // 例: "+RECVB=xxxx" の16進を拾う（実機のURC仕様に合わせて正規化してください）
+                    Log.d(TAG, "downlink ln=" + u);
                     int idx = u.indexOf("+RECVB=");
                     if (idx >= 0) {
                         String hexPay = ln.substring(idx + 7).trim().replaceAll("[^0-9A-Fa-f]", "");
@@ -152,7 +171,8 @@ public class LoRaRTPlugin extends Plugin {
                 }
 
                 if (dl == null || dl.length == 0) {
-                    saved.resolve(); // downlinkなし → null
+                    Log.d(TAG, "no downlink");
+                    saved.resolve(); // null
                     return;
                 }
 
@@ -172,6 +192,7 @@ public class LoRaRTPlugin extends Plugin {
                 if (h != null) out.put("h", h);
                 saved.resolve(out);
             } catch (Exception e) {
+                Log.e(TAG, "fetch() error", e);
                 saved.resolve(); // 例外時も null 返し（アプリ側はHTTPにフォールバック）
             }
         });
