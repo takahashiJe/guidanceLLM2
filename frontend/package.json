@@ -12,10 +12,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@guidance/lorart": "file:plugins/lorart",
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/cli": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
     "idb": "^7.1.1",
     "leaflet": "^1.9.4",
     "pathfinding": "^0.4.18",
