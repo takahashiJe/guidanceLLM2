@@ -1,2 +1,0 @@
-com.example.lorart
-xml device_filter
