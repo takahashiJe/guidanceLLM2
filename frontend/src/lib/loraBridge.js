@@ -13,11 +13,11 @@ export async function connect() {
     await port.open({ baudRate: 9600 }); // Androidで成功した9600に固定
 
     const textEncoder = new TextEncoderStream();
-    port.writable.pipeTo(textEncoder.writable);
+    textEncoder.readable.pipeTo(port.writable);
     writer = textEncoder.writable.getWriter();
     
     const textDecoder = new TextDecoderStream();
-    port.readable.pipeTo(textDecoder.readable);
+    port.readable.pipeTo(textDecoder.writable);
     reader = textDecoder.readable.getReader();
 
     console.log('シリアルポートに接続しました。');
@@ -30,29 +30,39 @@ export async function connect() {
 }
 
 /**
- * ★★★ 解決策：ストリームロックエラーに対応した堅牢な切断処理 ★★★
+ * ストリームロックエラーに対応した堅牢な切断処理
  */
 export async function disconnect() {
   if (writer) {
-    // writerはロックを気にせずクローズできる
-    try { await writer.close(); } catch (e) {}
+    try { 
+      // writer.close() はロック中でも安全に呼べる
+      await writer.close(); 
+    } catch (e) {
+      console.warn('Writerのクローズに失敗（無視）:', e);
+    }
     writer = null;
   }
   if (reader) {
     // readerはロックされている可能性があるので、丁寧にキャンセルする
-    try { await reader.cancel(); } catch (e) {}
+    try { 
+      await reader.cancel(); 
+    } catch (e) {
+      console.warn('Readerのキャンセルに失敗（無視）:', e);
+    }
     reader = null;
   }
   if (port) {
     // reader/writerが解放された後にポートを閉じる
-    try { await port.close(); } catch (e) {}
+    try { await port.close(); } catch (e) {
+      console.error('ポートのクローズに失敗:', e);
+    }
     port = null;
   }
   console.log('シリアルポートを切断しました。');
 }
 
 /**
- * ★★★ 解決策：デバイスの挙動に合わせたJOINシーケンス ★★★
+ * デバイスの挙動に合わせたJOINシーケンス
  * 設定コマンドは応答を期待せず、一方的に送信 (Fire and Forget) する。
  */
 export async function join() {
@@ -71,7 +81,7 @@ export async function join() {
     for (const cmd of commands) {
       console.log(`設定コマンド送信: ${cmd}`);
       await writer.write(`${cmd}\r\n`);
-      await new Promise(resolve => setTimeout(resolve, 200)); // コマンド間に短い待機
+      await new Promise(resolve => setTimeout(resolve, 300)); // コマンド間に少し待機
     }
     
     console.log('ネットワークに参加します... (AT+JOIN)');
@@ -104,7 +114,7 @@ export async function join() {
       throw new Error('Timeout');
 
     } catch(e) {
-      console.error('JOIN応答待機中にタイムアウトしました。', e);
+      console.error('JOIN応答待機中にタイムアウトまたはエラー:', e);
       return false;
     }
 }
