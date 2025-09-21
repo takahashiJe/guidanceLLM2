@@ -9,34 +9,27 @@
         <NavMap ref="navMap" :plan="plan" />
       </div>
       <div class="controls">
-        <!-- ★ 追加: 接続状態＆LoRa制御 -->
+
         <div class="conn-panel">
           <div class="conn-row">
-            <span class="chip" :class="online ? 'ok' : 'warn'">
-              {{ online ? 'Online' : 'Offline' }}
-            </span>
-            <span class="chip" :class="prefetchDone ? 'ok' : 'muted'">
-              {{ prefetchDone ? 'プリフェッチ完了' : 'プリフェッチ中' }}
-            </span>
-            <span class="chip" :class="loraConnected ? 'ok' : (loraJoining ? 'busy' : 'muted')">
-              LoRa: 
-              <template v-if="loraConnected">接続済み</template>
-              <template v-else-if="loraJoining">接続中...</template>
-              <template v-else>未接続</template>
-            </span>
-          </div>
-          <div class="conn-row">
+            <span :class="['chip', online ? 'ok' : 'warn']">{{ online ? 'オンライン' : 'オフライン' }}</span>
+            <span v-if="isLoraConnected" class="chip ok">LoRa接続済み</span>
+            <span v-else-if="isLoraConnecting" class="chip busy">LoRa接続中...</span>
+            <span v-else class="chip muted">LoRa未接続</span>
+
             <button
+              v-if="!isLoraConnected"
+              @click="connectLoraDevice"
+              :disabled="isLoraConnecting"
               class="join-btn"
-              :disabled="!prefetchDone || loraJoining || loraConnected"
-              @click="manualJoin"
-              title="プリフェッチ完了後に押下（USB許可ダイアログが出る場合があります）"
             >
-              LoRa接続開始
+              LoRaデバイスに接続
+            </button>
+            <button v-else @click="disconnectLoraDevice" class="join-btn">
+              切断
             </button>
           </div>
         </div>
-        <!-- ★ 追加ここまで -->
 
         <button @click="toggleSpotList" class="spot-list-toggle">
           {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
@@ -111,11 +104,9 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useNavStore } from '@/stores/nav';
 import { useRouter } from 'vue-router';
 import NavMap from '@/components/NavMap.vue';
-
-/* リアルタイム用ストア */
 import { useRtStore } from '@/stores/rt';
-/* ★ 追加: LoRa ブリッジ */
-import { isAvailable as loraAvailable, join as loraJoin } from '@/lib/loraBridge';
+// ★ loraBridgeをインポート
+import { connect, join, send, startReceiveLoop, disconnect } from '@/lib/loraBridge';
 
 const navStore = useNavStore();
 const rtStore = useRtStore();
@@ -124,36 +115,38 @@ const plan = computed(() => navStore.plan);
 const navMap = ref(null);
 const isSpotListVisible = ref(true);
 
-/* ★ 追加: 接続状態 */
+/* 接続状態 */
 const online = ref(navigator.onLine);
 const prefetchDone = ref(false);
-const loraJoining = ref(false);
-const loraConnected = ref(false);
 
-/* Online/Offline の変化を反映 */
+/* LoRa (Web Serial) 接続関連の状態 */
+const isLoraConnecting = ref(false);
+const isLoraConnected = ref(false);
+let loraSendInterval = null; // LoRaポーリングのタイマーID
+
+
+/* Online/Offline の変化を検知 */
 function _updateOnline() { online.value = navigator.onLine; }
 window.addEventListener('online', _updateOnline);
 window.addEventListener('offline', _updateOnline);
 
-/* ★ 周遊スポット (Waypoints) リスト。 nearest_idx (ルート上のインデックス) でソート */
+/* 周遊スポット (Waypoints) リスト */
 const sortedWaypoints = computed(() => {
   if (plan.value && plan.value.waypoints_info) {
-    // バックエンド(nav/tasks.py)が付与した nearest_idx (ルート座標列上の最近接点インデックス) でソート
     return [...plan.value.waypoints_info].sort((a, b) => (a.nearest_idx || 0) - (b.nearest_idx || 0));
   }
   return [];
 });
 
-/* ★ 周辺のスポット (AlongPOIs) リスト。 order_index (または nearest_idx) でソート */
+/* 周辺のスポット (AlongPOIs) リスト */
 const sortedAlongPois = computed(() => {
   if (plan.value && plan.value.along_pois) {
-    // 元の実装(sortedPois)のロジックを引き継ぎ、order_index (または nearest_idx) でソート
     return [...plan.value.along_pois].sort((a, b) => (a.order_index ?? a.nearest_idx ?? 0) - (b.order_index ?? b.nearest_idx ?? 0));
   }
   return [];
 });
 
-/* spot_id → name のマップ（通知用に名前表示） */
+/* spot_id → name のマップ */
 const spotNameMap = computed(() => {
   const m = new Map();
   if (plan.value?.waypoints_info) {
@@ -169,7 +162,7 @@ const spotNameMap = computed(() => {
   return m;
 });
 
-/* トースト通知（最新の変更だけ順次表示） */
+/* トースト通知 */
 const toasts = ref([]);
 function pushToast(title, body, timeoutMs = 4000) {
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -179,47 +172,33 @@ function pushToast(title, body, timeoutMs = 4000) {
   }, timeoutMs);
 }
 
-/* ==== プリフェッチ完了検知 → LoRa JOIN ==== */
-/**
- * Cache Storage を覗いて、/packs-{pack_id} に assets の音声が揃っていれば完了判定
- */
+/* プリフェッチ完了検知ロジック (既存のまま) */
 async function checkPrefetchDone() {
   try {
     if (!plan.value?.pack_id || !Array.isArray(plan.value?.assets)) return false;
     if (!('caches' in window)) return false;
-
     const cacheName = `packs-${plan.value.pack_id}`;
     const cache = await caches.open(cacheName);
-    const urls = plan.value.assets
-      .map(a => a?.audio?.url)
-      .filter(Boolean);
-
+    const urls = plan.value.assets.map(a => a?.audio?.url).filter(Boolean);
     if (urls.length === 0) return false;
-
     const results = await Promise.all(urls.map(u => cache.match(u)));
     return results.every(r => !!r);
   } catch {
     return false;
   }
 }
-
-/** プリフェッチをポーリングで確認（初回のみ成功したら止める） */
 let _prefetchPollId = null;
 async function startPrefetchWatcher() {
-  // 即時一回
   const ok = await checkPrefetchDone();
   if (ok) {
     prefetchDone.value = true;
-    autoJoin();
     return;
   }
-  // 一定間隔で再確認（5秒）
   _prefetchPollId = window.setInterval(async () => {
     const ready = await checkPrefetchDone();
     if (ready) {
       prefetchDone.value = true;
       stopPrefetchWatcher();
-      autoJoin();
     }
   }, 5000);
 }
@@ -230,58 +209,150 @@ function stopPrefetchWatcher() {
   }
 }
 
-/** LoRa 自動JOIN（ユーザー操作なしでも、プリフェッチ完了後に一度だけ試みる） */
-async function autoJoin() {
-  if (loraConnected.value || loraJoining.value || !prefetchDone.value) return;
-  // ネットワーク状態は無関係。USBダイアログ対策で失敗する場合もあり
-  loraJoining.value = true;
-  try {
-    const ok = await loraJoin();
-    loraConnected.value = !!ok || loraAvailable();
-  } finally {
-    loraJoining.value = false;
-  }
-}
-/** 手動JOIN（ボタン用） */
-async function manualJoin() {
-  await autoJoin();
+/* ====== LoRaポーリング制御 (新規) ====== */
+function startLoraPolling() {
+  stopLoraPolling(); // 念のため既存のタイマーを停止
+  const spots = sortedWaypoints.value;
+  if (spots.length === 0 || !isLoraConnected.value) return;
+  
+  let currentIndex = 0;
+  
+  const sendRequest = async () => {
+      const spotId = spots[currentIndex].spot_id;
+      console.log(`[LoRa] ${spotId}の情報をリクエストします。`);
+      // spot_idをペイロードとして送信
+      await send(spotId);
+      
+      currentIndex = (currentIndex + 1) % spots.length;
+  };
+  
+  sendRequest(); // すぐに1回実行
+  loraSendInterval = setInterval(sendRequest, 60000); // 1分ごとに実行
 }
 
-/* ====== 既存のナビ起動フロー ====== */
-// navストアにプランがなければプラン作成ページにリダイレクト
+function stopLoraPolling() {
+  if (loraSendInterval) {
+    clearInterval(loraSendInterval);
+    loraSendInterval = null;
+    console.log('[LoRa] ポーリングを停止しました。');
+  }
+}
+
+
+/* ====== Web Serial API でのLoRaデバイス接続処理（loraBridge.js を使用） ====== */
+async function connectLoraDevice() {
+  isLoraConnecting.value = true;
+  try {
+    // 1. Web Serial APIでポートに接続
+    const portConnected = await connect();
+    if (!portConnected) {
+      alert('シリアルポートに接続できませんでした。');
+      return;
+    }
+    
+    // 2. LoRaWANネットワークに参加
+    const joined = await join();
+    if (!joined) {
+      alert('LoRaWANネットワークに参加できませんでした。');
+      await disconnect(); // 参加失敗時はポートを閉じる
+      return;
+    }
+    
+    isLoraConnected.value = true;
+    pushToast('LoRa', 'デバイスに接続し、ネットワークに参加しました。');
+
+    // 3. データ受信ループを開始し、受信データをストアに反映
+    startReceiveLoop(receivedData => {
+      console.log('LoRa経由でデータを受信:', receivedData);
+      // バックエンドから {"s": "spot_A", "w": 0, "c": 1} のような形式で返ってくることを想定
+      if (receivedData && receivedData.s) {
+        rtStore.lastBySpot[receivedData.s] = receivedData;
+      }
+    });
+
+    // 4. もし接続時にオフラインなら、すぐにLoRaポーリングを開始する
+    if (!online.value) {
+        rtStore.stopPolling();
+        startLoraPolling();
+    }
+
+  } catch (error) {
+    console.error("LoRa接続処理中にエラー:", error);
+    alert(`LoRa接続処理中にエラーが発生しました: ${error.message}`);
+    isLoraConnected.value = false;
+  } finally {
+    isLoraConnecting.value = false;
+  }
+}
+
+async function disconnectLoraDevice() {
+  stopLoraPolling(); // ポーリングを停止
+  await disconnect(); // ポートを閉じる
+  isLoraConnected.value = false;
+  console.log("LoRaデバイスから切断しました。");
+
+  // 切断後、オンラインならHTTPポーリングを再開
+  if (online.value) {
+    rtStore.startPolling(plan.value?.waypoints_info || []);
+  }
+}
+
+/* ====== オンライン/オフライン状態を監視し、通信方法を切り替える ====== */
+watch(online, (isOnline) => {
+  if (isOnline) {
+    // オンラインになった場合
+    console.log('オンラインに復帰しました。HTTPポーリングを開始します。');
+    stopLoraPolling();
+    rtStore.startPolling(plan.value?.waypoints_info || []);
+  } else {
+    // オフラインになった場合
+    console.log('オフラインになりました。HTTPポーリングを停止します。');
+    rtStore.stopPolling();
+    // LoRaが接続済みであれば、LoRaでのポーリングを開始
+    if (isLoraConnected.value) {
+      startLoraPolling();
+    }
+  }
+});
+
+
+/* ====== ライフサイクル フック ====== */
 onMounted(() => {
   if (!navStore.plan) {
     router.push('/plan');
     return;
   }
-  // プリフェッチ完了の監視を開始
   startPrefetchWatcher();
 
-  // ポーリング開始（A→B→A→B…）
-  // waypoints_info をそのまま渡せば、rtストア内で spot_id 抽出・順序設定される
-  rtStore.startPolling(plan.value?.waypoints_info || []);
+  // 初期状態でオンラインならHTTPポーリングを開始
+  if (online.value) {
+    rtStore.startPolling(plan.value?.waypoints_info || []);
+  }
 });
 
 onUnmounted(() => {
-  // ポーリング停止
+  // すべての通信と監視を停止
   rtStore.stopPolling();
+  stopLoraPolling();
   stopPrefetchWatcher();
+  if (isLoraConnected.value) {
+    disconnectLoraDevice();
+  }
   window.removeEventListener('online', _updateOnline);
   window.removeEventListener('offline', _updateOnline);
 });
 
+/* ====== UI関連のメソッド (既存のまま) ====== */
 function toggleSpotList() {
   isSpotListVisible.value = !isSpotListVisible.value;
 }
 
 function focusOnSpot(poi) {
   if (navMap.value) {
-    // NavMapコンポーネントで公開されたメソッドを呼び出す
     navMap.value.flyToSpot(poi.lat, poi.lon);
   }
 }
 
-/* UI表示用の小ユーティリティ */
 function weatherEmoji(w) {
   if (w === 0) return '☀';
   if (w === 1) return '☁';
@@ -306,9 +377,8 @@ function upcomingTitle(doc) {
   return `${h}${toMap[doc.u] ?? ''}変化`;
 }
 function crowdBar(c) {
-  // 0..4 を 5個のドットで表現（●=混雑, ○=空き）
   const n = Number.isFinite(c) ? Math.max(0, Math.min(4, c)) : 0
-  return '○'.repeat(4 - n) + '●'.repeat(n + 1 - 1) // ざっくり視覚化
+  return '○'.repeat(4 - n) + '●'.repeat(n + 1 - 1)
 }
 function crowdTitle(doc) {
   if (!doc) return '';
@@ -316,12 +386,11 @@ function crowdTitle(doc) {
   const c = Math.max(0, Math.min(4, Number(doc.c ?? 0)));
   return `混雑: ${labels[c]}`;
 }
-/* リストの中で参照しやすいようにラッパ */
 function latestBySpot(spotId) {
   return rtStore.getLatest?.(spotId) ?? null;
 }
 
-/* 変更時のみ通知（rt.notifyLog を監視） */
+/* 変更時のみ通知 */
 watch(
   () => rtStore.notifyLog.length,
   (len, prev) => {
@@ -329,7 +398,6 @@ watch(
     const ev = rtStore.notifyLog[len - 1];
     const name = spotNameMap.value.get(ev.spot_id) || ev.spot_id;
 
-    // 何が変わったか簡易に要約
     const diffs = [];
     if (!ev.prev || ev.prev.w !== ev.next.w) {
       const nowMap = { 0: '晴れ', 1: '曇り', 2: '雨' };
@@ -341,7 +409,6 @@ watch(
         const htxt = typeof ev.next.h === 'number' ? `${ev.next.h}時間後` : '近く';
         diffs.push(`${htxt}に${toMap[ev.next.u] ?? ''}`);
       } else {
-        // 変化予報が解除されたケース
         if (ev.prev && ev.prev.u > 0) diffs.push('変化予報なし');
       }
     }
@@ -357,6 +424,7 @@ watch(
 </script>
 
 <style scoped>
+/* スタイルは変更ありません */
 .nav-view {
   position: relative;
   width: 100%;
@@ -390,11 +458,10 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  /* 2つのリストが入るため、コントロール全体の高さを制限しスクロール可能に */
   max-height: calc(100vh - 20px); 
 }
 
-/* ★ 追加: 接続状態パネル */
+/* ★ 接続状態パネル */
 .conn-panel {
   background: #ffffff;
   border-radius: 8px;
@@ -430,6 +497,7 @@ watch(
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  margin-left: auto; /* ボタンを右寄せ */
 }
 .join-btn:disabled {
   opacity: 0.6;
@@ -446,7 +514,7 @@ watch(
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   margin-bottom: 10px;
-  flex-shrink: 0; /* トグルボタンが縮まないように */
+  flex-shrink: 0;
 }
 
 .spot-list {
@@ -454,8 +522,8 @@ watch(
   border-radius: 5px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   padding: 10px;
-  max-height: 75vh; /* (★修正) リストコンテナの最大高さを確保 */
-  overflow-y: auto;   /* リストコンテナ自体をスクロールさせる */
+  max-height: 75vh;
+  overflow-y: auto;
   min-width: 250px;
 }
 
@@ -509,16 +577,15 @@ watch(
 }
 
 .nearby-section {
-  margin-top: 15px; /* 周遊スポットリストとの間隔 */
+  margin-top: 15px;
 }
 
 .nearby-title {
-  color: #555; /* タイトル色を少し変える */
-  font-size: 1.0rem; /* 少し小さく */
+  color: #555;
+  font-size: 1.0rem;
 }
 
 .nearby-button {
-    /* order-index がないため、テキストのインデントを調整 */
   padding-left: 16px !important; 
 }
 

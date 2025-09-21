@@ -1,7 +1,6 @@
 // src/main.js
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import '@guidance/lorart' 
 import { buildSpotCodeMap } from '@/lib/spotCodes'
 import router from './router'
 import App from './App.vue'
