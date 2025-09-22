@@ -206,27 +206,30 @@ function startLoraPolling() {
   if (spots.length === 0 || !isLoraConnected.value) return;
   
   let currentIndex = 0;
-
+  
+  // 毎分実行するタスク
   const loraTask = async () => {
-    // 1. Join状態を確認
-    const joined = await isJoined();
-    
-    // 2. もしJoinしていなかったら、再Joinを試みる
-    if (!joined) {
-      console.warn('[LoRa Polling] ネットワークから切断されています。再Joinを試みます...');
-      const rejoined = await join();
-      if (!rejoined) {
-        console.error('[LoRa Polling] 再Joinに失敗しました。ポーリングを停止します。');
-        stopLoraPolling(); // 失敗したらタイマーを止める
-        // ユーザーに通知する
-        isLoraConnected.value = false; 
+    // 内部フラグをチェックするだけなので、処理が非常に高速
+    if (!getIsJoined()) {
+      console.warn('[LoRa Polling] ネットワークから切断されています。再接続を試みます...');
+      // UIの状態を「接続中」に戻し、再Join処理を試みる
+      isLoraConnected.value = false;
+      isLoraConnecting.value = true;
+      try {
+        await join();
+        console.log('[LoRa Polling] 再Joinに成功しました。');
+        isLoraConnected.value = true;
+      } catch (e) {
+        console.error('[LoRa Polling] 再Joinに失敗しました。ポーリングを停止します。', e);
         pushToast('LoRa接続エラー', 'ネットワークへの再接続に失敗しました。', 6000);
+        await disconnectLoraDevice(); // 完全に失敗した場合は切断処理へ
         return;
+      } finally {
+        isLoraConnecting.value = false;
       }
-       console.log('[LoRa Polling] 再Joinに成功しました。');
     }
     
-    // 3. データを送信
+    // データを送信
     const spotId = spots[currentIndex].spot_id;
     console.log(`[LoRa] ${spotId}の情報をリクエストします。`);
     await send(spotId);
@@ -234,17 +237,9 @@ function startLoraPolling() {
     currentIndex = (currentIndex + 1) % spots.length;
   };
   
-  const sendRequest = async () => {
-      const spotId = spots[currentIndex].spot_id;
-      console.log(`[LoRa] ${spotId}の情報をリクエストします。`);
-      await send(spotId);
-      
-      currentIndex = (currentIndex + 1) % spots.length;
-  };
-  
+  // すぐに一回実行し、その後タイマーを設定
   loraTask();
-  sendRequest();
-  loraSendInterval = setInterval(sendRequest, 60000);
+  loraSendInterval = setInterval(loraTask, 60000);
 }
 
 function stopLoraPolling() {
@@ -258,53 +253,61 @@ function stopLoraPolling() {
 async function connectLoraDevice() {
   isLoraConnecting.value = true;
   try {
-    const portConnected = await connect();
+    // データ受信と切断イベントのコールバックを渡す
+    const portConnected = await connect(
+      (receivedData) => { // onData
+        console.log('LoRa経由でデータを受信:', receivedData);
+        if (receivedData && receivedData.s) {
+          rtStore.lastBySpot[receivedData.s] = receivedData;
+        }
+      },
+      () => { // onDisconnect
+        pushToast('LoRa', 'デバイスとの接続が切れました。', 5000);
+        disconnectLoraDevice();
+      }
+    );
+
     if (!portConnected) {
       alert('シリアルポートに接続できませんでした。');
+      isLoraConnecting.value = false;
       return;
     }
     
     const joined = await join();
     if (!joined) {
-      alert('LoRaWANネットワークに参加できませんでした。');
-      await disconnect();
-      return;
+        // join Promiseがrejectされた場合（join関数内でalertは不要）
+        alert('LoRaWANネットワークに参加できませんでした。');
+        await disconnect();
+        isLoraConnecting.value = false;
+        return;
     }
     
     isLoraConnected.value = true;
     pushToast('LoRa', 'デバイスに接続し、ネットワークに参加しました。');
-
-    startReceiveLoop(receivedData => {
-      console.log('LoRa経由でデータを受信:', receivedData);
-      if (receivedData && receivedData.s) {
-        rtStore.lastBySpot[receivedData.s] = receivedData;
-      }
-    });
-
-    // ★★★★★ 解決策 ★★★★★
-    // LoRa接続が成功したら、オンライン状態に関わらずHTTPポーリングを停止し、
-    // LoRaポーリングを強制的に開始する。
+    
     console.log('LoRa接続成功。HTTPポーリングを停止し、LoRaポーリングを開始します。');
     rtStore.stopPolling();
     startLoraPolling();
-    // ★★★★★★★★★★★★★★★
 
   } catch (error) {
     console.error("LoRa接続処理中にエラー:", error);
     alert(`LoRa接続処理中にエラーが発生しました: ${error.message}`);
+    await disconnect();
     isLoraConnected.value = false;
   } finally {
     isLoraConnecting.value = false;
   }
 }
 
+
 async function disconnectLoraDevice() {
   stopLoraPolling();
   await disconnect();
   isLoraConnected.value = false;
+  isLoraConnecting.value = false; // 念のため
   console.log("LoRaデバイスから切断しました。");
 
-  // 切断後、オンラインならHTTPポーリングを再開
+  // オンラインならHTTPポーリングを再開
   if (online.value) {
     console.log('LoRa切断。オンラインのためHTTPポーリングを再開します。');
     rtStore.startPolling(plan.value?.waypoints_info || []);
