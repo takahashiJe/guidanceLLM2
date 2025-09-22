@@ -10,7 +10,7 @@ export async function connect() {
   }
   try {
     port = await navigator.serial.requestPort();
-    await port.open({ baudRate: 9600 }); // Androidで成功した9600に固定
+    await port.open({ baudRate: 9600 });
 
     const textEncoder = new TextEncoderStream();
     textEncoder.readable.pipeTo(port.writable);
@@ -29,42 +29,24 @@ export async function connect() {
   }
 }
 
-/**
- * ストリームロックエラーに対応した堅牢な切断処理
- */
+// ストリームロックエラーに対応した堅牢な切断処理
 export async function disconnect() {
   if (writer) {
-    try { 
-      // writer.close() はロック中でも安全に呼べる
-      await writer.close(); 
-    } catch (e) {
-      console.warn('Writerのクローズに失敗（無視）:', e);
-    }
+    try { await writer.close(); } catch (e) {}
     writer = null;
   }
   if (reader) {
-    // readerはロックされている可能性があるので、丁寧にキャンセルする
-    try { 
-      await reader.cancel(); 
-    } catch (e) {
-      console.warn('Readerのキャンセルに失敗（無視）:', e);
-    }
+    try { await reader.cancel(); } catch (e) {}
     reader = null;
   }
   if (port) {
-    // reader/writerが解放された後にポートを閉じる
-    try { await port.close(); } catch (e) {
-      console.error('ポートのクローズに失敗:', e);
-    }
+    try { await port.close(); } catch (e) {}
     port = null;
   }
   console.log('シリアルポートを切断しました。');
 }
 
-/**
- * デバイスの挙動に合わせたJOINシーケンス
- * 設定コマンドは応答を期待せず、一方的に送信 (Fire and Forget) する。
- */
+// デバイスの挙動に合わせたJOINシーケンス
 export async function join() {
     if (!writer || !reader) {
         console.error('シリアルポートが準備できていません。');
@@ -73,6 +55,7 @@ export async function join() {
 
     // 応答を待たずに設定コマンドを送信
     const commands = [
+      'ATZ', // ★★★ 念のためアダプターをリセットして初期状態にする
       'AT+MODE=LWOTAA',
       'AT+DEVEUI=A8404168E189621F',
       'AT+APPEUI=A840410000000101',
@@ -81,28 +64,33 @@ export async function join() {
     for (const cmd of commands) {
       console.log(`設定コマンド送信: ${cmd}`);
       await writer.write(`${cmd}\r\n`);
-      await new Promise(resolve => setTimeout(resolve, 300)); // コマンド間に少し待機
+      await new Promise(resolve => setTimeout(resolve, 500)); // コマンド間に少し待機
     }
     
     console.log('ネットワークに参加します... (AT+JOIN)');
     await writer.write('AT+JOIN\r\n');
 
-    // Androidターミナルで確認できた "JOINED" という文字列を待つ
-    const readTimeout = 30000; // 30秒
+    const readTimeout = 30000;
     try {
       let fullResponse = '';
       const startTime = Date.now();
       while(Date.now() - startTime < readTimeout) {
         const { value, done } = await reader.read();
-
         if (done) break;
         
         fullResponse += value;
         console.log(`JOIN応答待機中... 受信: ${value.trim()}`);
         
-        // "JOINED" または "+JOIN: OK" の文字列が含まれていたら成功
         if (fullResponse.includes('JOINED') || fullResponse.includes('+JOIN: OK')) {
-          console.log("LoRaWAN参加成功！");
+          console.log("LoRaWAN参加成功！セッション情報を保存します...");
+          
+          // ★★★★★★★ 解決策 ★★★★★★★
+          // JOIN成功後、設定を保存するコマンドを送信する
+          await writer.write('AT+SAVE\r\n');
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 保存処理を待つ
+          console.log("保存完了。データ送信を開始できます。");
+          // ★★★★★★★★★★★★★★★★★
+          
           return true;
         }
         if (fullResponse.includes('Failed')) {
@@ -110,9 +98,7 @@ export async function join() {
           return false;
         }
       }
-      // ループを抜けたらタイムアウト
       throw new Error('Timeout');
-
     } catch(e) {
       console.error('JOIN応答待機中にタイムアウトまたはエラー:', e);
       return false;
@@ -129,7 +115,6 @@ export async function send(data) {
     const command = `AT+SEND=2:${hexData}`;
     console.log(`データ送信: ${command}`);
     await writer.write(`${command}\r\n`);
-    // 送信コマンドも応答を期待しない
 }
 
 // データ受信ループを開始 (Downlink)
