@@ -105,6 +105,39 @@ export async function join() {
     }
 }
 
+// 現在のネットワーク参加状態を確認する
+export async function isJoined() {
+  if (!writer || !reader) return false;
+
+  await writer.write('AT+NJS\r\n');
+  
+  const readTimeout = 3000; // 3秒以内に応答があるはず
+  try {
+    const startTime = Date.now();
+    let response = '';
+    while (Date.now() - startTime < readTimeout) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      response += value;
+      // "AT+NJS=1" のように応答が返ってくることを期待
+      if (response.includes('AT+NJS=1') || response.trim() === '1') {
+        console.log('[LoRa Status] ネットワーク参加済みです。');
+        return true;
+      }
+      if (response.includes('AT+NJS=0') || response.trim() === '0') {
+         console.log('[LoRa Status] ネットワークに未参加です。');
+        return false;
+      }
+    }
+    // タイムアウトした場合も未参加とみなす
+    console.log('[LoRa Status] 状態確認がタイムアウトしました。');
+    return false;
+  } catch (e) {
+    console.error('Join状態の確認中にエラー:', e);
+    return false;
+  }
+}
+
 // データを送信 (Uplink)
 export async function send(data) {
     if (!writer) return;

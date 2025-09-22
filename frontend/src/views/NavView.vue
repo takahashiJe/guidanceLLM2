@@ -105,7 +105,7 @@ import { useNavStore } from '@/stores/nav';
 import { useRouter } from 'vue-router';
 import NavMap from '@/components/NavMap.vue';
 import { useRtStore } from '@/stores/rt';
-import { connect, join, send, startReceiveLoop, disconnect } from '@/lib/loraBridge';
+import { connect, join, send, startReceiveLoop, disconnect, isJoined } from '@/lib/loraBridge';
 
 const navStore = useNavStore();
 const rtStore = useRtStore();
@@ -206,6 +206,33 @@ function startLoraPolling() {
   if (spots.length === 0 || !isLoraConnected.value) return;
   
   let currentIndex = 0;
+
+  const loraTask = async () => {
+    // 1. Join状態を確認
+    const joined = await isJoined();
+    
+    // 2. もしJoinしていなかったら、再Joinを試みる
+    if (!joined) {
+      console.warn('[LoRa Polling] ネットワークから切断されています。再Joinを試みます...');
+      const rejoined = await join();
+      if (!rejoined) {
+        console.error('[LoRa Polling] 再Joinに失敗しました。ポーリングを停止します。');
+        stopLoraPolling(); // 失敗したらタイマーを止める
+        // ユーザーに通知する
+        isLoraConnected.value = false; 
+        pushToast('LoRa接続エラー', 'ネットワークへの再接続に失敗しました。', 6000);
+        return;
+      }
+       console.log('[LoRa Polling] 再Joinに成功しました。');
+    }
+    
+    // 3. データを送信
+    const spotId = spots[currentIndex].spot_id;
+    console.log(`[LoRa] ${spotId}の情報をリクエストします。`);
+    await send(spotId);
+    
+    currentIndex = (currentIndex + 1) % spots.length;
+  };
   
   const sendRequest = async () => {
       const spotId = spots[currentIndex].spot_id;
@@ -215,6 +242,7 @@ function startLoraPolling() {
       currentIndex = (currentIndex + 1) % spots.length;
   };
   
+  loraTask();
   sendRequest();
   loraSendInterval = setInterval(sendRequest, 60000);
 }
