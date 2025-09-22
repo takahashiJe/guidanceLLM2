@@ -105,7 +105,7 @@ import { useNavStore } from '@/stores/nav';
 import { useRouter } from 'vue-router';
 import NavMap from '@/components/NavMap.vue';
 import { useRtStore } from '@/stores/rt';
-import { connect, join, send, startReceiveLoop, disconnect, isJoined } from '@/lib/loraBridge';
+import { connect, join, send, startReceiveLoop, disconnect, getIsJoined } from '@/lib/loraBridge';
 
 const navStore = useNavStore();
 const rtStore = useRtStore();
@@ -230,7 +230,8 @@ function startLoraPolling() {
     }
     
     // データを送信
-    const spotId = spots[currentIndex].spot_id;
+    // const spotId = spots[currentIndex].spot_id;
+    const spotId = "a"; // ★ テスト用に1文字だけ送信する
     console.log(`[LoRa] ${spotId}の情報をリクエストします。`);
     await send(spotId);
     
@@ -284,6 +285,9 @@ async function connectLoraDevice() {
     
     isLoraConnected.value = true;
     pushToast('LoRa', 'デバイスに接続し、ネットワークに参加しました。');
+
+    console.log('Join成功。デバイス安定化のため3秒待機します...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
     
     console.log('LoRa接続成功。HTTPポーリングを停止し、LoRaポーリングを開始します。');
     rtStore.stopPolling();
