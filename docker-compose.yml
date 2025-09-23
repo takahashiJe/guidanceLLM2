@@ -1,0 +1,314 @@
+services:
+  # === Vector DB ===
+  chromadb:
+    image: chromadb/chroma:0.6.3   # バージョンを明示推奨
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma  # データ永続化フォルダ
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=TRUE
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# # === Vector DBデータ投入 ===
+#   knowledge-init:
+#     image: python:3.11-slim
+#     depends_on:
+#       chromadb:
+#         condition: service_healthy
+#       ollama:
+#         condition: service_healthy
+#     working_dir: /app
+#     environment:
+#       CHROMA_URL: http://chromadb:8000
+#       OLLAMA_URL: http://ollama:11434
+#       KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
+#       EMBED_MODEL: mxbai-embed-large:latest
+#       COLLECTION_PREFIX: guidance_
+#       LANGS: ja,en,zh
+#     volumes:
+#       - ./backend:/app/backend:ro
+#     # “空なら投入”はスクリプト側で判定するので常に安全に実行可
+#     command: >
+#       bash -lc "pip install --no-cache-dir requests==2.32.3 && python backend/script/ingest_knowledge.py"
+
+  # === Static DB (POI / access_points) ===
+  static-db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: static_db
+      POSTGRES_USER: static_db
+      POSTGRES_PASSWORD: static_db
+    ports:
+      - "5432:5432"       # ローカルから接続したい場合（不要なら消してください）
+    volumes:
+      - pgdata_static:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U static_db -d static_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # 初期データ投入（POI / facilities / access_points）
+  static-db-init:
+    image: python:3.11-slim
+    depends_on:
+      static-db:
+        condition: service_healthy
+    working_dir: /app/backend
+    environment:
+      PYTHONPATH: /app/backend
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
+      # 入力ファイル（必要に応じてパス調整）
+      POI_JSON_PATH: /app/backend/worker/data/POI.json
+      FACILITIES_JSON_PATH: /app/backend/worker/data/facilities.json
+      ACCESS_POINTS_PATH: /app/backend/worker/data/access_points.geojson
+      # 既存データがあっても挿入したい場合は 1 に（既定は 0 = 既存ありならスキップ）
+      LOAD_STATIC_JSON: "1"
+      FORCE_INSERT: "1"
+    volumes:
+      - ./backend:/app/backend   # ← COPY せず volume で
+    command: |
+      sh -c "
+        echo '--- Waiting for DB...'
+        sleep 10
+        echo '--- Installing dependencies...'
+        pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 geojson
+        echo '--- Running init script...'
+        python -B script/init_static_db.py
+      "
+
+  # === Ollama (GPU想定) ===
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      # 開発でモデルを固定したい場合は環境変数を持たせておく（pullは下の sidecar）
+      - OLLAMA_DEFAULT_MODEL=qwen3:8b
+      - OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    # GPU を使う場合（Compose v2+）
+    gpus: all
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 300s
+    restart: unless-stopped
+  
+  # === OSRM (car / foot) ===
+  osrm-car:
+    image: osrm/osrm-backend
+    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-latest.osrm"]
+    volumes:
+      - ./backend/worker/data/map/car:/data:ro
+    ports:
+      - "5001:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  osrm-foot:
+    image: osrm/osrm-backend
+    command: ["osrm-routed", "--algorithm", "mld", "/data/japan-latest-foot.osrm"]
+    volumes:
+      - ./backend/worker/data/map/foot:/data:ro
+    ports:
+      - "5002:5000"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  
+  # === API Gateway (フロント直結) ===
+  api:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    environment:
+      # --- 静的DB（POI・access_points） ---
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
+      # --- 将来の動的DB（ユーザ）を見据えた命名 ---
+      APP_DB_HOST: app-db
+      APP_DB_PORT: "5432"
+      APP_DB_NAME: app_runtime
+      APP_DB_USER: app_runtime
+      APP_DB_PASSWORD: app_runtime
+      # --- NAVサービス ---
+      NAV_BASE: http://svc-nav:9100
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      static-db:
+        condition: service_healthy
+      svc-nav:
+        condition: service_started
+    command: bash -lc "uvicorn backend.api.main:app --host 0.0.0.0 --port 8080 --log-level debug"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # # Celery Worker（将来の会話系タスク用。今は並行で常駐させるだけ）
+  # celery:
+  #   build:
+  #     context: .
+  #     dockerfile: ./backend/Dockerfile
+  #   environment:
+  #     CELERY_BROKER_URL: redis://redis:6379/0
+  #     CELERY_RESULT_BACKEND: redis://redis:6379/1
+  #   depends_on:
+  #     - redis
+  #   command: >
+  #     bash -lc "celery -A backend.worker.celery.celery_app.celery_app
+  #     worker --loglevel=info --pool=threads --concurrency=1"
+  #   restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    ports: ["6379:6379"]
+    restart: unless-stopped
+
+  # === Worker側のマイクロサービス===
+  svc-routing:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.routing.main:app --host 0.0.0.0 --port 9101"
+    environment:
+      OSRM_CAR_URL: http://osrm-car:5000
+      OSRM_FOOT_URL: http://osrm-foot:5000
+      STATIC_DB_HOST: static-db
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
+      STATIC_DB_PORT: "5432"
+    volumes:
+      - ./backend:/app/backend
+    depends_on: [osrm-car, osrm-foot, static-db]
+    ports: ["9101:9101"]
+
+  svc-alongpoi:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.alongpoi.main:app --host 0.0.0.0 --port 9102"
+    environment:
+      STATIC_DB_HOST: static-db
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
+      STATIC_DB_PORT: "5432"
+    volumes:
+      - ./backend:/app/backend
+    depends_on: [static-db]
+    ports: ["9102:9102"]
+
+  svc-llm:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.llm.main:app --host 0.0.0.0 --port 9103"
+    environment:
+      KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
+      CHROMA_URL: http://chromadb:8000
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen3:8b
+      EMBED_MODEL: mxbai-embed-large:latest
+      COLLECTION_PREFIX: guidance_
+    depends_on: [chromadb, ollama]
+    volumes: 
+      - ./backend:/app/backend
+      - ./backend/worker/data:/app/backend/worker/data:ro
+    ports: ["9103:9103"]
+
+  svc-voice:
+    build:
+      context: .
+      dockerfile: ./backend/worker/app/services/voice/Dockerfile
+    command: |
+      bash -lc "
+      set -euo pipefail;
+      echo '--- voice bootstrap ---';
+      ffmpeg -hide_banner -version || { echo 'ERROR: ffmpeg not found in PATH'; exit 1; };
+      mkdir -p /home/junta_takahashi/guidanceLLM2/packs;
+      export OMP_NUM_THREADS=1;
+      uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104
+      "
+    gpus: all
+    environment:
+      COQUI_TOS_AGREED: 1
+      COQUI_DEVICE: cuda
+      PACKS_ROOT: /packs
+      VOICE_JA_REF: /app/backend/worker/app/services/voice/refs/alison_ja.wav
+      VOICE_EN_REF: /app/backend/worker/app/services/voice/refs/alison_en_safe.wav
+      VOICE_ZH_REF: /app/backend/worker/app/services/voice/refs/alison_zh.wav
+      VOICE_JA: "ja_female_1"
+      VOICE_EN: "en_female_1"
+      VOICE_ZH: "zh_female_1"
+      VOICE_DEFAULT: "neutral_1"
+    volumes:
+      - ./backend:/app/backend
+      - /var/www/packs:/packs
+    ports: ["9104:9104"]
+
+  svc-nav:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "celery -A backend.worker.app.services.nav.celery_app.celery_app worker --loglevel=debug --pool=threads --concurrency=1 -Q nav"
+    environment:
+      ROUTING_BASE: http://svc-routing:9101
+      ALONGPOI_BASE: http://svc-alongpoi:9102
+      LLM_BASE: http://svc-llm:9103
+      VOICE_BASE: http://svc-voice:9104
+      PACKS_DIR: /packs
+      PACKS_BASE_URL: /packs
+      STATIC_DB_HOST: static-db
+      STATIC_DB_PORT: "5432"
+      STATIC_DB_NAME: static_db
+      STATIC_DB_USER: static_db
+      STATIC_DB_PASSWORD: static_db
+    volumes:
+      - ./backend:/app/backend
+      - /var/www/packs:/packs
+    depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
+    ports: ["9100:9100"]
+  
+  # --- Frontend (開発用) ---
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     # ホストの5173番ポートをコンテナの5173番に接続 (Viteのデフォルト)
+  #     - "5173:5173" 
+  #   volumes:
+  #     # ソースコードの変更を即時反映させる
+  #     - ./frontend:/app
+  #     # node_modulesはホストと共有しない(パフォーマンスと環境差異のため)
+  #     - /app/node_modules
+
+volumes:
+  ollama_models:
+  pgdata_static:
+  chromadb_data:
