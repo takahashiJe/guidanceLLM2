@@ -127,21 +127,29 @@ def _publish_downlink(payload: RTDoc):
 
     # フロントエンドが期待するJSON形式に変換
     payload_json = json.dumps(payload).encode("utf-8")
-    # Base64にエンコード
-    payload_b64 = base64.b64encode(payload_json).decode("utf-8")
+    # Base64にエンコードしていたが，フロントのデコード方式に合わせて16進数に変更
+    # payload_b64 = base64.b64encode(payload_json).decode("utf-8")
+    payload_hex = payload_json.hex()
     
     # TTNが要求するDownlinkメッセージの形式でラップする
     downlink_msg = {
         "downlinks": [{
             "f_port": 2, # フロントエンドの送信ポートと合わせる
-            "frm_payload": payload_b64,
+            # "frm_payload": payload_b64,
+            "frm_payload": payload_hex,
             "priority": "NORMAL"
         }]
     }
     
     try:
         downlink_json = json.dumps(downlink_msg)
-        _MQTT_CLIENT.publish(MQTT_DOWNLINK_TOPIC, downlink_json, qos=1)
+        # 1. 16進数文字列をバイトに戻す
+        payload_bytes_from_hex = bytes.fromhex(payload_hex)
+        # 2. バイトをBase64エンコードする
+        payload_b64_for_ttn = base64.b64encode(payload_bytes_from_hex).decode('utf-8')
+        downlink_msg["downlinks"][0]["frm_payload"] = payload_b64_for_ttn
+        downlink_json_for_ttn = json.dumps(downlink_msg)
+        _MQTT_CLIENT.publish(MQTT_DOWNLINK_TOPIC, downlink_json_for_ttn, qos=1)
         print("【DEBUG】ダウンリンク送信成功")
     except Exception as e:
         print(f"【ERROR】ダウンリンク送信失敗: {e}")

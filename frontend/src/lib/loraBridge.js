@@ -161,8 +161,6 @@ export function join() {
         console.log('ネットワーク参加状態を確認します... (AT+NJS=?)');
         
         const njsPromise = new Promise((res, rej) => {
-            
-            // ★★★ ここから修正 ★★★
             // イベントハンドラを `checkNJSHandler` という名前に変更
             const checkNJSHandler = (event) => {
                 // event.detail に受信文字列が直接入っている
@@ -173,18 +171,14 @@ export function join() {
 
                 const trimmedLine = line.trim();
                 
-                if (trimmedLine === '1') {
+                if (trimmedLine === '1' || trimmedLine === '0') {
                     document.removeEventListener('lora-line-received', checkNJSHandler);
-                    res(true);
-                } else if (trimmedLine === '0') {
-                    document.removeEventListener('lora-line-received', checkNJSHandler);
-                    res(false);
+                    res(trimmedLine === '1');
                 }
             };
             
             // 作成したハンドラをイベントリスナーに登録
             document.addEventListener('lora-line-received', checkNJSHandler);
-            // ★★★ ここまで修正 ★★★
 
             setTimeout(() => {
               // タイムアウト時には同じハンドラを削除する
