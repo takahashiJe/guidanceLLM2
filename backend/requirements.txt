@@ -6,6 +6,7 @@
 # --- Web API ---
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
+paho-mqtt
 
 # --- Config / Serialization ---
 pydantic>=2.7,<2.8
