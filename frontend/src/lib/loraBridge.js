@@ -55,9 +55,13 @@ async function readLoop() {
         
         if (fullResponse.startsWith('+RECV:')) {
           try {
-            const parts = fullResponse.split(',');
+            const dataPart = fullResponse.split(':')[1].trim();
+            const parts = dataPart.split(',');
             if (parts.length >= 3) {
               const hexData = parts[2].trim();
+              console.log(`[LoRa DATA] 受信ペイロードHEX: ${hexData}`);
+              const decodedStr = hexToString(hexData);
+              console.log(`[LoRa DATA] デコードした文字列: ${decodedStr}`);
               onDataReceived(JSON.parse(hexToString(hexData)));
             }
           } catch (e) { console.error('受信データのパースに失敗:', e); }
@@ -200,7 +204,7 @@ export function join() {
 
         console.log('ネットワークに未参加です。設定とJoinを開始します。');
         await writeCmd('AT+MODE=LWOTAA');
-        await writeCmd('AT+DEVEUI=A8404168E189621F');
+        await writeCmd('AT+DEUI=A8 40 41 68 E1 89 62 1F');
         await writeCmd('AT+APPEUI=A840410000000101');
         await writeCmd('AT+APPKEY=138F1A42A61329A3918FC834BCAD0071');
         await writeCmd('AT+JOIN');
