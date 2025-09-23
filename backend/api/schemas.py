@@ -115,3 +115,10 @@ class PlanResponse(BaseModel):
     else:
         class Config:
             extra = "allow"
+
+class RTDocResponse(BaseModel):
+    w: Literal[0, 1, 2] = Field(..., description="Weather: 0 (Sunny), 1 (Cloudy), 2 (Rainy)")
+    c: Literal[0, 1, 2] = Field(..., description="Congestion: 0 (Empty) to 2 (Full)")
+
+class RTDoc(RTDocResponse):
+    s: str
