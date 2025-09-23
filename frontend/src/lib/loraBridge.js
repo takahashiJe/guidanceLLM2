@@ -40,13 +40,12 @@ async function readLoop() {
             _isNetworkJoined = true;
             isJoinCommandActive = false;
             if (joinPromise.resolve) joinPromise.resolve(true);
-          } else if (fullResponse.includes('+JOIN: Failed')) { // ★ エラー判定をより具体的に
+          } else if (fullResponse.includes('+JOIN: Failed')) { 
             console.error("LoRaWAN参加失敗");
             _isNetworkJoined = false;
             isJoinCommandActive = false;
             if (joinPromise.reject) joinPromise.reject(new Error('LoRaWAN Join Failed'));
           } else if (fullResponse.includes('AT_ERROR') && Date.now() - joinPromise.startTime > 3000) {
-            // Join開始から数秒後のAT_ERRORは失敗とみなす
              console.error("LoRaWAN参加中にエラーを検知");
             _isNetworkJoined = false;
             isJoinCommandActive = false;
@@ -93,9 +92,7 @@ export async function connect(onData, onDisconnectCb) {
     onDataReceived = onData;
     onDisconnected = onDisconnectCb;
 
-    const textEncoder = new TextEncoderStream();
-    textEncoder.readable.pipeTo(port.writable);
-    writer = textEncoder.writable.getWriter();
+    writer = port.writable.getWriter();
     
     const textDecoder = new TextDecoderStream();
     readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
@@ -126,7 +123,7 @@ export async function disconnect() {
   
   if (writer) {
     try {
-      await writer.close();
+      writer.releaseLock();
     } catch(e) { /* ignore errors */ }
     writer = null;
   }
@@ -151,15 +148,16 @@ export function join() {
   isJoinCommandActive = true;
   
   const sendCommands = async () => {
+    const encoder = new TextEncoder();
+    const writeCmd = async (cmd) => {
+        await writer.write(encoder.encode(cmd + '\r\n'));
+    };
+    
     try {
-
-      // 1. ATZよりも強力な工場出荷時リセットでデバイスを完全にクリーンな状態にする
       console.log('デバイスを工場出荷時状態にリセットします...');
-      await writer.write(`AT+FDEFAULT\r\n`);
-      // FDEFAULT後は起動に時間がかかるため、十分な時間を確保する
+      await writeCmd('AT+FDEFAULT');
       await new Promise(resolve => setTimeout(resolve, 3000)); 
       
-      // 2. 設定コマンドを再適用
       console.log('LoRaWAN設定を適用します...');
       const commands = [
         'AT+MODE=LWOTAA',
@@ -169,19 +167,17 @@ export function join() {
       ];
       for (const cmd of commands) {
         console.log(`設定コマンド送信: ${cmd}`);
-        await writer.write(`${cmd}\r\n`);
+        await writeCmd(cmd);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
-      // 3. 全ての設定が終わった後に一度だけ設定を保存
       console.log('設定を保存します...');
-      await writer.write('AT+SAVE\r\n');
+      await writeCmd('AT+SAVE');
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // 4. ネットワークに参加
       console.log('ネットワークに参加します... (AT+JOIN)');
       joinPromise.startTime = Date.now();
-      await writer.write('AT+JOIN\r\n');
+      await writeCmd('AT+JOIN');
       
     } catch (e) {
       isJoinCommandActive = false;
@@ -205,16 +201,29 @@ export function join() {
 }
 
 export function getIsJoined() {
-  return _isNetworkJoined;
+  return _isPortConnected && _isNetworkJoined; // 接続状態も加味
 }
 
 export async function send(data) {
-  if (!writer || !_isNetworkJoined) return;
-  const hexData = Array.from(new TextEncoder().encode(data))
+  if (!writer || !_isNetworkJoined) {
+    console.warn('LoRa未接続のため送信をスキップしました。');
+    return;
+  }
+  
+  const encoder = new TextEncoder();
+
+  // 送信するデータを16進数文字列に変換
+  const hexData = Array.from(encoder.encode(data))
       .map(b => b.toString(16).padStart(2, '0')).join('');
-  const command = `AT+SEND=2,${hexData}`;
-  await writer.write(`${command}\r\n`);
-  console.log(`データ送信: ${command}`);
+  
+  // 送信コマンドを AT+SEND から AT+CMSG に変更
+  // AT+CMSG はポート番号を取らないため、よりシンプル
+  const commandString = `AT+CMSG=${hexData}\r\n`;
+  const commandBytes = encoder.encode(commandString);
+
+  await writer.write(commandBytes);
+  
+  console.log(`データ送信: ${JSON.stringify(commandString)}`);
 }
 
 function hexToString(hex) {

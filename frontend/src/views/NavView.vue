@@ -230,8 +230,8 @@ function startLoraPolling() {
     }
     
     // データを送信
-    // const spotId = spots[currentIndex].spot_id;
-    const spotId = "a"; // ★ テスト用に1文字だけ送信する
+    const spotId = spots[currentIndex].spot_id;
+    // const spotId = "a"; // ★ テスト用に1文字だけ送信する
     console.log(`[LoRa] ${spotId}の情報をリクエストします。`);
     await send(spotId);
     
