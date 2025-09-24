@@ -10,6 +10,7 @@ backend/worker/llm_models/
 
 # Dockerが生成するファイルを無視する
 ollama_data/
+packs/
 
 .env*
 
@@ -18,3 +19,23 @@ backend/worker/data/map/car/*
 backend/worker/data/map/foot/*
 
 chromadb_data/
+
+# Node
+node_modules/
+dist/
+plugins/lorart/node_modules/
+plugins/lorart/dist/
+
+# Android build
+android/.gradle/
+android/build/
+android/app/build/
+plugins/lorart/android/build/
+*.apk
+*.aab
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml

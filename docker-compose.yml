@@ -18,27 +18,27 @@ services:
       retries: 3
       start_period: 60s
 
-# === Vector DBデータ投入 ===
-  knowledge-init:
-    image: python:3.11-slim
-    depends_on:
-      chromadb:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
-    working_dir: /app
-    environment:
-      CHROMA_URL: http://chromadb:8000
-      OLLAMA_URL: http://ollama:11434
-      KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
-      EMBED_MODEL: mxbai-embed-large:latest
-      COLLECTION_PREFIX: guidance_
-      LANGS: ja,en,zh
-    volumes:
-      - ./backend:/app/backend:ro
-    # “空なら投入”はスクリプト側で判定するので常に安全に実行可
-    command: >
-      bash -lc "pip install --no-cache-dir requests==2.32.3 && python backend/script/ingest_knowledge.py"
+# # === Vector DBデータ投入 ===
+#   knowledge-init:
+#     image: python:3.11-slim
+#     depends_on:
+#       chromadb:
+#         condition: service_healthy
+#       ollama:
+#         condition: service_healthy
+#     working_dir: /app
+#     environment:
+#       CHROMA_URL: http://chromadb:8000
+#       OLLAMA_URL: http://ollama:11434
+#       KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
+#       EMBED_MODEL: mxbai-embed-large:latest
+#       COLLECTION_PREFIX: guidance_
+#       LANGS: ja,en,zh
+#     volumes:
+#       - ./backend:/app/backend:ro
+#     # “空なら投入”はスクリプト側で判定するので常に安全に実行可
+#     command: >
+#       bash -lc "pip install --no-cache-dir requests==2.32.3 && python backend/script/ingest_knowledge.py"
 
   # === Static DB (POI / access_points) ===
   static-db:
@@ -162,6 +162,8 @@ services:
       APP_DB_PASSWORD: app_runtime
       # --- NAVサービス ---
       NAV_BASE: http://svc-nav:9100
+    env_file:
+      - .env
     volumes:
       - ./backend:/app/backend
     depends_on:
@@ -169,7 +171,7 @@ services:
         condition: service_healthy
       svc-nav:
         condition: service_started
-    command: bash -lc "uvicorn backend.api.main:app --host 0.0.0.0 --port 8080"
+    command: bash -lc "uvicorn backend.api.main:app --host 0.0.0.0 --port 8080 --log-level debug"
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -227,7 +229,7 @@ services:
 
   svc-llm:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "celery -A backend.worker.app.services.llm.celery_app.celery_app worker --loglevel=debug --pool=threads --concurrency=1 -Q llm"
+    command: bash -lc "uvicorn backend.worker.app.services.llm.main:app --host 0.0.0.0 --port 9103"
     environment:
       KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
       CHROMA_URL: http://chromadb:8000
@@ -242,7 +244,9 @@ services:
     ports: ["9103:9103"]
 
   svc-voice:
-    build: { context: ., dockerfile: ./backend/Dockerfile }
+    build:
+      context: .
+      dockerfile: ./backend/worker/app/services/voice/Dockerfile
     command: |
       bash -lc "
       set -euo pipefail;
@@ -252,16 +256,21 @@ services:
       export OMP_NUM_THREADS=1;
       uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104
       "
+    gpus: all
     environment:
-      COQUI_DEVICE: cpu
-      PACKS_DIR: /packs
+      COQUI_TOS_AGREED: 1
+      COQUI_DEVICE: cuda
+      PACKS_ROOT: /packs
+      VOICE_JA_REF: /app/backend/worker/app/services/voice/refs/alison_ja.wav
+      VOICE_EN_REF: /app/backend/worker/app/services/voice/refs/alison_en_safe.wav
+      VOICE_ZH_REF: /app/backend/worker/app/services/voice/refs/alison_zh.wav
       VOICE_JA: "ja_female_1"
       VOICE_EN: "en_female_1"
       VOICE_ZH: "zh_female_1"
       VOICE_DEFAULT: "neutral_1"
     volumes:
       - ./backend:/app/backend
-      - packs:/packs
+      - /var/www/packs:/packs
     ports: ["9104:9104"]
 
   svc-nav:
@@ -281,26 +290,25 @@ services:
       STATIC_DB_PASSWORD: static_db
     volumes:
       - ./backend:/app/backend
-      - ./packs:/packs
+      - /var/www/packs:/packs
     depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
     ports: ["9100:9100"]
   
   # --- Frontend (開発用) ---
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      # ホストの5173番ポートをコンテナの5173番に接続 (Viteのデフォルト)
-      - "5173:5173" 
-    volumes:
-      # ソースコードの変更を即時反映させる
-      - ./frontend:/app
-      # node_modulesはホストと共有しない(パフォーマンスと環境差異のため)
-      - /app/node_modules
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     # ホストの5173番ポートをコンテナの5173番に接続 (Viteのデフォルト)
+  #     - "5173:5173" 
+  #   volumes:
+  #     # ソースコードの変更を即時反映させる
+  #     - ./frontend:/app
+  #     # node_modulesはホストと共有しない(パフォーマンスと環境差異のため)
+  #     - /app/node_modules
 
 volumes:
   ollama_models:
   pgdata_static:
   chromadb_data:
-  packs:

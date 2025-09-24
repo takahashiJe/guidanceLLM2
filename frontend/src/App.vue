@@ -1,41 +1,63 @@
+<script setup>
+import { computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
+
+const route = useRoute()
+
+// 現在のルートパスに応じてCSSクラスを切り替える
+const appClass = computed(() => {
+  return {
+    'nav-active': route.path === '/nav'
+  }
+})
+</script>
+
 <template>
-  <div id="app" class="app-root">
-    <!-- ページがここに差し込まれる -->
-    <router-view />
+  <div id="app" :class="appClass">
+    <header v-if="!appClass['nav-active']">
+      <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+      <div class="wrapper">
+        <h1>Guidance LLM</h1>
+      </div>
+    </header>
+
+    <main>
+      <RouterView />
+    </main>
   </div>
 </template>
 
-<script setup>
-// 特別なロジックは不要
-</script>
-
-<style>
-/* アプリ全体の基本スタイル */
-.app-root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #0e0f12; /* ダーク背景（添付UIに合わせる） */
-  color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+<style scoped>
+header {
+  line-height: 1.5;
+  max-height: 100vh;
 }
 
-/* リンクやボタンのタップ領域を強調 */
-a {
-  color: #3b82f6;
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
+.logo {
+  display: block;
+  margin: 0 auto 2rem;
 }
 
-/* ボタンのベーススタイル */
-button {
-  font: inherit;
-  cursor: pointer;
-  border: none;
-  border-radius: 12px;
-  padding: 10px 16px;
+main {
+  width: 100%;
+  height: 100%;
+}
+
+@media (min-width: 1024px) {
+  header {
+    display: flex;
+    place-items: center;
+    padding-right: calc(var(--section-gap) / 2);
+  }
+
+  .logo {
+    margin: 0 2rem 0 0;
+  }
+
+  header .wrapper {
+    display: flex;
+    place-items: flex-start;
+    flex-wrap: wrap;
+  }
 }
 </style>

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 try:
     # pydantic v2
-    from pydantic import ConfigDict
+    from pydantic import ConfigDict, model_validator
     _V2 = True
 except Exception:
     _V2 = False
@@ -54,10 +54,45 @@ class Audio(BaseModel):
     format: Literal["mp3", "wav"]
 
 class Asset(BaseModel):
+    # 共通
     spot_id: str
-    text: str # text_urlからtextに変更
+    # 新形（最終形）
+    text: Optional[str] = None
     audio: Optional[Audio] = None
-    format: Optional[str]
+    # 旧形（NAV 現行）
+    audio_url: Optional[str] = None
+    text_url: Optional[str] = None
+    bytes: Optional[int] = None
+    duration_s: Optional[float] = None
+    format: Optional[str] = None
+
+    if _V2:
+        model_config = ConfigDict(extra="allow", populate_by_name=True)
+    else:
+        class Config:
+            extra = "allow"
+
+    # 旧形で来たら audio を合成して新形に寄せる
+    if _V2:
+        @model_validator(mode="after")
+        def _normalize_legacy(cls, v: "Asset"):
+            if (
+                v.audio is None and
+                v.audio_url and
+                v.bytes is not None and
+                v.duration_s is not None and
+                v.format
+            ):
+                v.audio = Audio(
+                    url=v.audio_url,
+                    size_bytes=v.bytes,
+                    duration_sec=v.duration_s,
+                    format=v.format if v.format in ("mp3", "wav") else "mp3",
+                )
+            return v
+    else:
+        # v1 用（任意・必要なら実装）
+        pass
 
 class SegmentIndex(BaseModel):
     mode: Literal["car", "foot"]
@@ -80,3 +115,10 @@ class PlanResponse(BaseModel):
     else:
         class Config:
             extra = "allow"
+
+class RTDocResponse(BaseModel):
+    w: Literal[0, 1, 2] = Field(..., description="Weather: 0 (Sunny), 1 (Cloudy), 2 (Rainy)")
+    c: Literal[0, 1, 2] = Field(..., description="Congestion: 0 (Empty) to 2 (Full)")
+
+class RTDoc(RTDocResponse):
+    s: str

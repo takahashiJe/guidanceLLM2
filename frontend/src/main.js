@@ -1,20 +1,26 @@
-import { createApp } from "vue";
-import { createPinia } from "pinia";
-import App from "./App.vue";
-import { router } from "./router";
+// src/main.js
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+import { buildSpotCodeMap } from '@/lib/spotCodes'
+import router from './router'
+import App from './App.vue'
+import './assets/base.css'
+import './assets/main.css'
 
-// ベースCSSの読み込み
-import "./assets/base.css";
-import "./assets/main.css";
+const app = createApp(App)
+const pinia = createPinia()
+pinia.use(piniaPluginPersistedstate)
 
-const app = createApp(App);
+app.use(pinia)
+app.use(createPinia())
+app.use(router)
+app.mount('#app')
+buildSpotCodeMap()
 
-// 状態管理（Pinia）
-const pinia = createPinia();
-app.use(pinia);
-
-// ルーティング
-app.use(router);
-
-// マウント
-app.mount("#app");
+// Service Worker（public/sw.js がある前提）
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}

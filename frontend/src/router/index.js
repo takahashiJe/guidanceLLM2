@@ -1,29 +1,16 @@
-import { createRouter, createWebHistory } from "vue-router";
-import { usePlanStore } from "@/stores/plan";
-import { ensurePlanLoaded } from "@/stores/plan"; // 再利用のためエクスポート
+// src/router/index.js
+import { createRouter, createWebHistory } from 'vue-router';
 
-const routes = [
-  { path: "/", component: () => import("@/pages/PlanSetup.vue") },
-  {
-    path: "/prefetch/:packId",
-    component: () => import("@/pages/Prefetch.vue"),
-    beforeEnter: () => {
-      const plan = usePlanStore();
-      return plan.plan ? true : "/";
-    },
-  },
-  {
-    path: "/nav/:packId",
-    component: () => import("@/pages/Navigator.vue"),
-    beforeEnter: async (to) => {
-      const ok = await ensurePlanLoaded(to.params.packId);
-      return ok ? true : "/";
-    },
-  },
-  { path: "/:pathMatch(.*)*", redirect: "/" },
-];
+const PlanView = () => import('@/views/PlanView.vue');
+const NavView  = () => import('@/views/NavView.vue');
 
-export const router = createRouter({
+const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes: [
+    { path: '/', redirect: '/plan' },
+    { path: '/plan', name: 'plan', component: PlanView },
+    { path: '/nav',  name: 'nav',  component: NavView  },
+  ],
 });
+
+export default router;
