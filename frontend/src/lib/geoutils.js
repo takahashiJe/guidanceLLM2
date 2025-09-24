@@ -37,6 +37,42 @@ export function calculateDistance(pos1, pos2) {
  * 各セグメントは { mode: 'car'|'foot', geometry: { coordinates: [[lng, lat], ...] } }
  * @returns {string} 最も近い区間の移動モード ('car' または 'foot')。ルート情報がない場合は'car'をデフォルトとします。
  */
+
+// どの形でも [{mode, geometry}, ...] に正規化
+function normalizeRouteSegments(routeLike) {
+  // すでに配列（バックエンド例の形）
+  if (Array.isArray(routeLike)) return routeLike;
+
+  // plan全体や { segments: [...] } を渡されてもOKにする
+  if (Array.isArray(routeLike?.segments)) return routeLike.segments;
+
+  // GeoJSON FeatureCollection / Feature でもOKにする
+  if (Array.isArray(routeLike?.features)) {
+    return routeLike.features.map(f => ({
+      mode: (f?.properties?.mode === 'car') ? 'car' : 'foot',
+      geometry: f?.geometry
+    }));
+  }
+  if (routeLike?.type === 'Feature' && routeLike?.geometry) {
+    return [{
+      mode: (routeLike?.properties?.mode === 'car') ? 'car' : 'foot',
+      geometry: routeLike.geometry
+    }];
+  }
+  return []; // 想定外は空
+}
+
+// LineString / MultiLineString 双方に対応して座標を反復
+function *iterateCoords(geometry) {
+  if (!geometry) return;
+  const coords = geometry.coordinates;
+  if (geometry.type === 'LineString' && Array.isArray(coords)) {
+    for (const c of coords) yield c;
+  } else if (geometry.type === 'MultiLineString' && Array.isArray(coords)) {
+    for (const line of coords) for (const c of line) yield c;
+  }
+}
+
 export function getCurrentTravelMode(currentPos, routeSegments) {
   // ルートセグメントのデータがない、または空配列の場合はデフォルトの'car'を返す
   if (!routeSegments || routeSegments.length === 0) {
@@ -47,16 +83,15 @@ export function getCurrentTravelMode(currentPos, routeSegments) {
   let minDistance = Infinity;
 
   // 全てのルートセグメント（'car', 'foot'）を反復処理
-  for (const segment of routeSegments) {
-    // セグメント内の全ての座標点を反復処理
-    for (const coord of segment.geometry.coordinates) {
-      const pointPos = { lat: coord[1], lng: coord[0] };
-      const distance = calculateDistance(currentPos, pointPos);
-
-      // これまでに見つかった最小距離よりも近ければ、情報を更新
-      if (distance < minDistance) {
-        minDistance = distance;
-        closestMode = segment.mode;
+  for (const seg of normalizeRouteSegments(routeSegments)) {
+    if (!seg?.geometry?.coordinates) continue;
+    for (const coord of iterateCoords(seg.geometry)) {
+      const p = { lat: coord[1], lng: coord[0] }; // [lon,lat]→{lat,lng}
+      const d = calculateDistance(currentPos, p);
+      if (d < minDistance) {
+        minDistance = d;
+        // 'walk' 等が来ても 'foot' に寄せておく
+        closestMode = (seg.mode === 'car') ? 'car' : 'foot';
       }
     }
   }

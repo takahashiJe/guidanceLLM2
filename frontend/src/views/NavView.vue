@@ -174,7 +174,7 @@ watch(currentPos, (newPos) => {
   }
 })
 
-// ★★★ ここから追加：音声再生のための位置情報監視ロジック ★★★
+// ★★★ 音声再生のための位置情報監視ロジック ★★★
 watch(currentPos, (newPos) => {
   console.log('[Debug] currentPos changed:', newPos)
   console.log('[Debug] plan.value:', plan.value)
@@ -189,7 +189,7 @@ watch(currentPos, (newPos) => {
   const waypointsArray = plan?.waypoints_info ?? [];
   const alongPoisArray = plan?.along_pois ?? [];
   const allSpots = [...waypointsArray, ...alongPoisArray];
-  
+
   if (allSpots.length === 0) return
 
   const travelMode = geo.getCurrentTravelMode(newPos, plan.value.route)
@@ -206,7 +206,12 @@ watch(currentPos, (newPos) => {
     const distance = geo.calculateDistance(newPos, spotPos)
 
     if (distance <= buffer) {
-      const asset = plan.value.assets.find((a) => a.spot_id === spot.spot_id)
+      // const asset = plan.value.assets.find((a) => a.spot_id === spot.spot_id)
+      const assetsArray = Array.isArray(plan.value.assets)
+        ? plan.value.assetsArray
+        : Object.values(plan.value.assets || {});
+      const asset = assetsArray.find(a => a.spot_id === spot.spot_id);
+
       if (asset?.audio?.url) {
         audio.playAudioForSpot({
           id: spot.spot_id,
