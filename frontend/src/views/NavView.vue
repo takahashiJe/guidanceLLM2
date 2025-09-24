@@ -186,18 +186,10 @@ watch(currentPos, (newPos) => {
     return
   }
 
-  const rawWaypoints = toRaw(plan.value?.waypoints_info)
-  const rawAlongPois = toRaw(plan.value?.along_pois)
-
-  const waypointsArray = Array.isArray(rawWaypoints)
-    ? rawWaypoints
-    : Object.values(rawWaypoints || {})
-
-  const alongPoisArray = Array.isArray(rawAlongPois)
-    ? rawAlongPois
-    : Object.values(rawAlongPois || {})
-
-  const allSpots = [...waypointsArray, ...alongPoisArray]
+  const waypointsArray = plan?.waypoints_info ?? [];
+  const alongPoisArray = plan?.along_pois ?? [];
+  const allSpots = [...waypointsArray, ...alongPoisArray];
+  
   if (allSpots.length === 0) return
 
   const travelMode = geo.getCurrentTravelMode(newPos, plan.value.route)
