@@ -79,14 +79,21 @@ export function getCurrentTravelMode(currentPos, routeSegments) {
     return 'car';
   }
 
+  // normalizeRouteSegments を一度だけ呼ぶ
+  const segments = Array.isArray(routeSegments)
+    ? routeSegments
+    : normalizeRouteSegments(routeSegments);
+
+  console.debug('[GEO] segments.len', segments.length);
+
   let closestMode = 'car'; // デフォルトの移動モード
   let minDistance = Infinity;
 
   // 全てのルートセグメント（'car', 'foot'）を反復処理
-  for (const seg of normalizeRouteSegments(routeSegments)) {
+  for (const seg of segments) {
     if (!seg?.geometry?.coordinates) continue;
     for (const coord of iterateCoords(seg.geometry)) {
-      const p = { lat: coord[1], lng: coord[0] }; // [lon,lat]→{lat,lng}
+      const p = { lat: coord[1], lng: coord[0] }; // [lon,lat] → {lat,lng}
       const d = calculateDistance(currentPos, p);
       if (d < minDistance) {
         minDistance = d;
@@ -96,5 +103,6 @@ export function getCurrentTravelMode(currentPos, routeSegments) {
     }
   }
 
+  console.debug('[GEO] closestMode, minDistance(m)', closestMode, minDistance?.toFixed?.(1));
   return closestMode;
 }

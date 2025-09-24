@@ -20,6 +20,7 @@ let currentAudio = null;
  * { id: string, name: string, voice_path: string } を含むことを期待します。
  */
 export function playAudioForSpot(spotInfo) {
+    console.debug('[AUDIO] playAudioForSpot called', spotInfo);
   // spotInfoが存在しない、またはIDがない場合は処理を中断
   if (!spotInfo || !spotInfo.id) {
     console.error("Invalid spotInfo provided to playAudioForSpot.");
@@ -35,7 +36,8 @@ export function playAudioForSpot(spotInfo) {
   // もし別の音声が再生中であれば、再生を停止してリソースを解放
   if (currentAudio) {
     currentAudio.pause();
-    currentAudio.src = ''; // ソースをクリア
+    currentAudio.removeAttribute('src');
+    currentAudio.load(); // バッファ解放
     currentAudio = null;
   }
 
@@ -54,6 +56,15 @@ export function playAudioForSpot(spotInfo) {
 
   // 新しいAudioオブジェクトを作成
   currentAudio = new Audio(audioPath);
+  console.debug('[AUDIO] new Audio created', audioPath);
+  const logEv = (ev) => console.debug('[AUDIO]', ev.type, {
+    readyState: currentAudio.readyState,
+    networkState: currentAudio.networkState,
+    error: currentAudio.error?.code
+    });
+    ['loadedmetadata','canplay','canplaythrough','playing','pause','stalled','suspend','abort','waiting'].forEach(
+        ev => currentAudio.addEventListener(ev, logEv)
+    );
 
   // 再生が正常に開始された場合
   currentAudio.addEventListener('play', () => {
@@ -72,13 +83,19 @@ export function playAudioForSpot(spotInfo) {
   currentAudio.addEventListener('error', (e) => {
     console.error(`Error playing audio for spot "${spotInfo.name}":`, e);
     // エラーが発生した場合でも、再試行を防ぐために再生済みとしてマークする
-    playedSpots.add(spotInfo.id); 
+    // playedSpots.add(spotInfo.id); 
+    const markOnError = localStorage.getItem('DEBUG_MARK_ON_ERROR') === '1';
+    if (markOnError) playedSpots.add(spotInfo.id);
     currentAudio = null;
   });
 
   // 音声の再生を開始
   currentAudio.play().catch(error => {
       console.error(`Playback initiation failed for "${spotInfo.name}":`, error);
+      console.debug('[AUDIO] Autoplay blocked?', {
+        visibility: document.visibilityState,
+        hasUserGesture: 'userActivation' in navigator ? navigator.userActivation.isActive : 'unknown'
+    });
       // 再生開始に失敗した場合（例: ユーザー操作がない状態での自動再生制限など）
       currentAudio = null;
   });

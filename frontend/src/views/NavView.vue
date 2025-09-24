@@ -176,24 +176,29 @@ watch(currentPos, (newPos) => {
 
 // ★★★ 音声再生のための位置情報監視ロジック ★★★
 watch(currentPos, (newPos) => {
-  console.log('[Debug] currentPos changed:', newPos)
-  console.log('[Debug] plan.value:', plan.value)
-  console.log('[Debug] plan.value.waypoints_info:', plan.value?.waypoints_info)
-  console.log('[Debug] plan.value.along_pois:', plan.value?.along_pois)
-  console.log('[Debug] plan.value.assets:', plan.value?.assets)
-
-  if (!newPos || !plan.value?.route || !plan.value?.assets) {
-    return
-  }
-
-  const waypointsArray = plan?.waypoints_info ?? [];
-  const alongPoisArray = plan?.along_pois ?? [];
-  const allSpots = [...waypointsArray, ...alongPoisArray];
+  console.debug('[NAV] currentPos changed', JSON.stringify(newPos));
+  if (!plan.value) { console.warn('[NAV] plan is null'); return; }
+  console.debug('[NAV] plan keys', Object.keys(plan.value || {}));
+  
+  const wps = Array.isArray(plan.value?.waypoints_info)
+    ? plan.value.waypoints_info
+    : Object.values(plan.value?.waypoints_info || {});
+  const apois = Array.isArray(plan.value?.along_pois)
+    ? plan.value.along_pois
+    : Object.values(plan.value?.along_pois || {});
+  const assets = Array.isArray(plan.value?.assets)
+    ? plan.value.assets
+    : Object.values(plan.value?.assets || {});
+  const allSpots = [...wps, ...apois];
+  console.debug('[NAV] waypoints_info.len, along_pois.len, assets.len',
+    wps.length, apois.length, assets.length);
+  if (allSpots.length === 0) return
 
   if (allSpots.length === 0) return
 
-  const travelMode = geo.getCurrentTravelMode(newPos, plan.value.route)
-  const buffer = travelMode === 'car' ? 300 : 10
+  const travelMode = geo.getCurrentTravelMode(newPos, plan.value?.segments ?? plan.value?.route);
+  const bufferM = (travelMode === 'car') ? 300 : 10;
+  console.debug('[NAV] travelMode, bufferM', travelMode, bufferM);
 
   allSpots.forEach((spot) => {
     if (!spot.lat || !spot.lon) return
@@ -205,10 +210,10 @@ watch(currentPos, (newPos) => {
 
     const distance = geo.calculateDistance(newPos, spotPos)
 
-    if (distance <= buffer) {
+    if (distance <= bufferM) {
       // const asset = plan.value.assets.find((a) => a.spot_id === spot.spot_id)
       const assetsArray = Array.isArray(plan.value.assets)
-        ? plan.value.assetsArray
+        ? plan.value.assets
         : Object.values(plan.value.assets || {});
       const asset = assetsArray.find(a => a.spot_id === spot.spot_id);
 
