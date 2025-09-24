@@ -12,7 +12,7 @@ import { fetchRealtimeBySpotId } from './api' // ← apiFetch ではなく、公
  * @typedef {Object} RTDoc
  * @property {string} s   // spot_id
  * @property {number} w   // now: 0=sun,1=cloud,2=rain
- * @property {number} c   // congestion 0..4
+ * @property {number} c   // congestion 0..2
  */
 
 /**

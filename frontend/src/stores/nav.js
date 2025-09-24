@@ -4,7 +4,7 @@ import { ref, computed, readonly } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useNavStore = defineStore('nav', () => {
-  // --- State (変更なし) ---
+  // --- State ---
   const lang = ref('ja')
   const origin = ref(null) // ★ デフォルト値を削除し、nullで初期化
   const waypointsByIds = ref([])
@@ -12,9 +12,9 @@ export const useNavStore = defineStore('nav', () => {
   const plan = ref(null)
   const focusedWaypointIndex = ref(0) 
 
-  // --- Getters (★修正★) ---
+  // --- Getters ---
   
-  // 修正: 'waypoints' ゲッターは、バックエンドから返される計算済みの「主要訪問先」リスト (waypoints_info) を参照するように変更します。
+  // 'waypoints' ゲッターは、バックエンドから返される計算済みの「主要訪問先」リスト (waypoints_info) を参照するように変更します。
   const waypoints = computed(() => plan.value?.waypoints_info || [])
 
   // 'alongPois' ゲッターは、バックエンドから返される「純粋な沿道スポット」リスト (along_pois) を参照します (これは元のままで正しいです)。
@@ -26,7 +26,7 @@ export const useNavStore = defineStore('nav', () => {
     return waypoints.value[focusedWaypointIndex.value] || null
   })
 
-  // --- Actions (★修正★) ---
+  // --- Actions ---
   function setLang(newLang) {
     lang.value = newLang
   }
@@ -48,7 +48,7 @@ export const useNavStore = defineStore('nav', () => {
     focusedWaypointIndex.value = 0
   }
 
-  // 修正: 'focusOnWaypointById' が参照するリスト (waypoints.value) が 
+  // 'focusOnWaypointById' が参照するリスト (waypoints.value) が 
   //       waypoints_info を指すようになったため、ロジック自体はこれで正常に動作します。
   function focusOnWaypointById(spotId) {
     if (!plan.value || !waypoints.value.length) return;
@@ -79,4 +79,7 @@ export const useNavStore = defineStore('nav', () => {
     focusOnWaypointById,
     reset,
   }
+  // , { // <--- 第3引数を追加
+  //   persist: true,
+  // }
 })

@@ -214,10 +214,15 @@ def _shutdown_mqtt():
 @router.get("/spot/{spot_id}", response_model=RTDocResponse, summary="最新のリアルタイム情報（極小JSON）")
 def get_spot_rt(spot_id: str):
     item = _get_or_create_spot_data(spot_id)
-    return JSONResponse(content=item)
+    return item
 
-@router.post("/_mock/{spot_id}")
-def _mock_push(spot_id: str, body: RTDoc):
-    body["s"] = spot_id
-    _state[spot_id] = body
+@router.post("/_mock/{spot_id}", summary="MQTTを介さずに擬似的にデータをPUSHする")
+def _mock_push(spot_id: str, body: RTDocResponse):
+    """
+    指定spot_idのリアルタイム情報を更新し、MQTTでDownlinkを送信する
+    """
+    # bodyのデータとspot_idを使って、新しいRTDocインスタンスを作成
+    doc = RTDoc(s=spot_id, **body.model_dump())
+    # 作成したインスタンスを内部状態に保存
+    _state[spot_id] = doc
     return {"ok": True}

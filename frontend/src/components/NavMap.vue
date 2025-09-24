@@ -18,29 +18,32 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
-// -- 地図タイルの定義 (変更なし) --
 const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
   attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>",
 });
 const gsiOpt = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
   attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>",
 });
-// -- ここまで --
 
 const props = defineProps({
   plan: {
     type: Object,
     required: true,
   },
+  // NavViewから現在地情報を受け取るためのprop
+  currentPos: {
+    type: Object,
+    default: null,
+  }
 });
 
 const mapContainer = ref(null);
 const map = ref(null);
-let userLocationMarker = null;
+const userLocationMarker = ref(null); // ★ ref() でラップ
 let routeLayer = null;
-let poiMarkers = []; // マーカーの配列 (変更なし)
+let poiMarkers = [];
 
-const flyToSpot = (lat, lon) => { // (変更なし)
+const flyToSpot = (lat, lon) => {
   if (map.value) {
     map.value.flyTo([lat, lon], 16, {
       animate: true,
@@ -48,166 +51,155 @@ const flyToSpot = (lat, lon) => { // (変更なし)
     });
   }
 };
-defineExpose({ flyToSpot }); // (変更なし)
-
 
 // ===========================================
-// ★★★ ここから drawRoute 関数を修正 ★★★
+// ★★★ ここからが修正箇所です ★★★
 // ===========================================
+
+// NavViewから渡された座標でマーカーを更新する関数
+const updateCurrentPosition = (lat, lng) => {
+  if (!map.value) return;
+  const latlng = L.latLng(lat, lng);
+
+  if (userLocationMarker.value) {
+    // 既存マーカーの位置を更新
+    userLocationMarker.value.setLatLng(latlng);
+  } else {
+    // マーカーがまだなければ作成
+    userLocationMarker.value = L.marker(latlng, {
+      icon: L.divIcon({
+        className: 'current-position-marker',
+        html: '<div class="pulse"></div>',
+        iconSize: [20, 20],
+      }),
+    }).addTo(map.value);
+  }
+};
+
+// 親コンポーネントから呼び出せるように関数を公開
+defineExpose({ 
+  flyToSpot,
+  updateCurrentPosition // この関数を公開
+});
+
+// ===========================================
+// ★★★ 修正箇所はここまで ★★★
+// ===========================================
+
 const drawRoute = () => {
   if (routeLayer) {
     map.value.removeLayer(routeLayer);
   }
   if (props.plan && props.plan.route) {
-
-    // GeoJSONのフィーチャー(セグメント)ごとにスタイルを動的に決定する関数
     const styleFunction = (feature) => {
       const mode = feature?.properties?.mode;
-      
-      if (mode === 'car') {
-        // 車ルートのスタイル
-        return {
-          color: '#007bff',  // 青色
-          weight: 5,
-          opacity: 0.7,
-        };
-      } 
-      else if (mode === 'foot') {
-        // 徒歩ルートのスタイル
-        return {
-          color: '#ff8c00',  // オレンジ色
-          weight: 4,
-          opacity: 0.8,
-          dashArray: '5, 10', // 破線
-        };
-      }
-      
-      // フォールバック (万が一 mode がない場合など)
-      return { 
-        color: '#ff0000', // 元の赤色
-        weight: 5,
-        opacity: 0.7,
-      };
+      if (mode === 'car') return { color: '#007bff', weight: 5, opacity: 0.7 };
+      if (mode === 'foot') return { color: '#ff8c00', weight: 4, opacity: 0.8, dashArray: '5, 10' };
+      return { color: '#ff0000', weight: 5, opacity: 0.7 };
     };
-
-    // L.geoJSON の style オプションに静的オブジェクトではなく、上記で定義した関数を渡す
-    routeLayer = L.geoJSON(props.plan.route, {
-      style: styleFunction, // ★修正点
-    }).addTo(map.value);
-
+    routeLayer = L.geoJSON(props.plan.route, { style: styleFunction }).addTo(map.value);
     map.value.fitBounds(routeLayer.getBounds());
   }
 };
-// ===========================================
-// ★★★ drawRoute 関数の修正ここまで ★★★
-// ===========================================
 
-
-const drawPois = () => { // (変更なし: waypoints_info と along_pois を描画)
-  // 1. 以前のマーカーをすべてクリア
+const drawPois = () => {
   poiMarkers.forEach(marker => map.value.removeLayer(marker));
   poiMarkers = [];
-
   if (!props.plan) return;
 
-  // 2. マーカーを追加する内部ヘルパー関数を定義
   const addPoiMarker = (poi) => {
-    // lat/lon がないデータはスキップ
-    if (!poi || typeof poi.lat !== 'number' || typeof poi.lon !== 'number') {
-      return;
-    }
-    const marker = L.marker([poi.lat, poi.lon]).addTo(map.value)
-      .bindPopup(`<b>${poi.name}</b>`); 
+    if (!poi || typeof poi.lat !== 'number' || typeof poi.lon !== 'number') return;
+    const marker = L.marker([poi.lat, poi.lon]).addTo(map.value).bindPopup(`<b>${poi.name}</b>`);
     poiMarkers.push(marker);
   };
 
-  // 3. 「周遊スポット (Waypoints)」を描画
-  if (props.plan.waypoints_info) {
-    props.plan.waypoints_info.forEach(addPoiMarker);
-  }
-
-  // 4. 「周辺のスポット (AlongPOIs)」も描画
-  if (props.plan.along_pois) {
-    props.plan.along_pois.forEach(addPoiMarker);
-  }
+  if (props.plan.waypoints_info) props.plan.waypoints_info.forEach(addPoiMarker);
+  if (props.plan.along_pois) props.plan.along_pois.forEach(addPoiMarker);
 };
 
-
-const setupMap = () => { // (変更なし)
+const setupMap = () => {
   if (mapContainer.value && !map.value) {
     map.value = L.map(mapContainer.value).setView([39.145, 140.102], 10);
-
-    const baseMaps = {
-      "地理院地図 標準": gsiStd,
-      "地理院地図 淡色": gsiOpt,
-    };
+    const baseMaps = { "地理院地図 標準": gsiStd, "地理院地図 淡色": gsiOpt };
     gsiStd.addTo(map.value);
     L.control.layers(baseMaps).addTo(map.value);
     L.control.scale({ imperial: false, metric: true }).addTo(map.value);
 
-    drawRoute(); // 修正されたdrawRouteが呼ばれる
+    drawRoute();
     drawPois();
-    startTracking();
+    
+    // ★★★ デバッグ中はNavViewから位置情報を受け取るため、ここでの位置情報追跡は不要
+    // startTracking();
   }
 };
 
-const updateUserLocation = (lat, lng) => { // (変更なし)
-  if (!map.value) return;
-  const latlng = L.latLng(lat, lng);
-  if (userLocationMarker) {
-    userLocationMarker.setLatLng(latlng);
-  } else {
-    userLocationMarker = L.circleMarker(latlng, {
-      radius: 8,
-      color: '#ffffff',
-      weight: 2,
-      fillColor: '#007bff',
-      fillOpacity: 1,
-    }).addTo(map.value);
-  }
-};
-
-const startTracking = () => { // (変更なし)
+/*
+// ★ このコンポーネント自身での位置情報追跡は不要になるためコメントアウト
+const startTracking = () => {
   if (navigator.geolocation) {
     navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        updateUserLocation(latitude, longitude);
+        updateCurrentPosition(latitude, longitude); // 修正後の関数を呼ぶ
       },
-      (error) => {
-        console.error('Geolocation error:', error);
-      },
-      {
-        enableHighAccuracy: true,
-      }
+      (error) => { console.error('Geolocation error:', error); },
+      { enableHighAccuracy: true }
     );
   } else {
     console.error('Geolocation is not supported by this browser.');
   }
 };
+*/
 
-onMounted(() => { // (変更なし)
+onMounted(() => {
   setupMap();
 });
 
-onBeforeUnmount(() => { // (変更なし)
+onBeforeUnmount(() => {
   if (map.value) {
     map.value.remove();
     map.value = null;
   }
 });
 
-watch(() => props.plan, () => { // (変更なし)
+watch(() => props.plan, () => {
   if (map.value) {
-    drawRoute(); // 修正されたdrawRouteが呼ばれる
-    drawPois(); 
+    drawRoute();
+    drawPois();
   }
 }, { deep: true });
 </script>
 
-<style scoped>
+<style>
+/* scopedを外してグローバルに適用 */
 .map-container {
   width: 100%;
   height: 100%;
+}
+
+/* 現在地マーカーのスタイル */
+.current-position-marker .pulse {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #007bff;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 rgba(0, 123, 255, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+  }
 }
 </style>
