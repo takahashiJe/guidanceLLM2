@@ -121,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, toRaw } from 'vue'
 import { useNavStore } from '@/stores/nav'
 import { useRouter } from 'vue-router'
 import NavMap from '@/components/NavMap.vue'
@@ -134,6 +134,12 @@ import {
   disconnect,
   getIsJoined
 } from '@/lib/loraBridge'
+// import { getDistance } from '@/lib/geo' // ← この行を削除
+
+// ★★★ ここから追加 ★★★
+import * as audio from '@/lib/audioManager.js'
+import * as geo from '@/lib/geoutils.js'
+// ★★★ ここまで追加 ★★★
 
 // ★★★ デバッグと本番の切り替えはここで行います ★★★
 // デバッグ時：
@@ -167,6 +173,59 @@ watch(currentPos, (newPos) => {
     navMap.value.updateCurrentPosition(newPos.lat, newPos.lng)
   }
 })
+
+// ★★★ ここから追加：音声再生のための位置情報監視ロジック ★★★
+watch(currentPos, (newPos) => {
+  console.log('[Debug] currentPos changed:', newPos)
+  console.log('[Debug] plan.value:', plan.value)
+  console.log('[Debug] plan.value.waypoints_info:', plan.value?.waypoints_info)
+  console.log('[Debug] plan.value.along_pois:', plan.value?.along_pois)
+  console.log('[Debug] plan.value.assets:', plan.value?.assets)
+
+  if (!newPos || !plan.value?.route || !plan.value?.assets) {
+    return
+  }
+
+  const rawWaypoints = toRaw(plan.value?.waypoints_info)
+  const rawAlongPois = toRaw(plan.value?.along_pois)
+
+  const waypointsArray = Array.isArray(rawWaypoints)
+    ? rawWaypoints
+    : Object.values(rawWaypoints || {})
+
+  const alongPoisArray = Array.isArray(rawAlongPois)
+    ? rawAlongPois
+    : Object.values(rawAlongPois || {})
+
+  const allSpots = [...waypointsArray, ...alongPoisArray]
+  if (allSpots.length === 0) return
+
+  const travelMode = geo.getCurrentTravelMode(newPos, plan.value.route)
+  const buffer = travelMode === 'car' ? 300 : 10
+
+  allSpots.forEach((spot) => {
+    if (!spot.lat || !spot.lon) return
+
+    const spotPos = {
+      lat: spot.lat,
+      lng: spot.lon
+    }
+
+    const distance = geo.calculateDistance(newPos, spotPos)
+
+    if (distance <= buffer) {
+      const asset = plan.value.assets.find((a) => a.spot_id === spot.spot_id)
+      if (asset?.audio?.url) {
+        audio.playAudioForSpot({
+          id: spot.spot_id,
+          name: spot.name,
+          voice_path: asset.audio.url
+        })
+      }
+    }
+  })
+})
+
 
 function _updateOnline() {
   online.value = navigator.onLine
@@ -387,6 +446,7 @@ onUnmounted(() => {
   rtStore.stopPolling()
   stopLoraPolling()
   stopPrefetchWatcher()
+  audio.resetPlaybackState() // ★★★ この行を追加 ★★★
   if (isLoraConnected.value) {
     disconnectLoraDevice()
   }
