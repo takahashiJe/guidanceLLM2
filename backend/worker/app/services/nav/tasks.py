@@ -93,7 +93,7 @@ def _collect_unique_spot_ids(waypoints: List[Waypoint], along_pois: List[dict]) 
     return uniq
 
 def _build_spot_refs(spot_ids: List[str], language: str) -> List[dict]:
-    spot_rows = get_spots_by_ids(spot_ids).values()
+    spot_rows = get_spots_by_ids(spot_ids, language).values()
     items = []
     for row in spot_rows:
         desc = row.description

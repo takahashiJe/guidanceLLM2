@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Optional
 
 from sqlalchemy import create_engine, text, bindparam
 from sqlalchemy.engine import Engine, Result
+import json
 
 
 @dataclass
@@ -37,7 +38,7 @@ def _get_engine() -> Engine:
     return _engine
 
 
-def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
+def get_spots_by_ids(ids: Iterable[str], lang: str) -> Dict[str, SpotRow]:
     """
     spots テーブルから spot_id 群を引き、 {spot_id: SpotRow} を返す。
     想定カラム: spot_id (PK), name, description, md_slug
@@ -45,20 +46,22 @@ def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
     id_list = [str(i) for i in ids if i]
     if not id_list:
         return {}
-
-    sql = text(
-        """
+    
+    if lang not in ['ja', 'en', 'zh']:
+        return {}
+    
+    sql_query = f"""
         SELECT
         spot_id::text AS spot_id,
-        official_name->>'ja' AS name,
-        description,
+        official_name->>'{lang}' AS name,
+        description->>'{lang}' AS description,
         md_slug,
         ST_Y(geom) AS lat,
         ST_X(geom) AS lon
         FROM spots
         WHERE spot_id IN :ids
-        """
-    ).bindparams(bindparam("ids", expanding=True))
+    """
+    sql = text(sql_query).bindparams(bindparam("ids", expanding=True))
 
     try:
         eng = _get_engine()
