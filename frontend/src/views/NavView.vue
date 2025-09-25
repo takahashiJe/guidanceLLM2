@@ -15,14 +15,19 @@
       "
     >
       <h4>デバッグ用パネル</h4>
-      <button @click="moveToTestSpot" style="padding: 8px; font-size: 14px; margin-bottom: 5px">
-        スポットに近づける
-      </button>
+      <div style="display:flex; gap:6px; margin-bottom:6px;">
+        <input v-model.number="debugLat" type="number" step="0.000001" placeholder="lat" style="width:120px;" />
+        <input v-model.number="debugLng" type="number" step="0.000001" placeholder="lng" style="width:120px;" />
+        <button @click="setDebugPos(debugLat, debugLng)" style="padding:6px 10px;">現在地をセット</button>
+        <label style="font-size:12px; display:flex; align-items:center; gap:4px; margin-left:6px;">
+          <input type="checkbox" v-model="following" @change="toggleFollowing" />
+          追従
+        </label>
+      </div>
+
       <p style="margin: 0; font-size: 12px; color: #333">
         現在地:
-        <span v-if="currentPos"
-          >{{ currentPos.lat.toFixed(4) }}, {{ currentPos.lng.toFixed(4) }}</span
-        >
+        <span v-if="currentPos">{{ currentPos.lat.toFixed(4) }}, {{ currentPos.lng.toFixed(4) }}</span>
         <span v-else>未取得</span>
       </p>
     </div>
@@ -53,6 +58,14 @@
               LoRaデバイスに接続
             </button>
             <button v-else @click="disconnectLoraDevice" class="join-btn">切断</button>
+          </div>
+          <div class="conn-row">
+            <span class="chip" :class="isPollingEnabled ? 'ok' : 'muted'">
+              リアルタイム取得: {{ isPollingEnabled ? 'ON' : 'OFF' }}
+            </span>
+            <button class="join-btn" @click="togglePolling">
+              {{ isPollingEnabled ? '停止' : '開始' }}
+            </button>
           </div>
         </div>
 
@@ -130,7 +143,7 @@ import {
   connect,
   join,
   send,
-  startReceiveLoop, // ★★★ インポートを追加 ★★★
+  startReceiveLoop,
   disconnect,
   getIsJoined
 } from '@/lib/loraBridge'
@@ -152,8 +165,17 @@ const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
 const isLoraConnected = ref(false)
 let loraSendInterval = null
-const { currentPos, moveToTestSpot } = usePosition()
-const isDebug = computed(() => typeof moveToTestSpot === 'function')
+// const { currentPos, moveToTestSpot } = usePosition()
+const { 
+  currentPos, 
+  debugLat, 
+  debugLng, 
+  following, 
+  setDebugPos, 
+  toggleFollowing,
+  isMock 
+} = usePosition()
+const isDebug = computed(() => !!isMock)
 
 // マップ上の現在位置マーカーを更新
 watch(currentPos, (newPos) => {
@@ -162,7 +184,7 @@ watch(currentPos, (newPos) => {
   }
 })
 
-// ★★★ スポット接近時の通常案内をキューに追加するロジック (修正済み) ★★★
+// ★★★ スポット接近時の通常案内をキューに追加するロジック ★★★
 watch(currentPos, (newPos) => {
   if (!plan.value || !newPos) return;
 
@@ -173,7 +195,7 @@ watch(currentPos, (newPos) => {
   if (allSpots.length === 0) return;
 
   const travelMode = geo.getCurrentTravelMode(newPos, plan.value?.segments ?? plan.value?.route);
-  const bufferM = (travelMode === 'car') ? 300 : 10;
+  const bufferM = (travelMode === 'car') ? 350 : 15;
 
   allSpots.forEach((spot) => {
     if (!spot.lat || !spot.lon) return;
@@ -334,8 +356,10 @@ async function connectLoraDevice() {
     isLoraConnected.value = true
     pushToast('LoRa', 'Connected to device and joined network.')
     await new Promise((resolve) => setTimeout(resolve, 3000))
-    rtStore.stopPolling()
-    startLoraPolling()
+    if (isPollingEnabled.value) {
+      rtStore.stopPolling()
+      startLoraPolling()
+    }
   } catch (error) {
     alert(`LoRa connection error: ${error.message}`)
     await disconnect()
@@ -349,8 +373,10 @@ async function disconnectLoraDevice() {
   stopLoraPolling()
   await disconnect()
   isLoraConnected.value = false
-  if (online.value) {
+  if (online.value && isPollingEnabled.value) {
     rtStore.startPolling(plan.value?.waypoints_info || [])
+  } else {
+    rtStore.stopPolling()
   }
 }
 
@@ -359,19 +385,53 @@ window.addEventListener('online', _updateOnline)
 window.addEventListener('offline', _updateOnline)
 
 watch(online, (isOnline) => {
+  if (!isPollingEnabled.value) {
+    rtStore.stopPolling()
+    return
+  }
   if (isOnline && !isLoraConnected.value) {
     rtStore.startPolling(plan.value?.waypoints_info || [])
-  } else {
+  } else if (!isOnline) {
     rtStore.stopPolling()
   }
 })
+
+const isPollingEnabled = ref(false) // ★ デフォルトOFF
+
+function startRtPollingIfNeeded() {
+  if (!isPollingEnabled.value) return
+  if (isLoraConnected.value) {
+    // LoRaが使えるならLoRa優先
+    rtStore.stopPolling()
+    startLoraPolling()
+  } else if (online.value) {
+    // オンラインならHTTPポーリング
+    stopLoraPolling()
+    rtStore.startPolling(plan.value?.waypoints_info || [])
+  } else {
+    // どちらも無理
+    pushToast('リアルタイム', 'オフラインのためHTTP取得不可。LoRa接続すると取得できます。', 5000)
+  }
+}
+
+function stopAllRtPolling() {
+  stopLoraPolling()
+  rtStore.stopPolling()
+}
+
+function togglePolling() {
+  isPollingEnabled.value = !isPollingEnabled.value
+  if (isPollingEnabled.value) startRtPollingIfNeeded()
+  else stopAllRtPolling()
+}
+
 
 onMounted(() => {
   if (!navStore.plan) {
     router.push('/plan')
     return
   }
-  rtStore.startPolling(plan.value?.waypoints_info || [])
+  // rtStore.startPolling(plan.value?.waypoints_info || [])
 })
 
 onUnmounted(() => {
