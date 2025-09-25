@@ -58,20 +58,20 @@ def _join_context(ctx: List[Dict], max_chars: int = 8000) -> str:
     return "\n\n".join(texts)
 
 
-def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "narration") -> str:
+def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "situation") -> str:
     """
     音声ナレーション向けのプロンプトを構築。
-    spot辞書に narration_type が含まれるかで、生成するプロンプトを切り替える。
-    - narration_type 無し: 通常のスポット説明（RAG利用）
-    - narration_type 有り: 天候・混雑度に応じた状況別案内
+    spot辞書に situation が含まれるかで、生成するプロンプトを切り替える。
+    - situation 無し: 通常のスポット説明（RAG利用）
+    - situation 有り: 天候・混雑度に応じた状況別案内
     """
     lang_label = LANG_HINT.get(lang, lang)
     name = spot.get("name") or spot.get("spot_id", "this spot")
-    narration_type = spot.get("narration_type")
+    situation = spot.get("situation")
 
-    # --- narration_type がある場合：状況別案内のプロンプトを生成 ---
-    if narration_type:
-        condition_instruction = CONDITION_HINTS.get(lang, {}).get(narration_type, "")
+    # --- situation がある場合：状況説明のプロンプトを生成 ---
+    if situation:
+        condition_instruction = CONDITION_HINTS.get(lang, {}).get(situation, "")
 
         prompt = f"""
 [TASK=Generate a situational guidance message] [LANGUAGE={lang}|{lang_label}]
@@ -91,7 +91,7 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "narration
 """.strip()
         return prompt
 
-    # --- narration_type がない場合：通常のスポット説明のプロンプトを生成 ---
+    # --- situation がない場合：スポットのガイダンステキストのプロンプトを生成 ---
     else:
         style_note = STYLE_HINT.get(style, {}).get(lang, style)
         desc = (spot.get("description") or "").strip()

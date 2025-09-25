@@ -70,7 +70,7 @@ class PlanResponse(BaseModel):
     assets: List[Asset]
     manifest_url: str
 
-# ★★★ 状況別ナレーションの定義 ★★★
+# ★★★ 状況説明の定義 ★★★
 CONDITIONAL_NARRATIONS = {
     "weather_1": "w=1 (Cloudy)",
     "weather_2": "w=2 (Rainy)",
@@ -285,22 +285,22 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     all_spot_ids = _collect_unique_spot_ids(req.waypoints, along_pois)
     spot_refs = _build_spot_refs(all_spot_ids, req.language)
 
-    # (B) Waypointに限定して、状況別案内(4パターン)をリクエスト
+    # (B) Waypointに限定して、状況説明(4パターン)をリクエスト
     conditional_spot_refs = []
     waypoint_spot_refs = [ref for ref in spot_refs if ref['spot_id'] in waypoint_ids]
 
     for spot_ref in waypoint_spot_refs:
         for key in CONDITIONAL_NARRATIONS.keys():
             conditional_ref = spot_ref.copy()
-            conditional_ref["narration_type"] = key
+            conditional_ref["situation_type"] = key
             conditional_spot_refs.append(conditional_ref)
 
-    # (C) 通常案内と状況別案内を結合してLLMに一括送信
+    # (C) スポットガイダンスと状況説明を結合してLLMに一括送信
     combined_spots_for_llm = spot_refs + conditional_spot_refs
 
     llm_items = []
     if combined_spots_for_llm:
-        llm_req = {"language": req.language, "style": "narration", "spots": combined_spots_for_llm}
+        llm_req = {"language": req.language, "style": "situation", "spots": combined_spots_for_llm}
         llm_result = post_describe(llm_req)
         llm_items = llm_result.get("items", [])
         logger.info(f"LLM service returned {len(llm_items)} descriptions.")
