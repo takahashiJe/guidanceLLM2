@@ -44,7 +44,8 @@ def describe_impl(payload: DescribeRequest) -> DescribeResponse:
     items: list[DescribeItem] = []
     for s in payload.spots:
         # 既存処理：コンテキスト収集 → プロンプト生成 → LLM生成
-        ctx = generator.retrieve_context(s.spot_id, payload.language)
+        # ctx = generator.retrieve_context(s.spot_id, payload.language)
+        ctx = generator.retrieve_context(s.model_dump(), payload.language)
         ptxt = prompt.build_prompt(s.model_dump(), ctx, payload.language, payload.style)
 
         # generator が生のテキスト(思考タグ含む)を返す

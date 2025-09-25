@@ -131,15 +131,15 @@ def _chroma_search(q: str, lang: str, n: int = 4) -> List[Dict]:
 
 def retrieve_context(spot_ref, lang: str) -> list[dict]:
     """
-    A方式: md_slug と description をまず入れる。
-    追加: Chroma にインデックスがあれば、クエリに基づく関連チャンクを少量追加。
+    md_slug と description をまず入れる。
+    Chroma にインデックスがあれば、クエリに基づく関連チャンクを少量追加。
     """
     ctx: list[dict] = []
 
     # 1) md_slug を最優先で追加
     md_slug = getattr(spot_ref, "md_slug", None)
     if md_slug:
-        md_text = _load_md_by_slug(md_slug, lang)  # ← 既存の関数をそのまま利用
+        md_text = _load_md_by_slug(md_slug, lang)
         if md_text:
             ctx.append({"text": md_text, "source": f"{lang}/spots/{md_slug}.md"})
 
