@@ -4,8 +4,8 @@
       v-if="isDebug"
       style="
         position: fixed;
-        top: 10px;
-        left: 10px;
+        bottom: 10px;
+        right: 10px;
         z-index: 9999;
         background: white;
         padding: 10px;

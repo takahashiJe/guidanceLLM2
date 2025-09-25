@@ -301,6 +301,8 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     llm_items = []
     if combined_spots_for_llm:
         llm_req = {"language": req.language, "spots": combined_spots_for_llm}
+        situation_count = sum(1 for s in combined_spots_for_llm if "situation" in s)
+        logger.info(f"{situation_count} spots have 'situation' for conditional prompts.")
         llm_result = post_describe(llm_req)
         llm_items = llm_result.get("items", [])
         logger.info(f"LLM service returned {len(llm_items)} descriptions.")

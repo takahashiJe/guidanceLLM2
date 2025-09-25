@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from backend.worker.app.services.llm import generator, prompt
+import logging
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="llm service")
 
@@ -15,6 +17,7 @@ class SpotRef(BaseModel):
     description: Optional[str] = None
     md_slug: Optional[str] = None
     narration_type: Optional[str] = None
+    situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
 
 class DescribeRequest(BaseModel):
     language: Literal["ja","en","zh"]
@@ -42,6 +45,7 @@ def _extract_narration(raw_text: str) -> str:
 def describe_impl(payload: DescribeRequest) -> DescribeResponse:
     items: list[DescribeItem] = []
     for s in payload.spots:
+        logger.debug(f"Describing spot: {s.spot_id}, situation={s.situation}")
         # 既存処理：コンテキスト収集 → プロンプト生成 → LLM生成
         # ctx = generator.retrieve_context(s.spot_id, payload.language)
         ctx = generator.retrieve_context(s.model_dump(), payload.language)
