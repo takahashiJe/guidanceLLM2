@@ -14,6 +14,7 @@ class SpotRef(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     md_slug: Optional[str] = None
+    narration_type: Optional[str] = None
 
 class DescribeRequest(BaseModel):
     language: Literal["ja","en","zh"]
@@ -22,6 +23,7 @@ class DescribeRequest(BaseModel):
 
 class DescribeItem(BaseModel):
     spot_id: str
+    narration_type: Optional[str] = None
     text: str
 
 class DescribeResponse(BaseModel):
@@ -50,7 +52,11 @@ def describe_impl(payload: DescribeRequest) -> DescribeResponse:
         # 抽出関数を通してクリーンアップする
         narration_text = _extract_narration(raw_text)
         
-        items.append(DescribeItem(spot_id=s.spot_id, text=narration_text))
+        items.append(DescribeItem(
+            spot_id=s.spot_id,
+            narration_type=s.narration_type,
+            text=narration_text
+        ))
     return DescribeResponse(items=items)
 
 @app.post("/describe", response_model=DescribeResponse)

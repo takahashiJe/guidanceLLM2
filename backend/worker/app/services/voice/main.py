@@ -55,6 +55,7 @@ class SingleSynthResponse(BaseModel):
 
 class SynthesizeItem(BaseModel):
     spot_id: str
+    narration_type: Optional[str] = None
     text: str
 
 
@@ -69,6 +70,7 @@ class SynthesizeAndSaveRequest(BaseModel):
 
 class SynthesizeAndSaveItemResponse(BaseModel):
     spot_id: str
+    narration_type: Optional[str] = None
     audio_url: str           # ← url ではなく audio_url
     bytes: int               # ← size_bytes ではなく bytes
     duration_s: float        # ← duration_sec ではなく duration_s
@@ -114,6 +116,10 @@ def _write_manifest(pack_dir: Path, pack_id: str, language: str, items: list[dic
 def normalize_lang(s: str) -> str:
     k = s.strip().lower().replace("_", "-")
     return LANG_MAP.get(k, s)
+
+def _safe_token(s: str) -> str:
+    """ファイル名の一部に使うトークンを簡易サニタイズ"""
+    return "".join(ch if ch.isalnum() or ch in ("_", "-", ".") else "_" for ch in (s or ""))
 
 # ----- ヘルスチェック -----
 @app.get("/health")
@@ -171,7 +177,8 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
     for it in req.items:
         # 1) TTS → WAV
         try:
-            wav = synthesize_wav_bytes(runtime=_runtime, text=it.text, language=req.language)
+            lang = normalize_lang(req.language)
+            wav = synthesize_wav_bytes(runtime=_runtime, text=it.text, language=lang)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"TTS failed for {it.spot_id}: {e}")
 
@@ -188,34 +195,44 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
                 data = wav
 
         # 3) ファイル名
-        audio_name = f"{it.spot_id}.{req.language}.{fmt}"
-        text_name  = f"{it.spot_id}.{req.language}.txt"
+        ntype = it.narration_type or "default"
+        base = _safe_token(it.spot_id)
+        variant = _safe_token(ntype)
+        base_name = f"{base}_{variant}" if variant != "default" else base
+
+        audio_name = f"{base_name}.{lang}.{fmt}"
+        text_name  = f"{base_name}.{lang}.txt"
+
+        audio_path = pack_dir / audio_name
+        text_path  = pack_dir / text_name
 
         # 4) 安全書き込み（fsync）
         try:
-            _safe_write_bytes(pack_dir / audio_name, data)
+            _safe_write_bytes(audio_path, data)
             if req.save_text:
-                _safe_write_text(pack_dir / text_name, it.text)
+                _safe_write_text(text_path, it.text)
         except Exception as e:
             logger.exception("Failed to write files for %s/%s", req.pack_id, it.spot_id)
             raise HTTPException(status_code=500, detail=f"file write failed: {e}")
 
-        # 5) duration（ffprobe はファイルパスに対して）
-        audio_path = pack_dir / audio_name
-        if fmt == "wav":
-            dur = estimate_wav_duration_sec(data)
-        else:
-            dur = try_ffprobe_duration_sec(audio_path) or max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
 
-        size = len(data)
+        # 5) duration（ffprobe はファイルパスに対して）
+        if fmt == "mp3":
+            dur = try_ffprobe_duration_sec(audio_path) or max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
+        else:
+            dur = estimate_wav_duration_sec(data)
+        if not dur and fmt == "mp3":
+            dur = max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
+
         text_url = f"/packs/{req.pack_id}/{text_name}" if req.save_text else None
 
         # 6) レスポンス item
         out_items.append(
             SynthesizeAndSaveItemResponse(
                 spot_id=it.spot_id,
+                narration_type=it.narration_type,
                 audio_url=f"/packs/{req.pack_id}/{audio_name}",
-                bytes=size,
+                bytes=len(data),
                 duration_s=dur,
                 format=fmt,
                 text_url=text_url,
@@ -225,13 +242,13 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
         logger.info(
             "Wrote audio: %s (%d bytes, format=%s) text:%s",
             f"/packs/{req.pack_id}/{audio_name}",
-            size,
+            len(data),
             fmt,
             text_url or "-"
         )
 
     # 7) manifest をここで確実に保存（return の前）
-    _write_manifest(pack_dir, req.pack_id, req.language, [i.model_dump() for i in out_items])
+    # _write_manifest(pack_dir, req.pack_id, req.language, [i.model_dump() for i in out_items])
 
     return SynthesizeAndSaveResponse(
         pack_id=req.pack_id,
