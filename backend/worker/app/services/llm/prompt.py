@@ -9,11 +9,9 @@ LANG_HINT = {
 }
 
 STYLE_HINT = {
-    "narration": {
         "ja": "落ち着いたガイド口調で、約45〜60秒（200〜300字程度）。固有名詞は正確に、過度な比喩は避ける。",
         "en": "Warm guide tone, about 45–60s (120–160 words). Precise proper nouns, minimal florid language.",
         "zh": "温和的导览口吻，约45–60秒（120–160词）。专有名词要准确，避免过度修辞。",
-    }
 }
 
 SAFETY_FOOTER = {
@@ -58,7 +56,7 @@ def _join_context(ctx: List[Dict], max_chars: int = 8000) -> str:
     return "\n\n".join(texts)
 
 
-def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "situation") -> str:
+def build_prompt(spot: Dict, ctx: List[Dict], lang: str,) -> str:
     """
     音声ナレーション向けのプロンプトを構築。
     spot辞書に situation が含まれるかで、生成するプロンプトを切り替える。
@@ -93,7 +91,7 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "situation
 
     # --- situation がない場合：スポットのガイダンステキストのプロンプトを生成 ---
     else:
-        style_note = STYLE_HINT.get(style, {}).get(lang, style)
+        style_note = STYLE_HINT.get(lang, "narration")
         desc = (spot.get("description") or "").strip()
 
         context_block = _join_context(ctx, max_chars=8000)
@@ -106,7 +104,7 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str, style: str = "situation
         facts_txt = "\n".join(facts_lines) if facts_lines else "- (no extra context)"
 
         prompt = f"""
-[LANGUAGE={lang}|{lang_label}] [STYLE={style}|ナレーション]
+[LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
 あなたは鳥海山エリアを訪れる観光客向けのプロのツアーガイドです。
 
 スポット名: {name} (ID: {spot.get('spot_id')})

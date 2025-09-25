@@ -19,7 +19,6 @@ class SpotRef(BaseModel):
 class DescribeRequest(BaseModel):
     language: Literal["ja","en","zh"]
     spots: List[SpotRef]
-    style: str = "narration"
 
 class DescribeItem(BaseModel):
     spot_id: str
@@ -46,7 +45,7 @@ def describe_impl(payload: DescribeRequest) -> DescribeResponse:
         # 既存処理：コンテキスト収集 → プロンプト生成 → LLM生成
         # ctx = generator.retrieve_context(s.spot_id, payload.language)
         ctx = generator.retrieve_context(s.model_dump(), payload.language)
-        ptxt = prompt.build_prompt(s.model_dump(), ctx, payload.language, payload.style)
+        ptxt = prompt.build_prompt(s.model_dump(), ctx, payload.language)
 
         # generator が生のテキスト(思考タグ含む)を返す
         raw_text = generator.generate_text(ptxt) # generator.py を使用

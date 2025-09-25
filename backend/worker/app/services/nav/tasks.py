@@ -292,7 +292,7 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     for spot_ref in waypoint_spot_refs:
         for key in CONDITIONAL_NARRATIONS.keys():
             conditional_ref = spot_ref.copy()
-            conditional_ref["situation_type"] = key
+            conditional_ref["situation"] = key
             conditional_spot_refs.append(conditional_ref)
 
     # (C) スポットガイダンスと状況説明を結合してLLMに一括送信
@@ -300,7 +300,7 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
 
     llm_items = []
     if combined_spots_for_llm:
-        llm_req = {"language": req.language, "style": "situation", "spots": combined_spots_for_llm}
+        llm_req = {"language": req.language, "spots": combined_spots_for_llm}
         llm_result = post_describe(llm_req)
         llm_items = llm_result.get("items", [])
         logger.info(f"LLM service returned {len(llm_items)} descriptions.")
