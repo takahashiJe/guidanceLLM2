@@ -176,23 +176,39 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
 
     for it in req.items:
         # 1) TTS → WAV
+        # # Coqui TTS を使用する場合 (XTTS)
+        # try:
+        #     lang = normalize_lang(req.language)
+        #     wav = synthesize_wav_bytes(runtime=_runtime, text=it.text, language=lang)
+        # except Exception as e:
+        #     raise HTTPException(status_code=500, detail=f"TTS failed for {it.spot_id}: {e}")
+
+        # # 2) 変換（mp3優先、失敗時はwavフォールバック）
+        # fmt = "wav"
+        # data = wav
+        # if target_fmt == "mp3":
+        #     try:
+        #         mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
+        #         data = mp3
+        #         fmt = "mp3"
+        #     except Exception:
+        #         fmt = "wav"
+        #         data = wav
+        
+        # gTTS を使用する場合
         try:
             lang = normalize_lang(req.language)
-            wav = synthesize_wav_bytes(runtime=_runtime, text=it.text, language=lang)
+            # 北京語の場合は gTTS 用の 'zh-CN' に変換
+            lang_code = "zh-CN" if lang == "zh" else lang
+            
+            tts = gTTS(text=it.text, lang=lang_code, slow=False)
+            
+            fp = BytesIO()
+            tts.write_to_fp(fp)
+            data = fp.getvalue()
+            fmt = "mp3" # gTTSはMP3を直接生成
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"TTS failed for {it.spot_id}: {e}")
-
-        # 2) 変換（mp3優先、失敗時はwavフォールバック）
-        fmt = "wav"
-        data = wav
-        if target_fmt == "mp3":
-            try:
-                mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
-                data = mp3
-                fmt = "mp3"
-            except Exception:
-                fmt = "wav"
-                data = wav
+            raise HTTPException(status_code=500, detail=f"gTTS failed for {it.spot_id}: {e}")
 
         # 3) ファイル名
         ntype = it.situation or "default"

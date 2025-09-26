@@ -7,3 +7,6 @@ transformers==4.49.*
 cutlet
 fugashi
 unidic-lite
+
+# 追加
+gTTS
