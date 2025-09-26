@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from gtts import gTTS
+from io import BytesIO
 import os, json, logging
 from datetime import datetime
 from pathlib import Path
@@ -16,7 +18,8 @@ from .tts import (
     ffmpeg_convert_wav_to_mp3,
     estimate_wav_duration_sec,
     try_ffprobe_duration_sec,
-    VOICE_REGISTRY, DEFAULT_BY_LANG,
+    # VOICE_REGISTRY, 
+    # DEFAULT_BY_LANG,
 )
 
 logger = logging.getLogger("svc-voice")
@@ -130,34 +133,35 @@ def health():
         "default_format": "mp3",
         "default_bitrate": 64,
         "model": os.getenv("TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
-        "voices": {k: v["language"] for k, v in VOICE_REGISTRY.items()},
-        "default_by_lang": DEFAULT_BY_LANG,
+        # "voices": {k: v["language"] for k, v in VOICE_REGISTRY.items()},
+        # "default_by_lang": DEFAULT_BY_LANG,
     }
 
 
 # ----- 単発：お試し合成（保存しない） -----
 @app.post("/synthesize", response_model=SingleSynthResponse)
 def synthesize(req: SingleSynthRequest) -> SingleSynthResponse:
-    try:
-        wav = synthesize_wav_bytes(runtime=_runtime, text=req.text, language=req.language)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS failed: {e}")
+    # try:
+    #     wav = synthesize_wav_bytes(runtime=_runtime, text=req.text, language=req.language)
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"TTS failed: {e}")
 
-    target_fmt = (req.format or DEFAULT_FORMAT).lower()
-    bitrate = int(req.bitrate_kbps or DEFAULT_BITRATE)
+    # target_fmt = (req.format or DEFAULT_FORMAT).lower()
+    # bitrate = int(req.bitrate_kbps or DEFAULT_BITRATE)
 
-    if target_fmt == "mp3":
-        try:
-            mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
-            # 時間は ffprobe があれば使い、無ければビットレート近似
-            dur = try_ffprobe_duration_sec(mp3) or max(0.0, len(mp3) * 8.0 / (bitrate * 1000.0))
-            return SingleSynthResponse(size_bytes=len(mp3), duration_sec=dur, format="mp3")
-        except Exception as e:
-            # WAV にフォールバック
-            pass
+    # if target_fmt == "mp3":
+    #     try:
+    #         mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
+    #         # 時間は ffprobe があれば使い、無ければビットレート近似
+    #         dur = try_ffprobe_duration_sec(mp3) or max(0.0, len(mp3) * 8.0 / (bitrate * 1000.0))
+    #         return SingleSynthResponse(size_bytes=len(mp3), duration_sec=dur, format="mp3")
+    #     except Exception as e:
+    #         # WAV にフォールバック
+    #         pass
 
-    dur_wav = estimate_wav_duration_sec(wav)
-    return SingleSynthResponse(size_bytes=len(wav), duration_sec=dur_wav, format="wav")
+    # dur_wav = estimate_wav_duration_sec(wav)
+    # return SingleSynthResponse(size_bytes=len(wav), duration_sec=dur_wav, format="wav")
+    raise HTTPException(status_code=404, detail="This endpoint is disabled.")
 
 
 # ----- バッチ：保存付き（要求仕様） -----
@@ -234,7 +238,7 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
 
         # 5) duration（ffprobe はファイルパスに対して）
         if fmt == "mp3":
-            dur = try_ffprobe_duration_sec(audio_path) or max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
+            dur = try_ffprobe_duration_sec(data) or max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
         else:
             dur = estimate_wav_duration_sec(data)
         if not dur and fmt == "mp3":
