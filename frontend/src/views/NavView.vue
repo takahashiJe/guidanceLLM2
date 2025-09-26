@@ -206,7 +206,7 @@ watch(currentPos, (newPos) => {
         ? plan.value.assets
         : Object.values(plan.value.assets || {});
       
-      const asset = assetsArray.find(a => a.spot_id === spot.spot_id && !a.narration_type);
+      const asset = assetsArray.find(a => a.spot_id === spot.spot_id && !a.situation);
 
       if (asset?.audio_url) {
         // ★★★ 新しいキューイング関数を呼び出すように修正 ★★★
@@ -235,11 +235,11 @@ watch(
 
     const weatherChanged = !event.prev || event.prev.w !== event.next.w;
     if (weatherChanged && (event.next.w === 1 || event.next.w === 2)) {
-      const narrationType = `weather_${event.next.w}`;
-      const asset = assets.find(a => a.spot_id === spotId && a.narration_type === narrationType);
+      const situationType = `weather_${event.next.w}`;
+      const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
       if (asset?.audio_url) {
         enqueueAudio({
-          id: `${spotId}_${narrationType}`,
+          id: `${spotId}_${situationType}`,
           name: `${spotName} (天気案内)`,
           voice_path: asset.audio_url
         });
@@ -248,11 +248,11 @@ watch(
 
     const congestionChanged = !event.prev || event.prev.c !== event.next.c;
     if (congestionChanged && (event.next.c === 1 || event.next.c === 2)) {
-      const narrationType = `congestion_${event.next.c}`;
-      const asset = assets.find(a => a.spot_id === spotId && a.narration_type === narrationType);
+      const situationType = `congestion_${event.next.c}`;
+      const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
       if (asset?.audio_url) {
         enqueueAudio({
-          id: `${spotId}_${narrationType}`,
+          id: `${spotId}_${situationType}`,
           name: `${spotName} (混雑度案内)`,
           voice_path: asset.audio_url
         });

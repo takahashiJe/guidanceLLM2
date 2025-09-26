@@ -87,7 +87,7 @@ function playNextInQueue() {
  *
  * @param {object} spotInfo - 再生したいスポットの情報オブジェクト。
  * { id: string, name: string, voice_path: string } を含む必要があります。
- * `id`はspot_idとnarration_typeを組み合わせたユニークなものにしてください。
+ * `id`はspot_idとsituation_typeを組み合わせたユニークなものにしてください。
  */
 export function enqueueAudio(spotInfo) {
   if (!spotInfo || !spotInfo.id || !spotInfo.voice_path) {

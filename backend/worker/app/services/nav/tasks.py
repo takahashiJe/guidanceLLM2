@@ -55,7 +55,7 @@ class Leg(BaseModel):
 
 class Asset(BaseModel):
     spot_id: str
-    narration_type: Optional[str] = None # ★★★ フロントエンド識別のために追加 ★★★
+    situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
     audio_url: Optional[str] = None
     text_url: Optional[str] = None
     bytes: Optional[int] = None
@@ -142,11 +142,11 @@ def _normalize_legs(raw_legs: list, polyline: list) -> list:
 def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[dict]:
     """
     LLMとVoiceの結果をマージし、フロントエンド向けのAssetリストを作成する。
-    spot_id と narration_type を使って、正しくメタデータを付与する。
+    spot_id と situation を使って、正しくメタデータを付与する。
     """
-    # LLMへのリクエストアイテムを (spot_id, narration_type) のタプルをキーとする辞書に格納
+    # LLMへのリクエストアイテムを (spot_id, situation) のタプルをキーとする辞書に格納
     llm_item_map = {
-        (item.get("spot_id"), item.get("narration_type")): item
+        (item.get("spot_id"), item.get("situation")): item
         for item in llm_items
     }
 
@@ -156,7 +156,7 @@ def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[
     # 音声生成が成功したアイテムを処理
     for vr in voice_results or []:
         sid = vr.get("spot_id")
-        ntype = vr.get("narration_type")  # Voiceサービスがこのキーをパススルーすることを期待
+        ntype = vr.get("situation")  # Voiceサービスがこのキーをパススルーすることを期待
         if not sid:
             continue
 
@@ -165,7 +165,7 @@ def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[
             llm_item = llm_item_map[key]
             assets.append({
                 "spot_id": sid,
-                "narration_type": ntype,
+                "situation": ntype,
                 "text": llm_item.get("text", ""),
                 "audio_url": vr.get("audio_url"),
                 "text_url": vr.get("text_url"),
@@ -180,7 +180,7 @@ def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[
         if key not in processed_keys:
             assets.append({
                 "spot_id": item.get("spot_id"),
-                "narration_type": item.get("narration_type"),
+                "situation": item.get("situation"),
                 "text": item.get("text", ""),
                 "audio_url": None,
                 "text_url": None,

@@ -55,7 +55,7 @@ class SingleSynthResponse(BaseModel):
 
 class SynthesizeItem(BaseModel):
     spot_id: str
-    narration_type: Optional[str] = None
+    situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
     text: str
 
 
@@ -70,7 +70,7 @@ class SynthesizeAndSaveRequest(BaseModel):
 
 class SynthesizeAndSaveItemResponse(BaseModel):
     spot_id: str
-    narration_type: Optional[str] = None
+    situation: Optional[str] = None
     audio_url: str           # ← url ではなく audio_url
     bytes: int               # ← size_bytes ではなく bytes
     duration_s: float        # ← duration_sec ではなく duration_s
@@ -195,7 +195,7 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
                 data = wav
 
         # 3) ファイル名
-        ntype = it.narration_type or "default"
+        ntype = it.situation or "default"
         base = _safe_token(it.spot_id)
         variant = _safe_token(ntype)
         base_name = f"{base}_{variant}" if variant != "default" else base
@@ -230,7 +230,7 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
         out_items.append(
             SynthesizeAndSaveItemResponse(
                 spot_id=it.spot_id,
-                narration_type=it.narration_type,
+                situation=it.situation,
                 audio_url=f"/packs/{req.pack_id}/{audio_name}",
                 bytes=len(data),
                 duration_s=dur,
