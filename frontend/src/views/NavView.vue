@@ -36,6 +36,24 @@
     <div v-if="isRouteReady" class="nav-container">
       <div class="map-wrapper">
         <NavMap ref="navMap" :plan="plan" :current-pos="currentPos" />
+        <div class="map-actions">
+          <button
+            type="button"
+            class="map-action-btn"
+            :disabled="!currentPos"
+            @click="recenterOnCurrent"
+          >
+            現在地へ
+          </button>
+          <button
+            type="button"
+            class="map-action-btn"
+            :class="{ 'map-action-btn--active': following }"
+            @click="toggleFollowMode"
+          >
+            {{ following ? '追従中' : '追従OFF' }}
+          </button>
+        </div>
       </div>
 
       <div class="controls">
@@ -182,18 +200,30 @@ const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
 const isLoraConnected = ref(false)
 let loraSendInterval = null
-const { 
-  currentPos, 
-  debugLat, 
-  debugLng, 
-  following, 
-  setDebugPos, 
+const {
+  currentPos,
+  debugLat,
+  debugLng,
+  following,
+  setDebugPos,
   toggleFollowing,
-  isMock 
+  isMock
 } = usePosition()
 const isDebug = computed(() => !!isMock)
 const isPollingEnabled = ref(false)
 const didPrecacheTiles = ref(false)
+
+const recenterOnCurrent = () => {
+  if (!navMap.value || !currentPos.value) return
+  navMap.value.flyToSpot(currentPos.value.lat, currentPos.value.lng)
+}
+
+const toggleFollowMode = () => {
+  toggleFollowing()
+  if (following.value) {
+    recenterOnCurrent()
+  }
+}
 
 
 // --- ★★★ 新しいアクションを呼び出すメソッド ★★★ ---
@@ -296,6 +326,15 @@ async function requestTilePrecache(polyline) {
 watch(currentPos, (newPos) => {
   if (navMap.value && newPos) {
     navMap.value.updateCurrentPosition(newPos.lat, newPos.lng)
+    if (following.value) {
+      navMap.value.flyToSpot(newPos.lat, newPos.lng)
+    }
+  }
+})
+
+watch(following, (isOn) => {
+  if (isOn) {
+    recenterOnCurrent()
   }
 })
 
@@ -623,8 +662,48 @@ watch(
   height: 100%;
 }
 .map-wrapper {
+  position: relative;
   width: 100%;
   height: 100%;
+}
+
+.map-actions {
+  position: absolute;
+  right: 16px;
+  bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 900;
+}
+
+.map-action-btn {
+  min-width: 100px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.24);
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.map-action-btn:hover {
+  background: rgba(37, 99, 235, 0.9);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
+}
+
+.map-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.map-action-btn--active {
+  background: rgba(16, 185, 129, 0.92);
 }
 .controls {
   position: absolute;

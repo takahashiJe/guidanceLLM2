@@ -66,7 +66,8 @@ export const useNavStore = defineStore('nav', () => {
    * 【ステップ1】ルート計画を作成し、地図表示の準備をする
    * @param {object} planOptions
    */
-  const fetchRoute = async (planOptions) => {
+  const fetchRoute = async (planOptions, opts = {}) => {
+    const { navigate = true } = opts
     reset()
     isRouteLoading.value = true
     error.value = null
@@ -92,7 +93,9 @@ export const useNavStore = defineStore('nav', () => {
         createdAt: Date.now(),
       }
 
-      router.push('/nav')
+      if (navigate) {
+        router.push('/nav')
+      }
     } catch (e) {
       console.error('Failed to fetch route', e)
       error.value = e.message || 'ルート計算に失敗しました'

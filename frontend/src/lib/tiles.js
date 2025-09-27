@@ -1,11 +1,10 @@
 // src/lib/tiles.js
-export const TILE_TEMPLATE = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-export const TILE_SUBS = ['a', 'b', 'c'];
+export const TILE_TEMPLATE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+export const TILE_SUBS = ['server'];
 
 // Leaflet と同じ URL 形式を生成
-export function tileUrl(z, x, y, sIdx = 0) {
-  const s = TILE_SUBS[sIdx % TILE_SUBS.length];
-  return `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+export function tileUrl(z, x, y) {
+  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`;
 }
 
 /**
