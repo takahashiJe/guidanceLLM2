@@ -30,6 +30,15 @@ async function latestPacksCacheName() {
   return packs.slice(-1)[0] || RUNTIME;
 }
 
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type !== 'PRECACHE_TILES') return;
+
+  const tiles = Array.isArray(data.tiles) ? data.tiles : [];
+  const clientId = event.source && 'id' in event.source ? event.source.id : null;
+  event.waitUntil(precacheTiles(tiles, { clientId }));
+});
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -114,5 +123,55 @@ async function trimTilesCache(cache) {
   if (keys.length > MAX_TILES) {
     const del = keys.length - MAX_TILES;
     for (let i = 0; i < del; i++) { await cache.delete(keys[i]); }
+  }
+}
+
+async function precacheTiles(tiles, { clientId } = {}) {
+  if (!tiles.length) return;
+
+  const cache = await caches.open(TILES_CACHE);
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const entry of tiles) {
+    const url = typeof entry === 'string' ? entry : entry?.url;
+    if (!url || typeof url !== 'string') {
+      failed++;
+      continue;
+    }
+
+    const request = new Request(url, { mode: 'no-cors' });
+    const cached = await cache.match(request, { ignoreSearch: true });
+    if (cached) {
+      skipped++;
+      continue;
+    }
+
+    try {
+      const response = await fetch(request);
+      if (response && (response.ok || response.type === 'opaque')) {
+        await cache.put(request, response.clone());
+        added++;
+      } else {
+        failed++;
+      }
+    } catch (err) {
+      failed++;
+    }
+  }
+
+  trimTilesCache(cache).catch(() => {});
+
+  if (clientId) {
+    try {
+      const client = await self.clients.get(clientId);
+      client?.postMessage({
+        type: 'PRECACHE_TILES_RESULT',
+        summary: { added, skipped, failed, requested: tiles.length }
+      });
+    } catch {
+      // ignore
+    }
   }
 }

@@ -159,6 +159,7 @@ import {
 
 import { enqueueAudio, resetPlaybackState } from '@/lib/audioManager.js'
 import * as geo from '@/lib/geoutils.js'
+import { tilesForRoute } from '@/lib/tiles'
 
 import { usePosition } from '@/lib/usePosition.mock.js'
 // import { usePosition } from '@/lib/usePosition.js';
@@ -192,6 +193,7 @@ const {
 } = usePosition()
 const isDebug = computed(() => !!isMock)
 const isPollingEnabled = ref(false)
+const didPrecacheTiles = ref(false)
 
 
 // --- ★★★ 新しいアクションを呼び出すメソッド ★★★ ---
@@ -200,6 +202,94 @@ const startGuidance = async () => {
   await navStore.startGuidance()
 }
 // --- ★★★ ここまで ★★★ ---
+
+const handleSwMessage = (event) => {
+  const data = event.data
+  if (data?.type === 'PRECACHE_TILES_RESULT' && data.summary) {
+    const { added, skipped, failed } = data.summary
+    console.debug('[sw] precache tiles result', data.summary)
+    if (failed > 0) {
+      pushToast('地図キャッシュ', `一部タイルの取得に失敗しました (${failed})`, 5000)
+    } else if (added > 0) {
+      pushToast('地図キャッシュ', `タイル ${added} 件を保存しました`, 3000)
+    }
+  }
+}
+
+onMounted(() => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', handleSwMessage)
+  }
+
+  // ★★★ isRouteReadyをチェックするように修正 ★★★
+  if (!isRouteReady.value) {
+    router.push('/plan')
+    return
+  }
+})
+
+onUnmounted(() => {
+  rtStore.stopPolling()
+  stopLoraPolling()
+  resetPlaybackState()
+  if (isLoraConnected.value) {
+    disconnectLoraDevice()
+  }
+  window.removeEventListener('online', _updateOnline)
+  window.removeEventListener('offline', _updateOnline)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.removeEventListener('message', handleSwMessage)
+  }
+})
+
+watch(
+  () => plan.value?.polyline,
+  (polyline) => {
+    if (!polyline || polyline.length === 0) {
+      didPrecacheTiles.value = false
+      return
+    }
+    if (didPrecacheTiles.value) return
+    requestTilePrecache(polyline)
+  },
+  { immediate: true }
+)
+
+async function requestTilePrecache(polyline) {
+  if (!('serviceWorker' in navigator)) return
+  const candidateTiles = tilesForRoute(polyline, { zooms: [12, 13, 14, 15], marginDeg: 0.03, maxTiles: 800 })
+  if (!candidateTiles.length) return
+
+  const payload = {
+    type: 'PRECACHE_TILES',
+    tiles: candidateTiles,
+    meta: {
+      requestedAt: Date.now(),
+      planCreatedAt: plan.value?.createdAt ?? null,
+    }
+  }
+
+  const postToController = (controller) => {
+    if (!controller) return false
+    try {
+      controller.postMessage(payload)
+      didPrecacheTiles.value = true
+      return true
+    } catch (err) {
+      console.warn('[sw] failed to post precache message', err)
+      return false
+    }
+  }
+
+  if (postToController(navigator.serviceWorker.controller)) return
+
+  try {
+    const registration = await navigator.serviceWorker.ready
+    if (postToController(registration.active)) return
+  } catch (err) {
+    console.warn('[sw] service worker ready wait failed', err)
+  }
+}
 
 
 // マップ上の現在位置マーカーを更新
@@ -479,25 +569,6 @@ function togglePolling() {
   else stopAllRtPolling()
 }
 
-
-onMounted(() => {
-  // ★★★ isRouteReadyをチェックするように修正 ★★★
-  if (!isRouteReady.value) {
-    router.push('/plan')
-    return
-  }
-})
-
-onUnmounted(() => {
-  rtStore.stopPolling()
-  stopLoraPolling()
-  resetPlaybackState()
-  if (isLoraConnected.value) {
-    disconnectLoraDevice()
-  }
-  window.removeEventListener('online', _updateOnline)
-  window.removeEventListener('offline', _updateOnline)
-})
 
 function toggleSpotList() { isSpotListVisible.value = !isSpotListVisible.value }
 function focusOnSpot(poi) { if (navMap.value) { navMap.value.flyToSpot(poi.lat, poi.lon) } }
