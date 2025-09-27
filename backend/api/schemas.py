@@ -122,3 +122,33 @@ class RTDocResponse(BaseModel):
 
 class RTDoc(RTDocResponse):
     s: str
+
+class RoutePlanRequest(BaseModel):
+    """
+    経路計画API (/api/route) のリクエストスキーマ
+    """
+    language: Literal["ja", "en", "zh"]
+    origin: Coord
+    waypoints: List[SpotPick] = Field(..., min_items=1)
+    return_to_origin: bool = True
+
+class WaypointInfo(BaseModel):
+    """
+    経路計画APIが返すウェイポイント情報のスキーマ
+    """
+    spot_id: str
+    name: str
+    lon: float
+    lat: float
+    nearest_idx: int
+    distance_m: float
+
+class RoutePlanResponse(BaseModel):
+    """
+    経路計画API (/api/route) のレスポンススキーマ
+    """
+    feature_collection: Dict[str, Any]
+    legs: List[Dict[str, Any]] # 厳密な型定義は省略
+    polyline: List[List[float]]
+    segments: List[SegmentIndex] # 既存のSegmentIndesを再利用
+    waypoints_info: List[WaypointInfo]

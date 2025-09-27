@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import os
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, field_validator
 
-# logic モジュールは後で実装（integration テストで monkeypatch 前提）
 from backend.worker.app.services.routing import logic as rlogic
 from backend.worker.app.services.routing.spot_repo import SpotRepo
 from backend.worker.app.services.routing.logic import build_legs_with_switch, stitch_to_geojson
@@ -30,9 +29,21 @@ class Waypoint(BaseModel):
     spot_id: Optional[str] = None
 
 class RouteRequest(BaseModel):
+    language: Literal["ja", "en", "zh"]
     origin: Coord
     waypoints: List[Waypoint]
+    return_to_origin: bool = True
     car_to_trailhead: bool = True
+
+class WaypointInfo(BaseModel):
+    """waypoints_info として返却するスポット情報のスキーマ"""
+    spot_id: str
+    name: str
+    lon: float
+    lat: float
+    # NAV部で使っていた nearest_idx, distance_m もここで計算して含める
+    nearest_idx: int
+    distance_m: float
 
 class Leg(BaseModel):
     mode: Literal["car", "foot"]
@@ -52,12 +63,13 @@ class RouteResponse(BaseModel):
     legs: List[Leg]
     polyline: List[list[float]]
     segments: List[Segment]
+    waypoints_info: List[WaypointInfo]
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-@app.post("/route")
+@app.post("/route", response_model=RouteResponse)
 def route(req: RouteRequest) -> RouteResponse:
     """
     入力: RouteRequest
@@ -122,4 +134,5 @@ def route(req: RouteRequest) -> RouteResponse:
         legs=legs,
         polyline=polyline,
         segments=segments,
+        waypoints_info=waypoints_info,
     )
