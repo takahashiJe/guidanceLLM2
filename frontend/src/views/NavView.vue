@@ -15,63 +15,71 @@
       "
     >
       <h4>デバッグ用パネル</h4>
-      <div style="display:flex; gap:6px; margin-bottom:6px;">
-        <input v-model.number="debugLat" type="number" step="0.000001" placeholder="lat" style="width:120px;" />
-        <input v-model.number="debugLng" type="number" step="0.000001" placeholder="lng" style="width:120px;" />
-        <button @click="setDebugPos(debugLat, debugLng)" style="padding:6px 10px;">現在地をセット</button>
-        <label style="font-size:12px; display:flex; align-items:center; gap:4px; margin-left:6px;">
+      <div style="display: flex; gap: 6px; margin-bottom: 6px">
+        <input v-model.number="debugLat" type="number" step="0.000001" placeholder="lat" style="width: 120px" />
+        <input v-model.number="debugLng" type="number" step="0.000001" placeholder="lng" style="width: 120px" />
+        <button @click="setDebugPos(debugLat, debugLng)" style="padding: 6px 10px">
+          現在地をセット
+        </button>
+        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; margin-left: 6px">
           <input type="checkbox" v-model="following" @change="toggleFollowing" />
           追従
         </label>
       </div>
-
       <p style="margin: 0; font-size: 12px; color: #333">
         現在地:
         <span v-if="currentPos">{{ currentPos.lat.toFixed(4) }}, {{ currentPos.lng.toFixed(4) }}</span>
         <span v-else>未取得</span>
       </p>
     </div>
-    <div v-if="navStore.isLoading" class="loading-overlay">
-      <p>案内プランを生成中です...</p>
-    </div>
 
-    <div v-else-if="plan && plan.waypoints_info" class="nav-container">
+    <div v-if="isRouteReady" class="nav-container">
       <div class="map-wrapper">
         <NavMap ref="navMap" :plan="plan" :current-pos="currentPos" />
       </div>
-      <div class="controls">
-        <div class="conn-panel">
-          <div class="conn-row">
-            <span :class="['chip', online ? 'ok' : 'warn']">{{
-              online ? 'オンライン' : 'オフライン'
-            }}</span>
-            <span v-if="isLoraConnected" class="chip ok">LoRa接続済み</span>
-            <span v-else-if="isLoraConnecting" class="chip busy">LoRa接続中...</span>
-            <span v-else class="chip muted">LoRa未接続</span>
 
-            <button
-              v-if="!isLoraConnected"
-              @click="connectLoraDevice"
-              :disabled="isLoraConnecting"
-              class="join-btn"
-            >
-              LoRaデバイスに接続
-            </button>
-            <button v-else @click="disconnectLoraDevice" class="join-btn">切断</button>
-          </div>
-          <div class="conn-row">
-            <span class="chip" :class="isPollingEnabled ? 'ok' : 'muted'">
-              リアルタイム取得: {{ isPollingEnabled ? 'ON' : 'OFF' }}
-            </span>
-            <button class="join-btn" @click="togglePolling">
-              {{ isPollingEnabled ? '停止' : '開始' }}
-            </button>
+      <div class="controls">
+        <div v-if="!isNavigationReady" class="start-nav-panel">
+          <button @click="startGuidance" :disabled="isNavigating" class="start-nav-button">
+            {{ isNavigating ? '案内を生成中...' : 'ナビゲーションを開始' }}
+          </button>
+          <div v-if="navStore.plan.error" class="error-box">
+            エラー: {{ navStore.plan.error }}
           </div>
         </div>
-
-        <button @click="toggleSpotList" class="spot-list-toggle">
-          {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
-        </button>
+        
+        <div v-if="isNavigationReady">
+          <div class="conn-panel">
+            <div class="conn-row">
+              <span :class="['chip', online ? 'ok' : 'warn']">{{
+                online ? 'オンライン' : 'オフライン'
+              }}</span>
+              <span v-if="isLoraConnected" class="chip ok">LoRa接続済み</span>
+              <span v-else-if="isLoraConnecting" class="chip busy">LoRa接続中...</span>
+              <span v-else class="chip muted">LoRa未接続</span>
+              <button
+                v-if="!isLoraConnected"
+                @click="connectLoraDevice"
+                :disabled="isLoraConnecting"
+                class="join-btn"
+              >
+                LoRaデバイスに接続
+              </button>
+              <button v-else @click="disconnectLoraDevice" class="join-btn">切断</button>
+            </div>
+            <div class="conn-row">
+              <span class="chip" :class="isPollingEnabled ? 'ok' : 'muted'">
+                リアルタイム取得: {{ isPollingEnabled ? 'ON' : 'OFF' }}
+              </span>
+              <button class="join-btn" @click="togglePolling">
+                {{ isPollingEnabled ? '停止' : '開始' }}
+              </button>
+            </div>
+          </div>
+          <button @click="toggleSpotList" class="spot-list-toggle">
+            {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
+          </button>
+        </div>
 
         <div v-if="isSpotListVisible" class="spot-list">
           <h3>周遊スポット</h3>
@@ -80,7 +88,7 @@
               <button @click="focusOnSpot(poi)">
                 <span class="order-index">{{ index + 1 }}</span>
                 {{ poi.name }}
-                <span class="rt-badges" v-if="latestBySpot(poi.spot_id)">
+                <span class="rt-badges" v-if="isNavigationReady && latestBySpot(poi.spot_id)">
                   <span
                     class="rt-badge weather"
                     :title="weatherTitle(latestBySpot(poi.spot_id))"
@@ -105,7 +113,7 @@
             </li>
           </ul>
 
-          <div v-if="sortedAlongPois.length > 0" class="nearby-section">
+          <div v-if="isNavigationReady && sortedAlongPois.length > 0" class="nearby-section">
             <h3 class="nearby-title">周辺のスポット</h3>
             <ul>
               <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
@@ -127,7 +135,8 @@
     </div>
 
     <div v-else class="error-view">
-      <p>ナビゲーションプランが見つかりません。</p>
+      <p v-if="navStore.plan.error">エラーが発生しました: {{ navStore.plan.error }}</p>
+      <p v-else>ナビゲーションプランが見つかりません。</p>
       <router-link to="/plan">プラン作成画面に戻る</router-link>
     </div>
   </div>
@@ -151,21 +160,26 @@ import {
 import { enqueueAudio, resetPlaybackState } from '@/lib/audioManager.js'
 import * as geo from '@/lib/geoutils.js'
 
-// ！！！！ここでデバッグと本番切り替える！！！！
 import { usePosition } from '@/lib/usePosition.mock.js'
 // import { usePosition } from '@/lib/usePosition.js';
 
 const navStore = useNavStore()
 const rtStore = useRtStore()
 const router = useRouter()
+
+// --- ★★★ ストアの状態をcomputedで取得 ★★★ ---
 const plan = computed(() => navStore.plan)
+const isRouteReady = computed(() => navStore.plan.isRouteReady)
+const isNavigating = computed(() => navStore.plan.isNavigating)
+const isNavigationReady = computed(() => navStore.plan.isNavigationReady)
+// --- ★★★ ここまで ★★★ ---
+
 const navMap = ref(null)
 const isSpotListVisible = ref(true)
 const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
 const isLoraConnected = ref(false)
 let loraSendInterval = null
-// const { currentPos, moveToTestSpot } = usePosition()
 const { 
   currentPos, 
   debugLat, 
@@ -177,6 +191,14 @@ const {
 } = usePosition()
 const isDebug = computed(() => !!isMock)
 
+
+// --- ★★★ 新しいアクションを呼び出すメソッド ★★★ ---
+const startGuidance = () => {
+  navStore.startGuidance()
+}
+// --- ★★★ ここまで ★★★ ---
+
+
 // マップ上の現在位置マーカーを更新
 watch(currentPos, (newPos) => {
   if (navMap.value && newPos) {
@@ -184,9 +206,10 @@ watch(currentPos, (newPos) => {
   }
 })
 
-// ★★★ スポット接近時の通常案内をキューに追加するロジック ★★★
+// スポット接近時の通常案内をキューに追加するロジック
 watch(currentPos, (newPos) => {
-  if (!plan.value || !newPos) return;
+  // ★★★ isNavigationReadyをチェックする条件を追加 ★★★
+  if (!isNavigationReady.value || !plan.value || !newPos) return;
 
   const allSpots = [
     ...(plan.value?.waypoints_info || []),
@@ -209,22 +232,22 @@ watch(currentPos, (newPos) => {
       const asset = assetsArray.find(a => a.spot_id === spot.spot_id && !a.situation);
 
       if (asset?.audio_url) {
-        // ★★★ 新しいキューイング関数を呼び出すように修正 ★★★
         enqueueAudio({
-          id: spot.spot_id, // 通常案内はspot_idをユニークIDとして使用
+          id: spot.spot_id,
           name: spot.name,
-          voice_path: asset.audio_url // ★★★ asset.audio.url から修正 ★★★
+          voice_path: asset.audio_url
         });
       }
     }
   });
 });
 
-// ★★★ LoRa受信データをトリガーに状況別案内をキューに追加するロジック ★★★
+// LoRa受信データをトリガーに状況別案内をキューに追加するロジック
 watch(
   () => rtStore.notifyLog.length,
   (newLength, oldLength) => {
-    if (newLength <= oldLength || !plan.value) return;
+    // ★★★ isNavigationReadyをチェックする条件を追加 ★★★
+    if (newLength <= oldLength || !isNavigationReady.value || !plan.value) return;
 
     const event = rtStore.notifyLog[newLength - 1];
     const spotId = event.spot_id;
@@ -396,20 +419,17 @@ watch(online, (isOnline) => {
   }
 })
 
-const isPollingEnabled = ref(false) // ★ デフォルトOFF
+const isPollingEnabled = ref(false)
 
 function startRtPollingIfNeeded() {
   if (!isPollingEnabled.value) return
   if (isLoraConnected.value) {
-    // LoRaが使えるならLoRa優先
     rtStore.stopPolling()
     startLoraPolling()
   } else if (online.value) {
-    // オンラインならHTTPポーリング
     stopLoraPolling()
     rtStore.startPolling(plan.value?.waypoints_info || [])
   } else {
-    // どちらも無理
     pushToast('リアルタイム', 'オフラインのためHTTP取得不可。LoRa接続すると取得できます。', 5000)
   }
 }
@@ -427,17 +447,17 @@ function togglePolling() {
 
 
 onMounted(() => {
-  if (!navStore.plan) {
+  // ★★★ isRouteReadyをチェックするように修正 ★★★
+  if (!isRouteReady.value) {
     router.push('/plan')
     return
   }
-  // rtStore.startPolling(plan.value?.waypoints_info || [])
 })
 
 onUnmounted(() => {
   rtStore.stopPolling()
   stopLoraPolling()
-  resetPlaybackState() // ★★★ audio. ではなく直接呼び出すように修正 ★★★
+  resetPlaybackState()
   if (isLoraConnected.value) {
     disconnectLoraDevice()
   }
@@ -485,7 +505,7 @@ watch(
   width: 100%;
   height: 100vh;
 }
-.loading-overlay {
+.loading-overlay { /* ★★★ 既存のローディングは削除 (ストアのローディングフラグを使うため) ★★★ */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -511,6 +531,46 @@ watch(
   align-items: flex-end;
   max-height: calc(100vh - 20px);
 }
+
+/* ★★★ 「ナビ開始」ボタン用のスタイルを追加 ★★★ */
+.start-nav-panel {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-bottom: 10px;
+  width: 250px;
+}
+.start-nav-button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: bold;
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.start-nav-button:hover {
+  background: #2563eb;
+}
+.start-nav-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+.error-box {
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 8px;
+  border-radius: 4px;
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+/* ★★★ ここまで ★★★ */
+
+
 .conn-panel {
   background: #ffffff;
   border-radius: 8px;
@@ -523,6 +583,7 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-top: 4px;
 }
 .chip {
   font-size: 12px;
