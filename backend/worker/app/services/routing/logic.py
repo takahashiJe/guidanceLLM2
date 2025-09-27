@@ -2,14 +2,77 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple, Literal
 
+from shapely.geometry import Point, LineString
+from shapely.ops import transform
+from pyproj import Transformer
+
 from backend.worker.app.services.routing import osrm_client as oc
 from backend.worker.app.services.routing.osrm_client import OsrmRouteResult
 from backend.worker.app.services.routing import access_point_repo as ap_repo
+from backend.worker.app.services.routing.spot_repo import SpotRepo, SpotInfo
 
-import logging # ファイルの先頭に追加
+import logging
 logger = logging.getLogger(__name__)
 
 Coord = Tuple[float, float]  # (lat, lon)
+
+def _proj() -> Transformer:
+    """WGS84 (EPSG:4326) からウェブメルカトル (EPSG:3857) へ変換する"""
+    return Transformer.from_crs(4326, 3857, always_xy=True)
+
+
+def build_waypoints_info(spot_ids: List[str], language: str, polyline: List[List[float]]) -> List[Dict]:
+    """
+    NAVの _build_spot_refs と _reduce_hits_to_along_pois_local の機能を統合した関数。
+    1. spot_idからスポットの基本情報(名前,座標など)をDBから取得。
+    2. 各スポットがルート(polyline)上のどの点に最も近いかを計算し、情報を付与する。
+    """
+    # 1. スポットの基本情報を取得 (_build_spot_refs に相当)
+    repo = SpotRepo()
+    spot_info_map = repo.get_spots_by_ids(spot_ids, language)
+
+    # 2. polylineとの最近接点情報を計算 (_reduce_hits_to_along_pois_local に相当)
+    if not spot_info_map or not polyline or len(polyline) < 2:
+        return []
+
+    # 計算準備: polylineをメートル座標系(3857)に変換
+    to3857 = _proj().transform
+    line_lonlat = [(p[0], p[1]) for p in polyline]
+    line_3857 = transform(to3857, LineString(line_lonlat))
+
+    # WaypointInfoのリストを作成
+    waypoints_info = []
+    for spot_id, info in spot_info_map.items():
+        if info.lat is None or info.lon is None:
+            continue
+
+        pt_3857 = transform(to3857, Point(info.lon, info.lat))
+        
+        # ルート全体との距離
+        distance_m = float(line_3857.distance(pt_3857))
+        
+        # ルート上で最も近い点のインデックスを探す
+        nearest_idx = 0
+        min_dist_to_point = float("inf")
+        for i, p_lonlat in enumerate(line_lonlat):
+            p_3857 = transform(to3857, Point(p_lonlat))
+            d = p_3857.distance(pt_3857)
+            if d < min_dist_to_point:
+                min_dist_to_point = d
+                nearest_idx = i
+
+        waypoints_info.append({
+            "spot_id": info.spot_id,
+            "name": info.name,
+            "lon": info.lon,
+            "lat": info.lat,
+            "nearest_idx": nearest_idx,
+            "distance_m": distance_m,
+        })
+    
+    # ユーザーが指定した順序に並べ替え
+    ordered_info = sorted(waypoints_info, key=lambda x: spot_ids.index(x['spot_id']))
+    return ordered_info
 
 def _result_to_leg(
     mode: Literal["car", "foot"],

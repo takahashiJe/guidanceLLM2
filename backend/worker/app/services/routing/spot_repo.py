@@ -21,6 +21,16 @@ _engine = create_engine(
     future=True,
 )
 
+@dataclass
+class SpotInfo:
+    """スポットの詳細情報を格納するデータクラス"""
+    spot_id: str
+    name: Optional[str] = None
+    description: Optional[str] = None
+    md_slug: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+
 class SpotRepo:
     """
     spot_id -> (lon, lat) を DB（spots / facilities）から解決する。
@@ -65,7 +75,48 @@ class SpotRepo:
             for r in rows:
                 out[r["spot_id"]] = (float(r["lon"]), float(r["lat"]))
         return out
+    @staticmethod
+    def get_spots_by_ids(ids: Iterable[str], lang: str) -> Dict[str, SpotInfo]:
+        """
+        【移植】指定されたIDのスポット情報を多言語で取得する。
+        nav/spot_repo.py の get_spots_by_ids を移植・統合。
+        """
+        id_list = [str(i) for i in ids if i]
+        if not id_list or lang not in ['ja', 'en', 'zh']:
+            return {}
 
+        sql = text(f"""
+            WITH all_pois AS (
+                SELECT spot_id, official_name, description, md_slug, geom, 1 as tbl_ord
+                FROM spots WHERE spot_id = ANY(:ids)
+                UNION ALL
+                SELECT spot_id, official_name, description, md_slug, geom, 2 as tbl_ord
+                FROM facilities WHERE spot_id = ANY(:ids)
+            )
+            SELECT DISTINCT ON (spot_id)
+                spot_id::text,
+                official_name->>'{lang}' AS name,
+                description->>'{lang}' AS description,
+                md_slug,
+                ST_Y(geom) AS lat,
+                ST_X(geom) AS lon
+            FROM all_pois
+            ORDER BY spot_id, tbl_ord;
+        """)
+
+        out: Dict[str, SpotInfo] = {}
+        with _engine.begin() as conn:
+            rows = conn.execute(sql, {"ids": id_list}).mappings().all()
+            for r in rows:
+                out[r["spot_id"]] = SpotInfo(
+                    spot_id=r["spot_id"],
+                    name=r.get("name"),
+                    description=r.get("description"),
+                    md_slug=r.get("md_slug"),
+                    lat=r["lat"],
+                    lon=r["lon"]
+                )
+        return out
     @staticmethod
     def resolve_one(spot_id: str) -> Optional[Tuple[float, float]]:
         m = SpotRepo.resolve_many([spot_id])

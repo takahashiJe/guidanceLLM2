@@ -7,7 +7,7 @@ from pydantic import BaseModel, field_validator
 
 from backend.worker.app.services.routing import logic as rlogic
 from backend.worker.app.services.routing.spot_repo import SpotRepo
-from backend.worker.app.services.routing.logic import build_legs_with_switch, stitch_to_geojson
+from backend.worker.app.services.routing.logic import build_legs_with_switch, stitch_to_geojson, build_waypoints_info
 
 app = FastAPI(title="routing service")
 
@@ -129,10 +129,18 @@ def route(req: RouteRequest) -> RouteResponse:
     # 4) GeoJSON / polyline / segments 生成
     feature_collection, polyline, segments = stitch_to_geojson(legs)
 
+    # 5) waypoints_info を生成
+    #    - 入力: spot_idのリスト, 言語, 生成されたポリライン
+    #    - 出力: フロントでマーカー表示に必要な情報リスト
+    waypoints_info = []
+    if polyline:
+        waypoints_info = build_waypoints_info(spot_ids, req.language, polyline)
+
+    # 6) レスポンスを組み立てる
     return RouteResponse(
         feature_collection=feature_collection,
-        legs=legs,
+        legs=[Leg(**leg) for leg in legs], # スキーマに合わせて変換
         polyline=polyline,
-        segments=segments,
-        waypoints_info=waypoints_info,
+        segments=[Segment(**seg) for seg in segments], # スキーマに合わせて変換
+        waypoints_info=waypoints_info, # ★ 生成した情報を追加
     )
