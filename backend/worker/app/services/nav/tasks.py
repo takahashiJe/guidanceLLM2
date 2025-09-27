@@ -32,19 +32,38 @@ logger = logging.getLogger(__name__)
 # =================================================================
 # ==== Schemas (スキーマ定義) ====
 # =================================================================
-class Waypoint(BaseModel):
-    spot_id: Optional[str] = None
+# class Waypoint(BaseModel):
+#     spot_id: Optional[str] = None
 
 class Coord(BaseModel):
     lat: float
     lon: float
 
+# 【新規】Routing部からの入力を受け取るためのヘルパースキーマ
+class WaypointInfo(BaseModel):
+    spot_id: str
+    name: str
+    lon: float
+    lat: float
+    nearest_idx: int
+    distance_m: float
+
+class Segment(BaseModel):
+    mode: Literal["car", "foot"]
+    start_idx: int
+    end_idx: int
+
 class PlanRequest(BaseModel):
+    """Routingサービスリファクタリング後の入力スキーマ"""
     language: Literal["ja", "en", "zh"]
-    origin: Coord
-    waypoints: List[Waypoint]
-    return_to_origin: bool = True
     buffer: dict = Field(default_factory=lambda: {"car": 300, "foot": 10})
+    
+    # Routingサービスからの出力をそのまま受け取る
+    route: dict # GeoJSON FeatureCollection
+    polyline: List[List[float]]
+    segments: List[Segment]
+    legs: List[dict] #
+    waypoints_info: List[WaypointInfo]
 
 class Leg(BaseModel):
     mode: Literal["car", "foot"]
@@ -63,14 +82,15 @@ class Asset(BaseModel):
     format: Optional[Literal["mp3","wav"]] = None
 
 class PlanResponse(BaseModel):
+    """Routingサービスリファクタリング後の出力スキーマ"""
     pack_id: str
-    route: dict
-    legs: List[Leg]
+    # 経路情報はレスポンスに含めず、manifest_urlから取得する方針
+    # route: dict
+    # legs: List[Leg]
     along_pois: List[dict]
     assets: List[Asset]
     manifest_url: str
 
-# ★★★ 状況説明の定義 ★★★
 CONDITIONAL_NARRATIONS = {
     "weather_1": "w=1 (Cloudy)",
     "weather_2": "w=2 (Rainy)",
