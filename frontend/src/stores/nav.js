@@ -1,4 +1,4 @@
-import { ref, reactive, computed } from 'vue' // reactive は不要なので削除し、computed をインポート
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { useRouter } from 'vue-router'
 import * as api from '@/lib/api'
@@ -67,36 +67,35 @@ export const useNavStore = defineStore('nav', () => {
    * @param {object} planOptions
    */
   const fetchRoute = async (planOptions) => {
-    // 最初にストアをリセット
     reset()
     isRouteLoading.value = true
-    // PlanViewから渡された言語をストアにセット
+    error.value = null
+
     lang.value = planOptions.language
-    
+    origin.value = planOptions.origin
+    waypointsByIds.value = planOptions.waypoints?.map((w) => w.spot_id) ?? []
+
     try {
       const routeData = await api.createRoutePlan(planOptions)
-      
-      // ストアのplanにルート情報だけをまず保存する
+
       plan.value = {
-        planOptions: planOptions, // 後で使うために保存
+        planOptions,
         route: routeData.feature_collection,
         polyline: routeData.polyline,
         segments: routeData.segments,
         legs: routeData.legs,
         waypoints_info: routeData.waypoints_info,
-        // この時点ではガイダンス関連はnull
         pack_id: null,
         along_pois: [],
         assets: [],
-        manifest_url: null
+        manifest_url: null,
+        createdAt: Date.now(),
       }
-      
-      console.log('Route plan fetched:', plan.value)
-      router.push('/nav')
 
+      router.push('/nav')
     } catch (e) {
       console.error('Failed to fetch route', e)
-      error.value = e.message
+      error.value = e.message || 'ルート計算に失敗しました'
     } finally {
       isRouteLoading.value = false
     }
@@ -129,7 +128,7 @@ export const useNavStore = defineStore('nav', () => {
 
     } catch (e) {
       console.error('Failed to start navigation task', e)
-      error.value = e.message
+      error.value = e.message || 'ナビゲーションの開始に失敗しました'
       isNavigating.value = false
     }
   }

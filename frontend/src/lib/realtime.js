@@ -1,10 +1,8 @@
 // src/lib/realtime.js
 // Realtime (LoRa/MQTTブリッジ) API ラッパ（api.js の関数を薄くラップ）
 //
-// api.js の fetchRealtimeBySpotId() は:
-//   - 204 の場合 null を返す
-//   - 200 の場合 RTDoc を返す
-// ので、ここで {status, body} 形式に正規化して返す。
+// api.js の fetchRealtimeBySpotId() は { status, body } を返すため
+// ここでは呼び出し側が扱いやすいよう { status, body } をそのまま流用する。
 
 import { fetchRealtimeBySpotId } from './api' // ← apiFetch ではなく、公開関数を使用
 
@@ -35,11 +33,14 @@ export async function fetchSpotRT(spotId, opts = {}) {
     }
 
     // ★ 従来どおり HTTP を使用
-    const result = await fetchRealtimeBySpotId(spotId) // 200ならRTDoc、204ならnull
-    if (result === null) {
-      return { status: 204, body: null }
+    const { status, body } = await fetchRealtimeBySpotId(spotId, opts)
+    if (status === 204 || status === 304) {
+      return { status, body: null }
     }
-    return { status: 200, body: /** @type {RTDoc} */ (result) }
+    if (status === 200) {
+      return { status, body: /** @type {RTDoc} */ (body) }
+    }
+    return { status, body }
   } catch (err) {
     return { status: 0, body: null, error: err }
   }

@@ -1,16 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useNavStore } from '@/stores/nav'
 import { usePosition } from '@/lib/usePosition'
 
 const nav = useNavStore()
-const { position, requestPosition } = usePosition()
-
-// 言語の選択状態は、ストアの lang と双方向にバインディングする
-const lang = computed({
-  get: () => nav.lang,
-  set: (val) => nav.setLang(val) // ストアにセッターがあることを想定 (なければ nav.lang = val)
-})
+const { lang, isRouteLoading, error } = storeToRefs(nav)
+const { currentPos } = usePosition()
 
 const pois = ref([])
 const selectedIds = ref([])
@@ -20,7 +16,6 @@ onMounted(async () => {
   try {
     const res = await fetch('/pois.json', { cache: 'no-cache' })
     pois.value = await res.json()
-    requestPosition()
   } catch (e) {
     console.error('[plan] failed to load pois.json', e)
   }
@@ -60,12 +55,8 @@ function remove(i) {
 }
 
 
-// --- ★★★ ここからが修正箇所 ★★★ ---
-
-// ストアのトップレベルのプロパティを直接参照するように修正
-const isRouteLoading = computed(() => nav.isRouteLoading)
-const hasError = computed(() => nav.error)
-const hasNoPosition = computed(() => !position.value.coords)
+const hasError = computed(() => !!error.value)
+const hasNoPosition = computed(() => !currentPos.value)
 
 /**
  * ルート計画の作成をストアのアクションに依頼する
@@ -76,18 +67,17 @@ async function submitPlan() {
     return
   }
 
+  const { lat, lng } = currentPos.value
   const planOptions = {
     language: lang.value,
     origin: {
-      lat: position.value.coords.latitude,
-      lon: position.value.coords.longitude
+      lat,
+      lon: lng
     },
     waypoints: selectedIds.value.map((id) => ({ spot_id: id }))
   }
 
-  // ストアの新しいアクションを呼び出す
   await nav.fetchRoute(planOptions)
-  // ページ遷移はストアのアクション内で行われる
 }
 </script>
 

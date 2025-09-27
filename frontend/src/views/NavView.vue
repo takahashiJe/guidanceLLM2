@@ -43,8 +43,8 @@
           <button @click="startGuidance" :disabled="isNavigating" class="start-nav-button">
             {{ isNavigating ? '案内を生成中...' : 'ナビゲーションを開始' }}
           </button>
-          <div v-if="navStore.plan.error" class="error-box">
-            エラー: {{ navStore.plan.error }}
+          <div v-if="navError" class="error-box">
+            エラー: {{ navError }}
           </div>
         </div>
         
@@ -135,7 +135,7 @@
     </div>
 
     <div v-else class="error-view">
-      <p v-if="navStore.plan.error">エラーが発生しました: {{ navStore.plan.error }}</p>
+      <p v-if="navError">エラーが発生しました: {{ navError }}</p>
       <p v-else>ナビゲーションプランが見つかりません。</p>
       <router-link to="/plan">プラン作成画面に戻る</router-link>
     </div>
@@ -144,6 +144,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useNavStore } from '@/stores/nav'
 import { useRouter } from 'vue-router'
 import NavMap from '@/components/NavMap.vue'
@@ -152,7 +153,6 @@ import {
   connect,
   join,
   send,
-  startReceiveLoop,
   disconnect,
   getIsJoined
 } from '@/lib/loraBridge'
@@ -167,12 +167,13 @@ const navStore = useNavStore()
 const rtStore = useRtStore()
 const router = useRouter()
 
-// --- ★★★ ストアの状態をcomputedで取得 ★★★ ---
-const plan = computed(() => navStore.plan)
-const isRouteReady = computed(() => navStore.plan.isRouteReady)
-const isNavigating = computed(() => navStore.plan.isNavigating)
-const isNavigationReady = computed(() => navStore.plan.isNavigationReady)
-// --- ★★★ ここまで ★★★ ---
+const {
+  plan,
+  isRouteReady,
+  isNavigating,
+  isNavigationReady,
+  error: navError,
+} = storeToRefs(navStore)
 
 const navMap = ref(null)
 const isSpotListVisible = ref(true)
@@ -190,11 +191,13 @@ const {
   isMock 
 } = usePosition()
 const isDebug = computed(() => !!isMock)
+const isPollingEnabled = ref(false)
 
 
 // --- ★★★ 新しいアクションを呼び出すメソッド ★★★ ---
-const startGuidance = () => {
-  navStore.startGuidance()
+const startGuidance = async () => {
+  resetPlaybackState()
+  await navStore.startGuidance()
 }
 // --- ★★★ ここまで ★★★ ---
 
@@ -204,6 +207,36 @@ watch(currentPos, (newPos) => {
   if (navMap.value && newPos) {
     navMap.value.updateCurrentPosition(newPos.lat, newPos.lng)
   }
+})
+
+watch(
+  () => plan.value?.waypoints_info,
+  (waypoints) => {
+    if (!Array.isArray(waypoints) || waypoints.length === 0) {
+      rtStore.setSpotOrder([])
+      if (isPollingEnabled.value) {
+        stopAllRtPolling()
+      }
+      return
+    }
+    rtStore.setSpotOrder(waypoints)
+    if (isPollingEnabled.value) {
+      startRtPollingIfNeeded()
+    }
+  },
+  { immediate: true }
+)
+
+watch(isNavigationReady, (ready) => {
+  if (!ready) {
+    stopAllRtPolling()
+    isPollingEnabled.value = false
+    return
+  }
+  if (!isPollingEnabled.value) {
+    isPollingEnabled.value = true
+  }
+  startRtPollingIfNeeded()
 })
 
 // スポット接近時の通常案内をキューに追加するロジック
@@ -231,11 +264,12 @@ watch(currentPos, (newPos) => {
       
       const asset = assetsArray.find(a => a.spot_id === spot.spot_id && !a.situation);
 
-      if (asset?.audio_url) {
+      const voiceUrl = asset?.audio?.url || asset?.audio_url
+      if (voiceUrl) {
         enqueueAudio({
           id: spot.spot_id,
           name: spot.name,
-          voice_path: asset.audio_url
+          voice_path: voiceUrl
         });
       }
     }
@@ -260,11 +294,12 @@ watch(
     if (weatherChanged && (event.next.w === 1 || event.next.w === 2)) {
       const situationType = `weather_${event.next.w}`;
       const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
-      if (asset?.audio_url) {
+      const voiceUrl = asset?.audio?.url || asset?.audio_url
+      if (voiceUrl) {
         enqueueAudio({
           id: `${spotId}_${situationType}`,
           name: `${spotName} (天気案内)`,
-          voice_path: asset.audio_url
+          voice_path: voiceUrl
         });
       }
     }
@@ -273,11 +308,12 @@ watch(
     if (congestionChanged && (event.next.c === 1 || event.next.c === 2)) {
       const situationType = `congestion_${event.next.c}`;
       const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
-      if (asset?.audio_url) {
+      const voiceUrl = asset?.audio?.url || asset?.audio_url
+      if (voiceUrl) {
         enqueueAudio({
           id: `${spotId}_${situationType}`,
           name: `${spotName} (混雑度案内)`,
-          voice_path: asset.audio_url
+          voice_path: voiceUrl
         });
       }
     }
@@ -418,8 +454,6 @@ watch(online, (isOnline) => {
     rtStore.stopPolling()
   }
 })
-
-const isPollingEnabled = ref(false)
 
 function startRtPollingIfNeeded() {
   if (!isPollingEnabled.value) return
