@@ -48,33 +48,46 @@ def build_legs_with_switch(waypoints: List[Coord]) -> List[Dict]:
     連続する waypoint ペアでレッグを構築。
     - car 直行が取れたら car レッグ。
     - 取れなければ dest 近傍の access_point を経由して car(src→AP) + foot(AP→dest)。
-      （car(src→AP) が失敗しても、AP→dest の foot は実施する）
-    返却する leg は dict（routing.main の Pydantic と互換）。
+    - 徒歩で目的地に到着した場合、次のルート計算の始点は車両が待機している access_point にする。
     """
     legs: List[Dict] = []
     n = len(waypoints)
     if n < 2:
         return legs
 
+    # 車両の現在位置を追跡するための変数
+    # 初期値は最初のウェイポイント
+    car_location = waypoints[0]
+
     for i in range(n - 1):
-        src = waypoints[i]
+        # ルート計算の始点は、常に車両の現在位置
+        src = car_location
+        # 目的地は、元のウェイポイントリストの次の地点
         dst = waypoints[i + 1]
 
         # 1) まず car 直行を試す
         r_car_direct = oc.osrm_route("car", src, dst)
         if getattr(r_car_direct, "ok", False):
             legs.append(_result_to_leg("car", r_car_direct, i, i + 1))
+            # 車で直接到達できたので、車両位置を目的地に更新
+            car_location = dst
             continue
 
-        # 2) AP 経由（car: src→AP, foot: AP→dest）
+        # 2) 車で直行できない場合: access_point を経由する
         ap = nearest_access_point(dst)
 
+        # 車両の現在地(src)からaccess_pointまでの車ルート
         r_car_to_ap = oc.osrm_route("car", src, ap)
-        # car が失敗でもダミーとして追加（距離は 0 の可能性もある）
         legs.append(_result_to_leg("car", r_car_to_ap, i, i + 1))
+        
+        # 車両はaccess_pointで待機するので、車両位置を更新
+        car_location = ap
 
+        # access_pointから目的地までの徒歩ルート
         r_foot_ap_to_dst = oc.osrm_route("foot", ap, dst)
-        legs.append(_result_to_leg("foot", r_foot_ap_to_dst, i + 1, i + 1))
+        legs.append(_result_to_leg("foot", r_foot_ap_to_dst, i, i + 1)) # インデックスを修正
+        # ユーザーは徒歩で目的地に移動するが、車両はAPに残る。
+        # 次のループの始点は更新された car_location (つまり ap) となる。
 
     logger.info(f"Generated legs for routing: {legs}")
     return legs
