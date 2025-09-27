@@ -77,7 +77,7 @@ def route(req: RouteRequest) -> RouteResponse:
     """
 
     # 0) バリデーション
-    if not req.waypoints or len(req.waypoints) < 2:
+    if not req.waypoints or len(req.waypoints) < 1:
         raise HTTPException(status_code=400, detail="At least two waypoints are required.")
 
     spot_ids = []
