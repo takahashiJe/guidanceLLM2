@@ -18,11 +18,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
-const gsiStd = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-  attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>",
-});
-const gsiOpt = L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', {
-  attribution: "<a href='https://maps.gsi.go.jp/development/ichiran.html' target='_blank'>地理院タイル</a>",
+const esriWorldStreet = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution:
+      "Tiles &copy; Esri — Source: Esri, HERE, Garmin, FAO, NOAA, USGS, EPA, NPS",
+    maxZoom: 19
+  }
+);
+
+const cartoPositron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+  subdomains: ['a', 'b', 'c', 'd'],
+  attribution:
+    "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>",
+  maxZoom: 19
 });
 
 const props = defineProps({
@@ -120,9 +129,9 @@ const drawPois = () => {
 const setupMap = () => {
   if (mapContainer.value && !map.value) {
     map.value = L.map(mapContainer.value).setView([39.145, 140.102], 10);
-    const baseMaps = { "地理院地図 標準": gsiStd, "地理院地図 淡色": gsiOpt };
-    gsiStd.addTo(map.value);
-    L.control.layers(baseMaps).addTo(map.value);
+    const baseMaps = { 'Esri WorldStreetMap': esriWorldStreet, 'Carto Positron': cartoPositron };
+    esriWorldStreet.addTo(map.value);
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map.value);
     L.control.scale({ imperial: false, metric: true }).addTo(map.value);
 
     drawRoute();
