@@ -3,6 +3,11 @@ import { ref, onMounted, onUnmounted } from 'vue';
 // 本番用: ブラウザのGeolocation APIを使用する
 export function usePosition() {
   const currentPos = ref(null);
+  // ダミー（isDebug=falseのためUIに出ないが、型合わせで返しておく）
+  const debugLat = ref(null);
+  const debugLng = ref(null);
+  const following = ref(false);
+
   let watchId = null;
 
   onMounted(() => {
@@ -28,8 +33,24 @@ export function usePosition() {
   onUnmounted(() => {
     if (watchId !== null) {
       navigator.geolocation.clearWatch(watchId);
+      watchId = null;
     }
   });
 
-  return { currentPos };
+  // 本番では isMock:false
+  const isMock = false;
+
+  // デバッグ用関数は no-op で返す（参照されても害がない）
+  const setDebugPos = () => {};
+  const toggleFollowing = () => {};
+
+  return {
+    isMock,
+    currentPos,
+    debugLat,
+    debugLng,
+    following,
+    setDebugPos,
+    toggleFollowing,
+  };
 }

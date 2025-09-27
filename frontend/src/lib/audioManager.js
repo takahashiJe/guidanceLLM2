@@ -1,115 +1,132 @@
 // frontend/src/lib/audioManager.js
 
 /**
- * @fileoverview 音声再生の管理を行うモジュール
+ * @fileoverview 音声再生の管理（キューイング対応）を行うモジュール
  */
 
-// 再生済みのスポットIDを記録するSet
-// これにより、一度再生された音声が何度も再生されるのを防ぎます。
-const playedSpots = new Set();
+// --- 内部状態 ---
 
+// 再生キュー：再生リクエストを順番に保持する配列
+const playbackQueue = [];
+// 再生中かどうかを示すフラグ
+let isPlaying = false;
+// 再生済みのユニークIDを記録するSet
+const playedIds = new Set();
 // 現在再生中のHTMLAudioElementインスタンス
 let currentAudio = null;
 
+
 /**
- * 指定されたスポットの音声を再生します。
- * 既に再生済みの場合は何もしません。
- * 他の音声が再生中の場合は、それを停止してから新しい音声を再生します。
- *
- * @param {object} spotInfo - 再生したいスポットの情報オブジェクト。
- * { id: string, name: string, voice_path: string } を含むことを期待します。
+ * キューから次の音声を再生する内部関数。
+ * 再生が終了すると、自身を再帰的に呼び出してキュー内の次のアイテムを処理します。
  */
-export function playAudioForSpot(spotInfo) {
-    console.debug('[AUDIO] playAudioForSpot called', spotInfo);
-  // spotInfoが存在しない、またはIDがない場合は処理を中断
-  if (!spotInfo || !spotInfo.id) {
-    console.error("Invalid spotInfo provided to playAudioForSpot.");
+function playNextInQueue() {
+  // 再生中でない、またはキューが空の場合は処理を終了
+  if (isPlaying || playbackQueue.length === 0) {
     return;
   }
 
-  // すでに再生済みのスポットであれば、コンソールにログを出力して処理を終了
-  if (playedSpots.has(spotInfo.id)) {
-    console.log(`Spot "${spotInfo.name}" (${spotInfo.id}) has already been played.`);
-    return;
-  }
-
-  // もし別の音声が再生中であれば、再生を停止してリソースを解放
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.removeAttribute('src');
-    currentAudio.load(); // バッファ解放
-    currentAudio = null;
-  }
-
-  // --- 音声データの取得ロジック ---
-  // voice_pathを元にローカルストレージから音声データを取得し、
-  //再生可能なURL（Blob URLなど）に変換する処理を想定しています。
-  // ここでは、voice_pathが直接再生可能なパスであると仮定して実装を進めます。
-  // ※実際のストレージ実装に合わせてこの部分を修正してください。
-  const audioPath = spotInfo.voice_path;
-  if (!audioPath) {
-      console.error(`No voice_path found for spot "${spotInfo.name}"`);
+  // キューの先頭から次に再生するアイテムを取得
+  const spotInfo = playbackQueue.shift();
+  
+  // 再生済みか再チェック（キュー待機中に再生済みになるケースを考慮）
+  if (playedIds.has(spotInfo.id)) {
+      console.log(`[Queue] Spot "${spotInfo.name}" (${spotInfo.id}) was already played while in queue. Skipping.`);
+      // すぐに次のアイテムを処理
+      playNextInQueue();
       return;
   }
 
-  console.log(`Attempting to play audio for spot: "${spotInfo.name}"`);
+  const audioPath = spotInfo.voice_path;
+  if (!audioPath) {
+    console.error(`[Queue] No voice_path for "${spotInfo.name}". Skipping.`);
+    // すぐに次のアイテムを処理
+    playNextInQueue();
+    return;
+  }
 
-  // 新しいAudioオブジェクトを作成
+  isPlaying = true;
+  console.log(`[Queue] Playing: "${spotInfo.name}" (${spotInfo.id})`);
+  
   currentAudio = new Audio(audioPath);
-  console.debug('[AUDIO] new Audio created', audioPath);
-  const logEv = (ev) => console.debug('[AUDIO]', ev.type, {
-    readyState: currentAudio.readyState,
-    networkState: currentAudio.networkState,
-    error: currentAudio.error?.code
-    });
-    ['loadedmetadata','canplay','canplaythrough','playing','pause','stalled','suspend','abort','waiting'].forEach(
-        ev => currentAudio.addEventListener(ev, logEv)
-    );
 
-  // 再生が正常に開始された場合
+  // 再生開始に成功したら再生済みとして記録
   currentAudio.addEventListener('play', () => {
-    console.log(`Successfully started playing audio for "${spotInfo.name}".`);
-    // このスポットを「再生済み」として記録
-    playedSpots.add(spotInfo.id);
-  });
-
-  // 再生が終了した際のイベントリスナー
-  currentAudio.addEventListener('ended', () => {
-    console.log(`Finished playing audio for "${spotInfo.name}".`);
-    currentAudio = null; // 再生が完了したらcurrentAudioをリセット
+    playedIds.add(spotInfo.id);
   });
   
-  // 読み込みや再生でエラーが発生した場合
-  currentAudio.addEventListener('error', (e) => {
-    console.error(`Error playing audio for spot "${spotInfo.name}":`, e);
-    // エラーが発生した場合でも、再試行を防ぐために再生済みとしてマークする
-    // playedSpots.add(spotInfo.id); 
-    const markOnError = localStorage.getItem('DEBUG_MARK_ON_ERROR') === '1';
-    if (markOnError) playedSpots.add(spotInfo.id);
+  // 再生が終了したら、状態をリセットして次のアイテムの再生を試みる
+  currentAudio.addEventListener('ended', () => {
+    console.log(`[Queue] Finished: "${spotInfo.name}".`);
     currentAudio = null;
+    isPlaying = false;
+    // 少し間を置いてから次を再生
+    setTimeout(playNextInQueue, 500);
+  });
+  
+  // エラー発生時も、次の再生に進む
+  currentAudio.addEventListener('error', (e) => {
+    console.error(`[Queue] Error playing "${spotInfo.name}":`, e);
+    currentAudio = null;
+    isPlaying = false;
+    setTimeout(playNextInQueue, 500);
   });
 
-  // 音声の再生を開始
   currentAudio.play().catch(error => {
-      console.error(`Playback initiation failed for "${spotInfo.name}":`, error);
-      console.debug('[AUDIO] Autoplay blocked?', {
-        visibility: document.visibilityState,
-        hasUserGesture: 'userActivation' in navigator ? navigator.userActivation.isActive : 'unknown'
-    });
-      // 再生開始に失敗した場合（例: ユーザー操作がない状態での自動再生制限など）
-      currentAudio = null;
+    console.error(`[Queue] Playback initiation failed for "${spotInfo.name}":`, error);
+    currentAudio = null;
+    isPlaying = false;
+    setTimeout(playNextInQueue, 500);
   });
+}
+
+
+/**
+ * 指定されたスポットの音声を再生キューに追加します。
+ * 既に再生済みの場合は何もしません。
+ *
+ * @param {object} spotInfo - 再生したいスポットの情報オブジェクト。
+ * { id: string, name: string, voice_path: string } を含む必要があります。
+ * `id`はspot_idとsituation_typeを組み合わせたユニークなものにしてください。
+ */
+export function enqueueAudio(spotInfo) {
+  if (!spotInfo || !spotInfo.id || !spotInfo.voice_path) {
+    console.error("[Audio] Invalid spotInfo provided to enqueueAudio.", spotInfo);
+    return;
+  }
+
+  // 既に再生済みか、キューに同じIDが存在する場合は追加しない
+  if (playedIds.has(spotInfo.id)) {
+    console.log(`[Audio] ID "${spotInfo.id}" has already been played. Won't enqueue.`);
+    return;
+  }
+  if (playbackQueue.some(item => item.id === spotInfo.id)) {
+    console.log(`[Audio] ID "${spotInfo.id}" is already in the queue. Won't enqueue.`);
+    return;
+  }
+
+  console.log(`[Audio] Enqueueing: "${spotInfo.name}" (ID: ${spotInfo.id})`);
+  playbackQueue.push(spotInfo);
+  
+  // 現在再生中でなければ、キューの処理を開始する
+  playNextInQueue();
 }
 
 /**
  * 音声の再生状態をすべてリセットします。
- * 新しいルート案内を開始する際などに呼び出すことを想定しています。
+ * 新しいルート案内を開始する際などに呼び出します。
  */
 export function resetPlaybackState() {
-  playedSpots.clear();
+  playbackQueue.length = 0; // キューを空にする
+  playedIds.clear();
+  
   if (currentAudio) {
+    // イベントリスナーをすべて削除してから停止
     currentAudio.pause();
+    currentAudio.src = '';
     currentAudio = null;
   }
-  console.log("Audio playback state has been reset.");
+  
+  isPlaying = false;
+  console.log("[Audio] Playback state has been completely reset.");
 }

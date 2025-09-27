@@ -132,7 +132,7 @@ export const useRtStore = defineStore('rt', {
 
       const { status, body } = await fetchSpotRT(spotId, { etag })
 
-      if (status === 204 || status === 0) {
+      if (status === 204 || status === 304 || status === 0) {
         // 204=未到達 or 変更なし(null) / 0=失敗 → 何もしない（次周期へ）
         return
       }
@@ -154,6 +154,38 @@ export const useRtStore = defineStore('rt', {
           prev,
           next,
           at: Date.now()
+        })
+      }
+    },
+
+    /**
+     * LoRaなど外部ソースから受信したRTDocを反映する
+     * @param {RTDoc} next
+     */
+    processRtDoc(next) {
+      if (!next || typeof next !== 'object') return
+      const spotId = String(next.s || next.spot_id || '')
+      if (!spotId) return
+
+      const normalized = {
+        s: spotId,
+        w: Number(next.w ?? 0),
+        u: Number(next.u ?? 0),
+        h: typeof next.h === 'number' ? next.h : undefined,
+        c: Number(next.c ?? 0),
+      }
+
+      const prev = this.lastBySpot[spotId] ?? null
+      const changed = !this._isSame(prev, normalized)
+
+      this.lastBySpot[spotId] = normalized
+
+      if (changed) {
+        this.notifyLog.push({
+          spot_id: spotId,
+          prev,
+          next: normalized,
+          at: Date.now(),
         })
       }
     },

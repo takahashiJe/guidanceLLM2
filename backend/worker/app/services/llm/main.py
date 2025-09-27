@@ -6,6 +6,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from backend.worker.app.services.llm import generator, prompt
+import logging
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="llm service")
 
@@ -14,14 +16,15 @@ class SpotRef(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     md_slug: Optional[str] = None
+    situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
 
 class DescribeRequest(BaseModel):
     language: Literal["ja","en","zh"]
     spots: List[SpotRef]
-    style: str = "narration"
 
 class DescribeItem(BaseModel):
     spot_id: str
+    situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
     text: str
 
 class DescribeResponse(BaseModel):
@@ -41,16 +44,22 @@ def _extract_narration(raw_text: str) -> str:
 def describe_impl(payload: DescribeRequest) -> DescribeResponse:
     items: list[DescribeItem] = []
     for s in payload.spots:
+        logger.debug(f"Describing spot: {s.spot_id}, situation={s.situation}")
         # 既存処理：コンテキスト収集 → プロンプト生成 → LLM生成
-        ctx = generator.retrieve_context(s.spot_id, payload.language)
-        ptxt = prompt.build_prompt(s.model_dump(), ctx, payload.language, payload.style)
+        # ctx = generator.retrieve_context(s.spot_id, payload.language)
+        ctx = generator.retrieve_context(s.model_dump(), payload.language)
+        ptxt = prompt.build_prompt(s.model_dump(), ctx, payload.language)
 
         # generator が生のテキスト(思考タグ含む)を返す
         raw_text = generator.generate_text(ptxt) # generator.py を使用
         # 抽出関数を通してクリーンアップする
         narration_text = _extract_narration(raw_text)
         
-        items.append(DescribeItem(spot_id=s.spot_id, text=narration_text))
+        items.append(DescribeItem(
+            spot_id=s.spot_id,
+            situation=s.situation,
+            text=narration_text
+        ))
     return DescribeResponse(items=items)
 
 @app.post("/describe", response_model=DescribeResponse)
