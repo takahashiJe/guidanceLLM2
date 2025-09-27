@@ -162,6 +162,7 @@ services:
       APP_DB_PASSWORD: app_runtime
       # --- NAVサービス ---
       NAV_BASE: http://svc-nav:9100
+      ROUTING_BASE: http://svc-routing:9101
     env_file:
       - .env
     volumes:

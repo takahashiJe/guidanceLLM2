@@ -2,6 +2,7 @@ import os
 from typing import Dict, Iterable, Optional, Tuple
 
 from sqlalchemy import create_engine, text
+from dataclasses import dataclass
 
 # ─────────────────────────────────────────────────────────────
 # DSN を ENV から構築（docker-compose で渡している変数を使用）
