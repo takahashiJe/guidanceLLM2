@@ -14,18 +14,14 @@ class Coord(BaseModel):
     lon: float
 
 
-class SpotPick(BaseModel):
-    spot_id: str
-
-
-class PlanRequest(BaseModel):
-    """
-    Frontend → Gateway（→ nav）で共有する入力スキーマ。
-    """
-    language: Literal["ja", "en", "zh"]
-    origin: Coord
-    return_to_origin: bool = True
-    waypoints: List[SpotPick] = Field(..., min_items=1)
+# class PlanRequest(BaseModel):
+#     """
+#     Frontend → Gateway（→ nav）で共有する入力スキーマ。
+#     """
+#     language: Literal["ja", "en", "zh"]
+#     origin: Coord
+#     return_to_origin: bool = True
+#     waypoints: List[SpotPick] = Field(..., min_items=1)
 
 
 class Leg(BaseModel):
@@ -99,17 +95,45 @@ class SegmentIndex(BaseModel):
     start_idx: int
     end_idx: int
 
-class PlanResponse(BaseModel):
-    pack_id: str
+class WaypointInfo(BaseModel):
+    """
+    Routingサービスから受け取ったウェイポイント情報をNAVサービスに渡すためのスキーマ
+    """
+    spot_id: str
+    name: str
+    lon: float
+    lat: float
+    nearest_idx: int
+    distance_m: float
+
+class PlanRequest(BaseModel):
+    """
+    【修正】Frontend → Gateway（→ nav）で共有する新しい入力スキーマ
+    Routingサービスの結果を含める形に変更
+    """
+    language: Literal["ja", "en", "zh"]
+    buffer: dict = Field(default_factory=lambda: {"car": 300, "foot": 10})
+
     route: Dict[str, Any]
     polyline: List[List[float]]
     segments: List[SegmentIndex]
-
-    legs: List[Leg]
+    legs: List[Dict[str, Any]]
+    waypoints_info: List[WaypointInfo]
+    
+class PlanResponse(BaseModel):
+    """
+    【修正】Gateway → Frontend への最終レスポンススキーマ
+    経路情報は manifest_url 経由で取得するため、レスポンスからは除外
+    """
+    pack_id: str
+    # route: Dict[str, Any]
+    # polyline: List[List[float]]
+    # segments: List[SegmentIndex]
+    # legs: List[Leg]
     along_pois: List[AlongPoi]
     assets: List[Asset]
+    manifest_url: str # ★ このURLにすべての情報が含まれる
 
-    # ★ 将来の追加キーを落とさない（polyline/segments未定義の版でも安全）
     if _V2:
         model_config = ConfigDict(extra="allow")
     else:
@@ -123,6 +147,9 @@ class RTDocResponse(BaseModel):
 class RTDoc(RTDocResponse):
     s: str
 
+class SpotPick(BaseModel):
+    spot_id: str
+
 class RoutePlanRequest(BaseModel):
     """
     経路計画API (/api/route) のリクエストスキーマ
@@ -131,17 +158,6 @@ class RoutePlanRequest(BaseModel):
     origin: Coord
     waypoints: List[SpotPick] = Field(..., min_items=1)
     return_to_origin: bool = True
-
-class WaypointInfo(BaseModel):
-    """
-    経路計画APIが返すウェイポイント情報のスキーマ
-    """
-    spot_id: str
-    name: str
-    lon: float
-    lat: float
-    nearest_idx: int
-    distance_m: float
 
 class RoutePlanResponse(BaseModel):
     """

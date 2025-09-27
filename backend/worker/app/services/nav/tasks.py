@@ -101,8 +101,9 @@ CONDITIONAL_NARRATIONS = {
 # =================================================================
 # ==== Helpers (ヘルパー関数) ====
 # =================================================================
-def _collect_unique_spot_ids(waypoints: List[Waypoint], along_pois: List[dict]) -> List[str]:
-    planned = [w.spot_id for w in waypoints if w.spot_id and w.spot_id != "current"]
+# def _collect_unique_spot_ids(waypoints: List[Waypoint], along_pois: List[dict]) -> List[str]:
+def _collect_unique_spot_ids(waypoints_info: List[WaypointInfo], along_pois: List[dict]) -> List[str]:
+    planned = [w.spot_id for w in waypoints_info if w.spot_id and w.spot_id != "current"]
     along = [p.get("spot_id") for p in along_pois if p.get("spot_id")]
     uniq: List[str] = []
     seen = set()
@@ -235,45 +236,45 @@ def _write_manifest(pack_id: str, language: str, route_fc: dict, polyline: list,
 def _proj() -> Transformer:
     return Transformer.from_crs(4326, 3857, always_xy=True)
 
-def _reduce_hits_to_along_pois_local(hits: List[Dict], polyline: List[List[float]]) -> List[Dict]:
-    if not hits or not polyline or len(polyline) < 2:
-        return []
+# def _reduce_hits_to_along_pois_local(hits: List[Dict], polyline: List[List[float]]) -> List[Dict]:
+#     if not hits or not polyline or len(polyline) < 2:
+#         return []
 
-    to3857 = _proj().transform
-    line_lonlat = [(p[0], p[1]) for p in polyline]
-    line_3857 = transform(to3857, LineString(line_lonlat))
-    segs_3857 = []
-    for i in range(len(line_lonlat) - 1):
-        seg = LineString([line_lonlat[i], line_lonlat[i + 1]])
-        segs_3857.append(transform(to3857, seg))
+#     to3857 = _proj().transform
+#     line_lonlat = [(p[0], p[1]) for p in polyline]
+#     line_3857 = transform(to3857, LineString(line_lonlat))
+#     segs_3857 = []
+#     for i in range(len(line_lonlat) - 1):
+#         seg = LineString([line_lonlat[i], line_lonlat[i + 1]])
+#         segs_3857.append(transform(to3857, seg))
 
-    out: List[Dict] = []
-    for h in hits:
-        lon, lat = float(h["lon"]), float(h["lat"])
-        pt_3857 = transform(to3857, Point(lon, lat))
-        dist_m = float(line_3857.distance(pt_3857))
-        best_idx = 0
-        best_d = float("inf")
-        for i, seg in enumerate(segs_3857):
-            d = seg.distance(pt_3857)
-            if d < best_d:
-                best_d = d
-                best_idx = i
+#     out: List[Dict] = []
+#     for h in hits:
+#         lon, lat = float(h["lon"]), float(h["lat"])
+#         pt_3857 = transform(to3857, Point(lon, lat))
+#         dist_m = float(line_3857.distance(pt_3857))
+#         best_idx = 0
+#         best_d = float("inf")
+#         for i, seg in enumerate(segs_3857):
+#             d = seg.distance(pt_3857)
+#             if d < best_d:
+#                 best_d = d
+#                 best_idx = i
 
-        distance_m = float(h.get("distance_m", dist_m))
-        out.append(
-            {
-                "spot_id": h.get("spot_id"),
-                "name": h.get("name"),
-                "lon": float(h.get("lon")) if "lon" in h else None,
-                "lat": float(h.get("lat")) if "lat" in h else None,
-                "kind": h.get("kind"),
-                "nearest_idx": int(best_idx),
-                "distance_m": distance_m,
-                "source_segment_mode": h.get("source_segment_mode"),
-            }
-        )
-    return out
+#         distance_m = float(h.get("distance_m", dist_m))
+#         out.append(
+#             {
+#                 "spot_id": h.get("spot_id"),
+#                 "name": h.get("name"),
+#                 "lon": float(h.get("lon")) if "lon" in h else None,
+#                 "lat": float(h.get("lat")) if "lat" in h else None,
+#                 "kind": h.get("kind"),
+#                 "nearest_idx": int(best_idx),
+#                 "distance_m": distance_m,
+#                 "source_segment_mode": h.get("source_segment_mode"),
+#             }
+#         )
+#     return out
 
 # =================================================================
 # ==== Main Workflow Task ====
@@ -285,16 +286,17 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     req = PlanRequest(**payload)
     logger.info(f"[{self.request.id}] Workflow started for pack_id: {pack_id}")
 
-    # --- 1. Routing Service ---
-    logger.info("Step 1: Calling Routing service...")
-    routing_req = {"origin": req.origin.model_dump(), "waypoints": [w.model_dump() for w in req.waypoints], "car_to_trailhead": True}
-    routing_result = post_route(routing_req)
-    logger.info("Routing service returned.")
+    # # --- 1. Routing Service ---
+    # logger.info("Step 1: Calling Routing service...")
+    # routing_req = {"origin": req.origin.model_dump(), "waypoints": [w.model_dump() for w in req.waypoints], "car_to_trailhead": True}
+    # routing_result = post_route(routing_req)
+    # logger.info("Routing service returned.")
 
     # --- 2. AlongPOI Service ---
     logger.info("Step 2: Calling AlongPOI service...")
-    waypoint_ids = [w.spot_id for w in req.waypoints if w.spot_id and w.spot_id != "current"]
-    along_req = {"polyline": routing_result["polyline"], "segments": routing_result.get("segments", []), "buffer": req.buffer, "waypoints": waypoint_ids}
+    # waypoint_ids = [w.spot_id for w in req.waypoints if w.spot_id and w.spot_id != "current"]
+    waypoint_ids = [wp.spot_id for wp in req.waypoints_info if wp.spot_id and wp.spot_id != "current"]
+    along_req = {"polyline": req.polyline, "segments": [s.model_dump() for s in req.segments], "buffer": req.buffer, "waypoints": waypoint_ids}
     along_result = post_along(along_req)
     along_pois = along_result.get("pois", [])
     logger.info(f"AlongPOI service returned {len(along_pois)} POIs.")
@@ -302,7 +304,7 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     # --- 3. LLM Service ---
     logger.info("Step 3: Calling LLM service...")
     # (A) 全てのスポット(Waypoint + AlongPOI)の通常案内をリクエスト
-    all_spot_ids = _collect_unique_spot_ids(req.waypoints, along_pois)
+    all_spot_ids = _collect_unique_spot_ids(req.waypoints_info, along_pois)
     spot_refs = _build_spot_refs(all_spot_ids, req.language)
 
     # (B) Waypointに限定して、状況説明(4パターン)をリクエスト
@@ -349,31 +351,36 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
 
     # --- 5. Finalize & Create Response ---
     logger.info("Step 5: Finalizing the plan...")
-    polyline = routing_result["polyline"]
-    raw_legs = routing_result.get("legs", [])
+    polyline = req.polyline
+    raw_legs = req.legs
     legs = _normalize_legs(raw_legs, polyline)
 
     assets = _normalize_assets(voice_results, llm_items)
 
-    waypoint_id_set = set(waypoint_ids)
-    waypoint_spot_data = [s for s in spot_refs if s['spot_id'] in waypoint_id_set]
-    waypoints_info = _reduce_hits_to_along_pois_local(waypoint_spot_data, polyline)
+    # Routing部リファクタリングしたからいらない．入力でもらうから作らなくていい
+    # waypoint_id_set = set(waypoint_ids)
+    # waypoint_spot_data = [s for s in spot_refs if s['spot_id'] in waypoint_id_set]
+    # waypoints_info = _reduce_hits_to_along_pois_local(waypoint_spot_data, polyline)
 
     _write_manifest(
-        pack_id, req.language, routing_result["feature_collection"],
-        polyline, routing_result["segments"], legs,
-        waypoints_info,
+        pack_id,
+        req.language,
+        req.route,
+        req.polyline,
+        [s.model_dump() for s in req.segments],
+        [l for l in legs],
+        [w.model_dump() for w in req.waypoints_info],
         along_pois,
         assets
     )
 
     response = {
         "pack_id": pack_id,
-        "route": routing_result["feature_collection"],
-        "polyline": polyline,
-        "segments": routing_result["segments"],
-        "legs": legs,
-        "waypoints_info": waypoints_info,
+        "route": req.route,
+        "polyline": req.polyline,
+        "segments": [s.model_dump() for s in req.segments], 
+        "legs": req.legs,
+        "waypoints_info": [w.model_dump() for w in req.waypoints_info],
         "along_pois": along_pois,
         "assets": [Asset(**a).model_dump() for a in assets], # スキーマで検証
         "language": req.language,
