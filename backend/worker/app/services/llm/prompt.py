@@ -41,6 +41,116 @@ CONDITION_HINTS = {
     },
 }
 
+# 通常のガイダンスプロンプトのテンプレート
+GUIDANCE_PROMPT_TEMPLATES = {
+    "ja": """
+[LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
+あなたは鳥海山エリアを訪れる観光客向けのプロのツアーガイドです。
+
+スポット名: {name} (ID: {spot_id})
+参考情報:
+{facts_txt}
+
+上記の参考情報に基づき、{lang_label}で話すためのナレーション原稿を作成してください。
+制約:
+- {style_note}
+- 構成: 1)短い導入、2)主要な事実・歴史・自然、3)豆知識、4)安全への言及。
+- 不確かな情報は避け、不明な点は簡潔にそう述べる。
+- 「この資料では」や「文脈によると」といった表現は使わないでください。
+- 出力はプレーンテキストのみとします。
+
+{safety_footer}
+""".strip(),
+    "en": """
+[LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
+You are a professional tour guide for tourists visiting the Mount Chokai area.
+
+Spot Name: {name} (ID: {spot_id})
+Reference Information:
+{facts_txt}
+
+Based on the reference information above, please create a narration script to be spoken in {lang_label}.
+Constraints:
+- {style_note}
+- Structure: 1) A brief introduction, 2) Key facts, history, or nature, 3) A piece of trivia, 4) A mention of safety.
+- Avoid uncertain information. If something is unknown, state it concisely.
+- Do not use phrases like "According to this document" or "Based on the context."
+- The output must be plain text only.
+
+{safety_footer}
+""".strip(),
+    "zh": """
+[LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
+你是一位为游览鸟海山地区的游客服务的专业导游。
+
+景点名称: {name} (ID: {spot_id})
+参考信息:
+{facts_txt}
+
+请根据以上参考信息，创建一段用于{lang_label}播讲的解说稿。
+限制:
+- {style_note}
+- 结构：1) 简短介绍，2) 主要事实、历史、自然，3) 小知识，4) 安全提示。
+- 避免不确定的信息，如遇未知情况请简洁说明。
+- 请不要使用“根据这份资料”或“从上下文中看”之类的表述。
+- 仅输出纯文本。
+
+{safety_footer}
+""".strip()
+}
+
+# 状況別案内のプロンプトテンプレート
+SITUATIONAL_PROMPT_TEMPLATES = {
+    "ja": """
+[TASK=Generate a situational guidance message] [LANGUAGE={lang}|{lang_label}]
+あなたは鳥海山エリアを訪れる観光客向けのプロのツアーガイドです。
+
+スポット「{name}」の現在の状況を伝える、簡潔な音声案内を作成してください。
+
+スポット名: {name} (ID: {spot_id})
+現在の状況: {condition_instruction}
+
+指示:
+- 必ずスポット名から始め、「{name}は現在、少し混雑しています。」のように、現在の状況を伝える文章を作成してください。
+- 非常に簡潔（1〜2文程度）な、{lang_label}の話し言葉で記述してください。
+- 役立つ、分かりやすい口調を心がけてください。
+- スポットの歴史や自然に関する追加情報は含めず、与えられた状況に関する案内に徹してください。
+- 出力はプレーンテキストのみとします。
+""".strip(),
+    "en": """
+[TASK=Generate a situational guidance message] [LANGUAGE={lang}|{lang_label}]
+You are a professional tour guide for tourists visiting the Mount Chokai area.
+
+Please create a concise audio guidance message that communicates the current situation at the spot "{name}".
+
+Spot Name: {name} (ID: {spot_id})
+Current Situation: {condition_instruction}
+
+Instructions:
+- Always start with the spot name and create a sentence that describes the current situation, like "{name} is currently a bit crowded."
+- Write in a very concise (about 1-2 sentences), conversational {lang_label}.
+- Please use a helpful and easy-to-understand tone.
+- Do not include additional information about the spot's history or nature; focus strictly on the guidance related to the given situation.
+- The output must be plain text only.
+""".strip(),
+    "zh": """
+[TASK=Generate a situational guidance message] [LANGUAGE={lang}|{lang_label}]
+你是一位为游览鸟海山地区的游客服务的专业导游。
+
+请针对景点“{name}”的当前状况，生成一段简洁的语音导览信息。
+
+景点名称: {name} (ID: {spot_id})
+当前状况: {condition_instruction}
+
+指示:
+- 请务必以景点名称开头，并像“{name}目前有些拥挤。”这样，创建一个描述当前状况的句子。
+- 请使用非常简洁（大约1-2句话）的口语化{lang_label}进行描述。
+- 请注意使用有帮助且易于理解的语气。
+- 不要包含景点的历史或自然等额外信息，请专注于提供与当前状况相关的引导。
+- 仅输出纯文本。
+""".strip()
+}
+
 def _join_context(ctx: List[Dict], max_chars: int = 8000) -> str:
     # 単純に text を連結（必要なら将来トークン制御）
     texts = []
@@ -65,37 +175,27 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str,) -> str:
     """
     lang_label = LANG_HINT.get(lang, lang)
     name = spot.get("name") or spot.get("spot_id", "this spot")
+    spot_id = spot.get("spot_id")
     situation = spot.get("situation")
 
     # --- situation がある場合：状況説明のプロンプトを生成 ---
     if situation:
         condition_instruction = CONDITION_HINTS.get(lang, {}).get(situation, "")
+        template = SITUATIONAL_PROMPT_TEMPLATES.get(lang, SITUATIONAL_PROMPT_TEMPLATES["en"]) # デフォルトは英語
 
-        prompt = f"""
-[TASK=Generate a situational guidance message] [LANGUAGE={lang}|{lang_label}]
-あなたは鳥海山エリアを訪れる観光客向けのプロのツアーガイドです。
-
-特定のスポットにおける状況に応じた、簡潔な音声案内を作成してください。
-
-スポット名: {name} (ID: {spot.get('spot_id')})
-現在の状況: {condition_instruction}
-
-指示:
-- 必ずスポット名から始め、「{name}は現在、少し混雑しています。」のように、現在の状況を伝える文章を作成してください。
-- 非常に簡潔（1〜2文程度）な、{lang_label}の話し言葉で記述してください。
-- 役立つ、分かりやすい口調を心がけてください。
-- スポットの歴史や自然に関する追加情報は含めず、与えられた状況に関する案内に徹してください。
-- 出力はプレーンテキストのみとします。
-""".strip()
+        prompt = template.format(
+            lang=lang,
+            lang_label=lang_label,
+            name=name,
+            spot_id=spot_id,
+            condition_instruction=condition_instruction
+        )
         return prompt
 
     # --- situation がない場合：スポットのガイダンステキストのプロンプトを生成 ---
     else:
-        style_note = STYLE_HINT.get(lang, "narration")
         desc = (spot.get("description") or "").strip()
-
         context_block = _join_context(ctx, max_chars=8000)
-
         facts_lines = []
         if desc:
             facts_lines.append(f"- POI.description: {desc}")
@@ -103,23 +203,18 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str,) -> str:
             facts_lines.append(f"- RAG:\n{context_block}")
         facts_txt = "\n".join(facts_lines) if facts_lines else "- (no extra context)"
 
-        prompt = f"""
-[LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
-あなたは鳥海山エリアを訪れる観光客向けのプロのツアーガイドです。
+        style_note = STYLE_HINT.get(lang, "guidance")
+        safety_footer = SAFETY_FOOTER.get(lang, "")
+        template = GUIDANCE_PROMPT_TEMPLATES.get(lang, GUIDANCE_PROMPT_TEMPLATES["en"]) # デフォルトは英語
 
-スポット名: {name} (ID: {spot.get('spot_id')})
-参考情報:
-{facts_txt}
-
-上記の参考情報に基づき、{lang_label}で話すためのナレーション原稿を作成してください。
-制約:
-- {style_note}
-- 構成: 1)短い導入、2)主要な事実・歴史・自然、3)豆知識、4)安全への言及。
-- 不確かな情報は避け、不明な点は簡潔にそう述べる。
-- 「この資料では」や「文脈によると」といった表現は使わないでください。
-- 出力はプレーンテキストのみとします。
-
-{SAFETY_FOOTER.get(lang, '')}
-""".strip()
+        prompt = template.format(
+            lang=lang,
+            lang_label=lang_label,
+            name=name,
+            spot_id=spot_id,
+            facts_txt=facts_txt,
+            style_note=style_note,
+            safety_footer=safety_footer
+        )
         return prompt
 
