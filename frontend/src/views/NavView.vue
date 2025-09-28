@@ -44,22 +44,82 @@
         <div
           v-if="playbackState"
           class="audio-caption"
+          :class="{
+            'is-loading': playbackState.isLoading && !playbackState.error,
+            'has-error': !!playbackState.error
+          }"
           role="status"
           aria-live="polite"
         >
-          <div class="audio-caption__title">{{ playbackState.name }}</div>
-          <div
-            v-if="playbackState.error"
-            class="audio-caption__body audio-caption__body--error"
-          >
-            {{ playbackState.error }}
+          <div class="audio-caption__header">
+            <div
+              class="audio-caption__badge"
+              :class="{
+                'audio-caption__badge--loading': playbackState.isLoading && !playbackState.error,
+                'audio-caption__badge--error': playbackState.error
+              }"
+            >
+              <svg
+                class="audio-caption__badge-icon"
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 9v6h4l5 4V5L9 9H5z" />
+                <path d="M16 10.82a3 3 0 0 1 0 2.36" />
+                <path d="M19 9a6 6 0 0 1 0 6" />
+              </svg>
+            </div>
+            <div class="audio-caption__meta">
+              <span class="audio-caption__label">
+                <template v-if="playbackState.error">エラー</template>
+                <template v-else-if="playbackState.isLoading">読み込み中</template>
+                <template v-else>音声ガイド</template>
+              </span>
+              <span class="audio-caption__title">{{ playbackState.name }}</span>
+            </div>
+            <div v-if="playbackState.error" class="audio-caption__alert" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 9v4" />
+                <path d="M12 17h.01" />
+                <path d="M21 18H3l9-15 9 15z" />
+              </svg>
+            </div>
           </div>
-          <div v-else class="audio-caption__body">
-            <span v-if="playbackState.isLoading">原稿を読み込み中...</span>
-            <span v-else-if="playbackState.text">{{ playbackState.text }}</span>
-            <span v-else>テキスト情報は提供されていません。</span>
+
+          <div
+            class="audio-caption__body"
+            :class="{ 'audio-caption__body--error': playbackState.error }"
+          >
+            <template v-if="playbackState.error">
+              {{ playbackState.error }}
+            </template>
+            <template v-else-if="playbackState.isLoading">
+              原稿を読み込み中...
+            </template>
+            <template v-else-if="playbackState.text">
+              {{ playbackState.text }}
+            </template>
+            <template v-else>
+              テキスト情報は提供されていません。
+            </template>
+          </div>
+
+          <div
+            class="audio-caption__wave"
+            :class="{ 'is-active': !playbackState.error && !playbackState.isLoading }"
+            aria-hidden="true"
+          >
+            <span v-for="i in 4" :key="i" />
           </div>
         </div>
+
         <div class="map-actions">
           <button
             type="button"
@@ -69,99 +129,145 @@
             @click="isFollowMode ? disableFollowMode() : enableFollowMode()"
             :title="isFollowMode ? '追従を停止' : '現在地に追従'"
           >
+            <span class="map-action-btn__halo" aria-hidden="true"></span>
             <svg class="icon-location" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
               <path d="M12 8v8M8 12h8"/>
               <circle class="icon-location-dot" cx="12" cy="12" r="2.5" fill="currentColor" />
             </svg>
+            <span class="map-action-btn__label">Follow</span>
           </button>
         </div>
       </div>
 
-      <div class="controls">
-        <div v-if="!isNavigationReady" class="start-nav-panel">
-          <button @click="startGuidance" :disabled="isNavigating" class="start-nav-button">
-            {{ isNavigating ? '案内を生成中...' : 'ナビゲーションを開始' }}
-          </button>
-          <div v-if="navError" class="error-box">
-            エラー: {{ navError }}
-          </div>
-        </div>
-        
-        <div v-if="isNavigationReady">
-          <div class="conn-panel">
-            <div class="conn-row">
-              <span :class="['chip', online ? 'ok' : 'warn']">{{
-                online ? 'オンライン' : 'オフライン'
-              }}</span>
-              <span v-if="isLoraConnected" class="chip ok">LoRa接続済み</span>
-              <span v-else-if="isLoraConnecting" class="chip busy">LoRa接続中...</span>
-              <span v-else class="chip muted">LoRa未接続</span>
-              <button
-                v-if="!isLoraConnected"
-                @click="connectLoraDevice"
-                :disabled="isLoraConnecting"
-                class="join-btn"
-              >
-                LoRaデバイスに接続
-              </button>
-              <button v-else @click="disconnectLoraDevice" class="join-btn">切断</button>
-            </div>
-            <div class="conn-row">
-              <span class="chip" :class="isPollingEnabled ? 'ok' : 'muted'">
-                リアルタイム取得: {{ isPollingEnabled ? 'ON' : 'OFF' }}
-              </span>
-              <button class="join-btn" @click="togglePolling">
-                {{ isPollingEnabled ? '停止' : '開始' }}
-              </button>
-            </div>
-          </div>
-          <button @click="toggleSpotList" class="spot-list-toggle">
-            {{ isSpotListVisible ? 'リストを隠す' : 'スポット一覧' }}
-          </button>
-        </div>
-
-        <div v-if="isSpotListVisible" class="spot-list">
-          <h3>周遊スポット</h3>
-          <ul>
-            <li v-for="(poi, index) in sortedWaypoints" :key="poi.spot_id">
-              <button @click="focusOnSpot(poi)">
-                <span class="order-index">{{ index + 1 }}</span>
-                {{ poi.name }}
-                <span class="rt-badges" v-if="isNavigationReady && latestBySpot(poi.spot_id)">
-                  <span
-                    class="rt-badge weather"
-                    :title="weatherTitle(latestBySpot(poi.spot_id))"
-                  >
-                    {{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}
-                  </span>
-                  <span
-                    v-if="latestBySpot(poi.spot_id)?.u > 0"
-                    class="rt-badge upcoming"
-                    :title="upcomingTitle(latestBySpot(poi.spot_id))"
-                  >
-                    {{ upcomingEmoji(latestBySpot(poi.spot_id)?.u) }}
-                    <small v-if="typeof latestBySpot(poi.spot_id)?.h === 'number'"
-                      >{{ latestBySpot(poi.spot_id)?.h }}h</small
-                    >
-                  </span>
-                  <span class="rt-badge crowd" :title="crowdTitle(latestBySpot(poi.spot_id))">
-                    {{ crowdBar(latestBySpot(poi.spot_id)?.c) }}
-                  </span>
+      <div class="top-left-ui-area">
+        <div class="controls">
+          <div v-if="!isNavigationReady" class="start-nav-panel">
+            <button
+              @click="startGuidance"
+              :disabled="isNavigating"
+              class="start-nav-button"
+              :class="{ 'is-loading': isNavigating }"
+            >
+              <span class="start-nav-button__spark"></span>
+              <span class="start-nav-button__inner">
+                <svg
+                  class="start-nav-button__icon"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 2c2.5 2.5 4 5.5 4 8 0 4.5-4 8-4 8s-4-3.5-4-8c0-2.5 1.5-5.5 4-8Z" />
+                  <path d="M12 14v4" />
+                  <path d="M9 18h6" />
+                </svg>
+                <span class="start-nav-button__label">
+                  <template v-if="isNavigating">Preparing Route…</template>
+                  <template v-else>Start Navigation</template>
                 </span>
+              </span>
+              <span class="start-nav-button__progress" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </span>
+            </button>
+            <div
+              v-if="isNavigating"
+              class="start-nav-status"
+              role="status"
+              aria-live="polite"
+            >
+              <span class="start-nav-status__pulse"></span>
+              <span class="start-nav-status__text">Generating your guidance playlist…</span>
+            </div>
+            <div v-if="navError" class="error-box">
+              エラー: {{ navError }}
+            </div>
+          </div>
+          
+          <div v-if="isNavigationReady" class="control-buttons">
+            <button @click="togglePolling" class="control-btn data-sync-btn" :class="{'is-active': isPollingEnabled}" title="リアルタイム情報">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 3v6h6" />
+                <path d="M21 21v-6h-6" />
+                <path d="M21 3 14.12 9.88" />
+                <path d="M3 21 9.88 14.12" />
+              </svg>
+              <span class="data-sync-btn__label">Live Sync</span>
+            </button>
+            <div class="lora-panel" :class="{ 'is-connected': isLoraConnected, 'is-connecting': isLoraConnecting }">
+              <div class="lora-panel__icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v4" />
+                  <path d="M5.5 10.5a8.5 8.5 0 0 1 13 0" />
+                  <path d="M8.5 13.5a4.5 4.5 0 0 1 7 0" />
+                  <circle cx="12" cy="18" r="2" />
+                </svg>
+              </div>
+              <div class="lora-panel__body">
+                <span class="lora-panel__label">LoRa Link</span>
+                <span class="lora-panel__status">{{ isLoraConnected ? 'Connected' : (isLoraConnecting ? 'Negotiating…' : 'Standby') }}</span>
+              </div>
+              <button
+                @click="isLoraConnected ? disconnectLoraDevice() : connectLoraDevice()"
+                :disabled="isLoraConnecting"
+                class="lora-toggle-btn"
+              >
+                <span class="lora-toggle-btn__dot" :class="{ 'is-active': isLoraConnected, 'is-busy': isLoraConnecting }"></span>
+                <span class="lora-toggle-btn__text">{{ isLoraConnected ? 'Disconnect' : 'Connect' }}</span>
               </button>
-            </li>
-          </ul>
+            </div>
+          </div>
+        </div>
 
-          <div v-if="isNavigationReady && sortedAlongPois.length > 0" class="nearby-section">
-            <h3 class="nearby-title">周辺のスポット</h3>
-            <ul>
-              <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
-                <button @click="focusOnSpot(poi)" class="nearby-button">
-                  {{ poi.name }}
-                </button>
-              </li>
-            </ul>
+        <div class="spot-list-panel">
+          <button @click="toggleSpotList" class="spot-list-toggle">
+            <div class="spot-list-toggle__left">
+              <span class="spot-list-toggle__eyebrow">Spots</span>
+              <span class="spot-list-toggle__title">Spots List</span>
+            </div>
+            <svg class="chevron-icon" :class="{'is-open': isSpotListVisible}" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="spot-list-content" :class="{'is-open': isSpotListVisible}">
+            <div class="spot-list-content-inner">
+              <ul>
+                <li v-for="(poi, index) in sortedWaypoints" :key="poi.spot_id">
+                  <button @click="focusOnSpot(poi)">
+                    <span class="order-index">{{ index + 1 }}</span>
+                    {{ poi.name }}
+                    <span class="rt-badges" v-if="isNavigationReady && latestBySpot(poi.spot_id)">
+                      <span class="rt-badge weather" :title="weatherTitle(latestBySpot(poi.spot_id))">{{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}</span>
+                      <span v-if="latestBySpot(poi.spot_id)?.u > 0" class="rt-badge upcoming" :title="upcomingTitle(latestBySpot(poi.spot_id))">
+                        {{ upcomingEmoji(latestBySpot(poi.spot_id)?.u) }}
+                        <small v-if="typeof latestBySpot(poi.spot_id)?.h === 'number'">{{ latestBySpot(poi.spot_id)?.h }}h</small>
+                      </span>
+                      <span
+                        class="rt-badge crowd"
+                        :class="crowdBadge(latestBySpot(poi.spot_id)).className"
+                        :title="crowdBadge(latestBySpot(poi.spot_id)).tooltip"
+                      >
+                        {{ crowdBadge(latestBySpot(poi.spot_id)).label }}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+              <div v-if="isNavigationReady && sortedAlongPois.length > 0" class="nearby-section">
+                <h3 class="nearby-title">Nearby Picks</h3>
+                <ul>
+                  <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
+                    <button @click="focusOnSpot(poi)" class="nearby-button">{{ poi.name }}</button>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -245,6 +351,12 @@ const TILE_PRECACHE_PROFILES = [
   { label: 'fallback-zoom', zooms: [Math.max(FOLLOW_MODE_ZOOM - 1, 1)], tileBuffer: 0, maxTiles: 360, batchSize: 70 },
 ]
 const tileProfileIndex = ref(0)
+
+const planAssetsList = computed(() => {
+  const assets = plan.value?.assets
+  if (!assets) return []
+  return Array.isArray(assets) ? assets : Object.values(assets)
+})
 
 const activeTileProfile = () => TILE_PRECACHE_PROFILES[Math.min(tileProfileIndex.value, TILE_PRECACHE_PROFILES.length - 1)]
 const isFollowMode = ref(false)
@@ -482,18 +594,20 @@ watch(isNavigationReady, (ready) => {
   startRtPollingIfNeeded()
 })
 
-function enqueueAssetAudio(id, displayName, asset) {
-  if (!asset) return
+function enqueueAssetAudio(id, displayName, asset, { fallbackText = null } = {}) {
+  if (!asset) return false
   const voiceUrl = asset?.audio?.url || asset?.audio_url
-  if (!voiceUrl) return
+  if (!voiceUrl) return false
 
   enqueueAudio({
     id,
     name: displayName,
     voice_path: voiceUrl,
-    text: asset?.text ?? null,
+    text: asset?.text ?? fallbackText ?? null,
     textUrl: asset?.text_url ?? null,
   })
+
+  return true
 }
 
 // スポット接近時の通常案内をキューに追加するロジック
@@ -510,16 +624,15 @@ watch(currentPos, (newPos) => {
   const travelMode = geo.getCurrentTravelMode(newPos, plan.value?.segments ?? plan.value?.route);
   const bufferM = (travelMode === 'car') ? 350 : 15;
 
+  const assetsArray = planAssetsList.value
+  if (!assetsArray.length) return
+
   allSpots.forEach((spot) => {
     if (!spot.lat || !spot.lon) return;
     const distance = geo.calculateDistance(newPos, { lat: spot.lat, lng: spot.lon });
 
     if (distance <= bufferM) {
-      const assetsArray = Array.isArray(plan.value.assets)
-        ? plan.value.assets
-        : Object.values(plan.value.assets || {});
-
-      const asset = assetsArray.find(a => a.spot_id === spot.spot_id && !a.situation);
+      const asset = assetsArray.find((a) => a.spot_id === spot.spot_id && !a.situation);
 
       enqueueAssetAudio(spot.spot_id, spot.name, asset);
     }
@@ -535,23 +648,28 @@ watch(
 
     const event = rtStore.notifyLog[newLength - 1];
     const spotId = event.spot_id;
-    const spotName = spotNameMap.value.get(spotId) || spotId;
-    const assets = Array.isArray(plan.value?.assets)
-      ? plan.value.assets
-      : Object.values(plan.value.assets || {});
-
-    const weatherChanged = !event.prev || event.prev.w !== event.next.w;
-    if (weatherChanged && (event.next.w === 1 || event.next.w === 2)) {
-      const situationType = `weather_${event.next.w}`;
-      const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
-      enqueueAssetAudio(`${spotId}_${situationType}`, `${spotName} (天気案内)`, asset);
+    const prevWeather = Number(event.prev?.w)
+    const weatherCode = Number(event.next?.w)
+    const weatherChanged = !Number.isFinite(prevWeather)
+      ? Number.isFinite(weatherCode)
+      : prevWeather !== weatherCode
+    if (weatherChanged) {
+      const situationType = WEATHER_SITUATION_MAP[weatherCode]
+      if (situationType) {
+        queueSituationAnnouncement(spotId, situationType)
+      }
     }
 
-    const congestionChanged = !event.prev || event.prev.c !== event.next.c;
-    if (congestionChanged && (event.next.c === 1 || event.next.c === 2)) {
-      const situationType = `congestion_${event.next.c}`;
-      const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
-      enqueueAssetAudio(`${spotId}_${situationType}`, `${spotName} (混雑度案内)`, asset);
+    const prevCongestion = Number(event.prev?.c)
+    const congestionLevel = Number(event.next?.c)
+    const congestionChanged = !Number.isFinite(prevCongestion)
+      ? Number.isFinite(congestionLevel)
+      : prevCongestion !== congestionLevel
+    if (congestionChanged) {
+      const situationType = CONGESTION_SITUATION_MAP[congestionLevel]
+      if (situationType) {
+        queueSituationAnnouncement(spotId, situationType)
+      }
     }
   }
 );
@@ -727,46 +845,99 @@ function weatherEmoji(w) { return { 0: '☀', 1: '☁', 2: '☂' }[w] || '▫' }
 function upcomingEmoji(u) { return { 1: '↗☁', 2: '↗☔', 3: '↗☀' }[u] || '' }
 function weatherTitle(doc) { if (!doc) return ''; const m = { 0: '晴れ', 1: '曇り', 2: '雨' }; return `現在: ${m[doc.w] ?? '-'}` }
 function upcomingTitle(doc) { if (!doc || !doc.u) return ''; const m = { 1: '曇り', 2: '雨', 3: '晴れ' }; const h = typeof doc.h === 'number' ? `${doc.h}時間後` : ''; return `${h}${m[doc.u] ?? ''}に変化` }
-function crowdBar(c) { const n = Number.isFinite(c) ? Math.max(0, Math.min(2, c)) : 0; return '●'.repeat(n + 1) + '○'.repeat(2 - n) }
-function crowdTitle(doc) { if (!doc) return ''; const l = ['空', 'やや混雑', '混雑']; const c = Math.max(0, Math.min(2, Number(doc.c ?? 0))); return `混雑: ${l[c]}` }
+
+const CROWD_STATES = [
+  {
+    level: 0,
+    label: 'Clear Flow',
+    tooltip: '全く混んでいません',
+    toast: '空いています',
+    className: 'is-low'
+  },
+  {
+    level: 1,
+    label: 'Moderate Crowd',
+    tooltip: 'やや混雑しています',
+    toast: 'やや混雑しています',
+    className: 'is-mid'
+  },
+  {
+    level: 2,
+    label: 'Heavy Crowd',
+    tooltip: 'かなり混雑しています',
+    toast: '混雑しています',
+    className: 'is-high'
+  }
+]
+
+const SITUATION_META = {
+  weather_1: {
+    title: 'Weather · Cloudy',
+    fallback: (spotName) => `${spotName}は現在、雲が広がっています。空模様の変化にご注意ください。`
+  },
+  weather_2: {
+    title: 'Weather · Rain',
+    fallback: (spotName) => `${spotName}では雨が降っています。足元が滑りやすいのでお気をつけください。`
+  },
+  congestion_1: {
+    title: 'Crowd · Moderate',
+    fallback: (spotName) => `${spotName}は現在やや混雑しています。移動には少し時間に余裕を持ってください。`
+  },
+  congestion_2: {
+    title: 'Crowd · Heavy',
+    fallback: (spotName) => `${spotName}は現在かなり混雑しています。ルートの変更もご検討ください。`
+  },
+}
+
+const WEATHER_SITUATION_MAP = { 1: 'weather_1', 2: 'weather_2' }
+const CONGESTION_SITUATION_MAP = { 1: 'congestion_1', 2: 'congestion_2' }
+
+function normalizeCrowd(docOrLevel) {
+  const raw = (docOrLevel && typeof docOrLevel === 'object') ? docOrLevel.c : docOrLevel
+  const value = Number(raw)
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(2, value))
+}
+
+function crowdBadge(doc) {
+  const level = normalizeCrowd(doc)
+  return CROWD_STATES[level]
+}
+
+function queueSituationAnnouncement(spotId, situationType) {
+  const meta = SITUATION_META[situationType]
+  if (!meta) return
+
+  const assets = planAssetsList.value
+  if (!assets.length) {
+    console.warn('[audio] No plan assets available for situation announcements.')
+    return
+  }
+
+  const asset = assets.find((a) => a.spot_id === spotId && a.situation === situationType)
+  if (!asset) {
+    console.warn(`[audio] Missing asset for spot ${spotId} (${situationType}).`)
+    return
+  }
+
+  const spotName = spotNameMap.value.get(spotId) || spotId
+  const displayName = `${spotName} · ${meta.title}`
+  const fallbackText = typeof meta.fallback === 'function' ? meta.fallback(spotName) : meta.fallback ?? null
+
+  enqueueAssetAudio(`${spotId}_${situationType}`, displayName, asset, { fallbackText })
+}
+
 function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 
-watch(
-  () => rtStore.notifyLog.length,
-  (len, prev) => {
-    if (len <= prev) return
-    const ev = rtStore.notifyLog[len - 1]
-    const name = spotNameMap.value.get(ev.spot_id) || ev.spot_id
-    const diffs = []
-    if (!ev.prev || ev.prev.w !== ev.next.w) {
-      const m = { 0: '晴れ', 1: '曇り', 2: '雨' }
-      diffs.push(`天気: ${m[ev.next.w] ?? '-'}`)
-    }
-    if (!ev.prev || ev.prev.c !== ev.next.c) {
-      const l = ['空', 'やや混雑', '混雑']
-      diffs.push(`混雑: ${l[ev.next.c]}`)
-    }
-    const body = diffs.join(' / ')
-    if (body) {
-      pushToast(name, body)
-    }
-  }
-)
 </script>
 
 <style scoped>
-/* Map & navigation UI styling */
+/* 基本レイアウト */
 .nav-view {
   position: relative;
   width: 100%;
   height: 100vh;
-}
-.loading-overlay { /* ★★★ 既存のローディングは削除 (ストアのローディングフラグを使うため) ★★★ */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  font-size: 1.2rem;
+  overflow: hidden;
 }
 .nav-container {
   position: relative;
@@ -779,285 +950,777 @@ watch(
   height: 100%;
 }
 
+/* 音声ガイドキャプション */
 .audio-caption {
   position: absolute;
   left: 50%;
-  bottom: 24px;
+  bottom: 28px;
   transform: translateX(-50%);
-  max-width: min(640px, calc(100% - 40px));
-  background: rgba(15, 23, 42, 0.85);
+  width: min(640px, calc(100% - 48px));
+  padding: 20px 24px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9));
+  border: 1px solid rgba(148, 163, 184, 0.28);
   color: #f8fafc;
-  padding: 16px 20px;
-  border-radius: 12px;
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
+  box-shadow: 0 26px 48px rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(14px);
   pointer-events: none;
   z-index: 930;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-
-.audio-caption__title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.audio-caption__body {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.audio-caption__body--error {
-  color: #fecaca;
-}
-
-.map-actions {
+.audio-caption::before {
+  content: '';
   position: absolute;
-  right: 16px;
-  bottom: calc(24px + 50px);
-  z-index: 900;
+  inset: -6px;
+  border-radius: 22px;
+  background: radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.28), transparent 60%),
+    radial-gradient(circle at 80% 0%, rgba(217, 70, 239, 0.22), transparent 55%);
+  filter: blur(18px);
+  opacity: 0.85;
+  z-index: -2;
 }
-
-.map-action-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+.audio-caption::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.2), rgba(37, 99, 235, 0.12));
+  mix-blend-mode: screen;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: -1;
+}
+.audio-caption.is-loading {
+  background: linear-gradient(135deg, rgba(8, 47, 73, 0.92), rgba(15, 118, 110, 0.88));
+  border-color: rgba(45, 212, 191, 0.4);
+}
+.audio-caption.has-error {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.92), rgba(185, 28, 28, 0.88));
+  border-color: rgba(248, 113, 113, 0.55);
+}
+.audio-caption__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.audio-caption__badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(59, 130, 246, 0.95));
+  color: #fff;
+  box-shadow: 0 14px 32px rgba(59, 130, 246, 0.35);
+  transition: background 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+}
+.audio-caption__badge--loading {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.95), rgba(45, 212, 191, 0.95));
+  box-shadow: 0 14px 32px rgba(45, 212, 191, 0.35);
+}
+.audio-caption__badge--error {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
+  box-shadow: 0 14px 32px rgba(248, 113, 113, 0.38);
+}
+.audio-caption__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.audio-caption__label {
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(148, 197, 255, 0.8);
+}
+.audio-caption.has-error .audio-caption__label {
+  color: rgba(255, 205, 205, 0.85);
+}
+.audio-caption.is-loading .audio-caption__label {
+  color: rgba(165, 243, 252, 0.85);
+}
+.audio-caption__title {
+  font-size: 1.12rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.audio-caption__alert {
+  margin-left: auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(248, 113, 113, 0.16);
+  color: rgba(254, 202, 202, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.4);
+}
+.audio-caption__body {
+  font-size: 0.98rem;
+  line-height: 1.7;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+}
+.audio-caption__body--error {
+  color: #fee2e2;
+}
+.audio-caption__wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 14px;
+  color: rgba(148, 163, 184, 0.75);
+  opacity: 0.4;
+  transition: opacity 0.3s ease, color 0.3s ease;
+}
+.audio-caption__wave.is-active {
+  color: rgba(96, 165, 250, 0.9);
+  opacity: 0.9;
+}
+.audio-caption__wave span {
+  display: block;
+  width: 6px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center bottom;
+  animation: captionWave 1.2s ease-in-out infinite;
+  opacity: 0.7;
+}
+.audio-caption__wave span:nth-child(2) { animation-delay: 0.15s; }
+.audio-caption__wave span:nth-child(3) { animation-delay: 0.3s; }
+.audio-caption__wave span:nth-child(4) { animation-delay: 0.45s; }
+
+@keyframes captionWave {
+  0%, 100% {
+    transform: scaleY(0.35);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scaleY(1.1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audio-caption__wave span {
+    animation: none;
+    transform: scaleY(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .audio-caption {
+    width: calc(100% - 32px);
+    padding: 18px 20px;
+    bottom: 22px;
+  }
+  .audio-caption__header {
+    gap: 12px;
+  }
+  .audio-caption__badge {
+    width: 40px;
+    height: 40px;
+  }
+  .audio-caption__title {
+    font-size: 1.05rem;
+  }
+}
+
+/* 地図操作ボタン (現在地追従) - 右下 */
+.map-actions {
+  position: absolute;
+  top: 55%;
+  right: 40px;
+  transform: translateY(-50%);
+  z-index: 900;
+}
+
+@media (max-width: 640px) {
+  .map-actions {
+    top: 70%;
+    right: 24px;
+  }
+  .map-action-btn {
+    width: 72px;
+    padding: 20px 12px 16px;
+  }
+  .map-action-btn__label {
+    font-size: 0.62rem;
+  }
+}
+.map-action-btn {
+  position: relative;
+  width: 86px;
+  padding: 24px 14px 18px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border: none;
-  background: white;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(59, 130, 246, 0.88));
   color: #0f172a;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.24);
+  box-shadow: 0 22px 38px rgba(37, 99, 235, 0.35);
   transition: all 0.2s ease-in-out;
+  overflow: hidden;
 }
-
+.map-action-btn svg {
+  position: relative;
+  z-index: 1;
+  color: currentColor;
+}
+.map-action-btn__halo {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.45), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
 .map-action-btn:hover {
-  background: #f1f5f9;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.28);
-  transform: translateY(-2px) scale(1.05); /* ホバー時のアニメーションを強調 */
+  transform: translateY(-3px);
+  box-shadow: 0 28px 46px rgba(59, 130, 246, 0.45);
 }
-
-/* 追従中のスタイル */
+.map-action-btn:hover .map-action-btn__halo {
+  opacity: 0.6;
+}
 .map-action-btn.is-following {
-  background: #2563eb;
-  color: white;
-  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.38);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.95), rgba(16, 185, 129, 0.9));
+  color: #0f172a;
+  box-shadow: 0 26px 44px rgba(16, 185, 129, 0.38);
 }
-
-.map-action-btn.is-following:hover {
-  background: #1d4ed8;
+.map-action-btn.is-following .map-action-btn__label {
+  color: #0f172a;
 }
-
 .map-action-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.65;
   box-shadow: none;
   transform: none;
 }
-
-/* --- アイコンのスタイルとアニメーション --- */
-.icon-location {
-  transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+.icon-location { transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
+.icon-location-dot { transform: scale(0); transition: transform 0.3s ease-in-out; transform-origin: center; }
+.map-action-btn.is-following .icon-location { transform: rotate(135deg); }
+.map-action-btn.is-following .icon-location-dot { transform: scale(1); }
+.map-action-btn__label {
+  margin-top: 10px;
+  font-size: 0.7rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #e2e8f0;
 }
 
-/* 中央のドットのスタイル */
-.icon-location-dot {
-  transform: scale(0);
-  transition: transform 0.3s ease-in-out;
-  transform-origin: center;
-}
-
-/* 追従中のアイコンの変化 */
-.map-action-btn.is-following .icon-location {
-  transform: rotate(135deg); /* アイコンを回転させる */
-}
-
-.map-action-btn.is-following .icon-location-dot {
-  transform: scale(1); /* 中央のドットを表示 */
-}
-
-/* ボタン内のテキストスタイル */
-.map-action-text {
-  font-size: 10px;
-  font-weight: 600;
-  margin-top: 2px;
-  line-height: 1;
-}
-
-/* 追従中はテキストを非表示にする */
-.map-action-btn.is-following .map-action-text {
-  display: none;
-}
-
-/* 追従中はアイコンを大きくする */
-.map-action-btn.is-following svg {
-  width: 28px;
-  height: 28px;
-}
-
-.map-follow-indicator {
-  min-width: 100px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: rgba(16, 185, 129, 0.92);
-  color: #f0fdf4;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-align: center;
-  box-shadow: 0 8px 18px rgba(16, 185, 129, 0.32);
-}
-.controls {
+/* 左上UIコンテナ */
+.top-left-ui-area {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 16px;
+  left: 16px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  max-height: calc(100vh - 20px);
+  gap: 12px;
+  align-items: flex-start;
 }
 
-.start-nav-panel {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  margin-bottom: 10px;
-  width: 250px;
+/* 横並びコントロールバー */
+.controls .control-buttons {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.75);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  max-width: min(420px, 100%);
 }
-.start-nav-button {
-  width: 100%;
-  padding: 12px;
-  font-size: 1rem;
-  font-weight: bold;
-  background: #1d4ed8;
-  color: white;
+.control-btn {
+  position: relative;
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.9), rgba(59, 130, 246, 0.85));
+  color: #e2e8f0;
   cursor: pointer;
-  transition: background-color 0.2s;
+  padding: 12px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.32);
+  flex: 1 1 150px;
 }
-.start-nav-button:hover {
-  background: #2563eb;
+.control-btn svg { flex-shrink: 0; }
+.control-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(59, 130, 246, 0.4);
 }
-.start-nav-button:disabled {
-  background: #9ca3af;
+.control-btn.is-active {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.92), rgba(34, 197, 94, 0.92));
+  box-shadow: 0 14px 30px rgba(34, 197, 94, 0.38);
+  color: #f0fdf4;
+}
+.control-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: none;
 }
-.error-box {
-  background: #fef2f2;
-  color: #b91c1c;
-  padding: 8px;
-  border-radius: 4px;
-  margin-top: 8px;
-  font-size: 0.9rem;
-}
-/* ★★★ ここまで ★★★ */
 
-
-.conn-panel {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  margin-bottom: 10px;
-  min-width: 250px;
+.data-sync-btn {
+  min-width: 156px;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.88), rgba(79, 70, 229, 0.88));
+  flex: 1 1 180px;
 }
-.conn-row {
+.control-btn.is-active.data-sync-btn {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(168, 85, 247, 0.95));
+}
+.data-sync-btn__label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+}
+
+.lora-panel {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 14px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(17, 94, 89, 0.9), rgba(15, 23, 42, 0.92));
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  color: #ccfbf1;
+  min-width: 220px;
+  box-shadow: 0 16px 30px rgba(14, 116, 144, 0.35);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  flex: 1 1 240px;
 }
-.chip {
-  font-size: 12px;
-  padding: 4px 8px;
-  border-radius: 999px;
+.lora-panel.is-connecting {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 16px 30px rgba(56, 189, 248, 0.28);
 }
-.chip.ok { background: #e6ffec; color: #137333; }
-.chip.warn { background: #fff4e5; color: #8a5a00; }
-.chip.busy { background: #e7f0ff; color: #0b57d0; }
-.chip.muted { background: #eee; color: #666; }
-.join-btn {
-  padding: 6px 10px;
-  font-size: 0.9rem;
-  background: #0b57d0;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+.lora-panel.is-connected {
+  border-color: rgba(34, 197, 94, 0.55);
+  box-shadow: 0 16px 30px rgba(34, 197, 94, 0.32);
+}
+.lora-panel__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 118, 110, 0.3);
+  color: inherit;
+  box-shadow: inset 0 0 0 1px rgba(45, 212, 191, 0.28);
+}
+.lora-panel__body {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  gap: 2px;
+}
+.lora-panel__label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  opacity: 0.7;
+}
+.lora-panel__status {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.lora-toggle-btn {
   margin-left: auto;
-}
-.join-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.spot-list-toggle {
-  padding: 10px 15px;
-  font-size: 1rem;
-  background-color: #007bff;
-  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   border: none;
-  border-radius: 5px;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.55);
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  margin-bottom: 10px;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
-.spot-list {
-  background: white;
-  border-radius: 5px;
-  padding: 10px;
-  max-height: 75vh;
+.lora-toggle-btn:hover {
+  transform: translateY(-2px);
+  background: rgba(15, 23, 42, 0.75);
+}
+.lora-toggle-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.lora-toggle-btn__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  position: relative;
+}
+.lora-toggle-btn__dot.is-active {
+  background: rgba(34, 197, 94, 0.95);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
+}
+.lora-toggle-btn__dot.is-busy {
+  background: rgba(56, 189, 248, 0.95);
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+  animation: loraBlink 1.2s ease-in-out infinite;
+}
+.lora-toggle-btn__text {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+@keyframes loraBlink {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 540px) {
+  .controls .control-buttons {
+    width: calc(100vw - 48px);
+  }
+  .control-btn,
+  .data-sync-btn,
+  .lora-panel {
+    flex: 1 1 100%;
+  }
+  .data-sync-btn,
+  .lora-panel {
+    min-width: auto;
+  }
+}
+
+.spot-list-panel {
+  width: 320px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.4);
+}
+.spot-list-toggle {
+  width: 100%;
+  padding: 18px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.55);
+  border: none;
+  cursor: pointer;
+  color: #e2e8f0;
+  transition: background 0.2s ease;
+}
+.spot-list-toggle:hover {
+  background: rgba(30, 41, 59, 0.65);
+}
+.spot-list-toggle__left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+.spot-list-toggle__eyebrow {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  opacity: 0.6;
+}
+.spot-list-toggle__title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.chevron-icon {
+  transition: transform 0.3s ease;
+}
+.chevron-icon.is-open {
+  transform: rotate(180deg);
+}
+
+.spot-list-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.spot-list-content.is-open {
+  max-height: 60vh;
   overflow-y: auto;
-  min-width: 250px;
 }
-.spot-list h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
+.spot-list-content-inner {
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-.spot-list ul {
+.spot-list-content-inner ul {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.spot-list li button {
+.spot-list-content-inner li button {
   width: 100%;
-  padding: 8px 12px;
-  text-align: left;
-  background: none;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #f8fafc;
+  font-size: 0.98rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+.spot-list-content-inner li button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(94, 234, 212, 0.6);
+  background: rgba(15, 118, 110, 0.55);
+}
+.order-index {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(59, 130, 246, 0.9));
+  color: #0f172a;
+  box-shadow: 0 10px 18px rgba(56, 189, 248, 0.3);
+}
+.rt-badges {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 6px;
+}
+.rt-badges .rt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.25);
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+.rt-badge.crowd.is-low {
+  background: rgba(34, 197, 94, 0.18);
+  color: #4ade80;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.3);
+}
+.rt-badge.crowd.is-mid {
+  background: rgba(234, 179, 8, 0.18);
+  color: #facc15;
+  box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.28);
+}
+.rt-badge.crowd.is-high {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.32);
+}
+.nearby-section {
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  padding-top: 14px;
+}
+.nearby-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 197, 255, 0.8);
+  margin-bottom: 10px;
+}
+.nearby-button {
+  width: 100%;
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.4);
+  padding: 10px 12px;
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+.nearby-button:hover {
+  transform: translateY(-2px);
+  border-color: rgba(249, 115, 22, 0.65);
+}
+
+.start-nav-panel {
+  width: 300px;
+  padding: 18px 20px 20px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 64, 175, 0.9));
+  box-shadow: 0 28px 48px rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.start-nav-button {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
   border: none;
-  border-bottom: 1px solid #f0f0f0;
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(14, 165, 233, 0.92));
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-shadow: 0 20px 40px rgba(56, 189, 248, 0.4);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-.spot-list li:last-child button { border-bottom: none; }
-.spot-list li button:hover { background-color: #f5f5f5; }
-.order-index {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  line-height: 24px;
-  text-align: center;
-  border-radius: 50%;
-  background-color: #007bff;
-  color: white;
-  font-weight: bold;
-  margin-right: 10px;
+.start-nav-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 48px rgba(56, 189, 248, 0.5);
 }
-.rt-badges { margin-left: auto; }
-.toast-stack {
+.start-nav-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  box-shadow: none;
+}
+.start-nav-button__spark {
   position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.55), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.start-nav-button:hover .start-nav-button__spark {
+  opacity: 0.6;
+}
+.start-nav-button__inner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.start-nav-button__icon {
+  filter: drop-shadow(0 6px 10px rgba(14, 165, 233, 0.35));
+}
+.start-nav-button__label {
+  font-size: 0.9rem;
+  letter-spacing: 0.28em;
+}
+.start-nav-button__progress {
+  position: absolute;
+  left: 12px;
   right: 12px;
-  bottom: 12px;
-  z-index: 1100;
+  bottom: 10px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.2s ease;
 }
-.toast {
-  background: rgba(30, 30, 30, 0.95);
-  color: #fff;
+.start-nav-button__progress span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  min-width: 80px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(14, 165, 233, 0.9));
+  border-radius: inherit;
+  transform: translateX(-100%);
+  animation: startProgress 1.8s ease-in-out infinite;
+}
+.start-nav-button__progress span:nth-child(2) { animation-delay: 0.22s; }
+.start-nav-button__progress span:nth-child(3) { animation-delay: 0.44s; }
+.start-nav-button__progress span:nth-child(4) { animation-delay: 0.66s; }
+
+.start-nav-button.is-loading .start-nav-button__progress {
+  opacity: 1;
+}
+.start-nav-button.is-loading {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.92), rgba(125, 211, 252, 0.95));
+  color: #0c4a6e;
+}
+
+@keyframes startProgress {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(30%); }
+  100% { transform: translateX(120%); }
+}
+
+.start-nav-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  font-size: 0.88rem;
+  color: #e0f2fe;
 }
-.error-view {
-  padding: 20px;
-  text-align: center;
+.start-nav-status__pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.95);
+  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4);
+  animation: statusPulse 1.6s ease-out infinite;
 }
+.start-nav-status__text {
+  letter-spacing: 0.08em;
+}
+
+@keyframes statusPulse {
+  0% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5);
+  }
+  70% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px rgba(56, 189, 248, 0);
+  }
+  100% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+}
+
+/* その他 */
+.error-box { background: #fef2f2; color: #b91c1c; padding: 8px; border-radius: 4px; margin-top: 8px; font-size: 0.9rem; }
+.toast-stack { position: absolute; right: 12px; z-index: 1100; display: flex; flex-direction: column; gap: 8px; bottom: 90px; }
+.toast { background: rgba(15, 23, 42, 0.9); color: #f8fafc; padding: 12px 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 280px; }
+.toast-body { font-size: 0.9rem; margin-top: 4px; opacity: 0.9; }
+.error-view { padding: 20px; text-align: center; }
 </style>

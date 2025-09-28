@@ -27,13 +27,6 @@ const esriWorldStreet = L.tileLayer(
   }
 );
 
-const cartoPositron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-  subdomains: ['a', 'b', 'c', 'd'],
-  attribution:
-    "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>",
-  maxZoom: 19
-});
-
 const props = defineProps({
   plan: {
     type: Object,
@@ -148,7 +141,9 @@ const drawPois = () => {
 
   const addPoiMarker = (poi) => {
     if (!poi || typeof poi.lat !== 'number' || typeof poi.lon !== 'number') return;
-    const marker = L.marker([poi.lat, poi.lon]).addTo(map.value).bindPopup(`<b>${poi.name}</b>`);
+    const marker = L.marker([poi.lat, poi.lon], {
+      interactive: false,
+    }).addTo(map.value);
     poiMarkers.push(marker);
   };
 
@@ -158,13 +153,14 @@ const drawPois = () => {
 
 const setupMap = () => {
   if (mapContainer.value && !map.value) {
-    map.value = L.map(mapContainer.value);
+    map.value = L.map(mapContainer.value, { zoomControl: false });
     markProgrammaticMove();
     map.value.setView([39.145, 140.102], 10);
-    const baseMaps = { 'Esri WorldStreetMap': esriWorldStreet, 'Carto Positron': cartoPositron };
     esriWorldStreet.addTo(map.value);
-    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map.value);
     L.control.scale({ imperial: false, metric: true }).addTo(map.value);
+    if (map.value.attributionControl) {
+      map.value.attributionControl.setPrefix('');
+    }
 
     map.value.on('movestart', () => {
       if (!isProgrammaticMove) {
@@ -230,6 +226,20 @@ watch(() => props.plan, () => {
 .map-container {
   width: 100%;
   height: 100%;
+}
+
+.leaflet-control-attribution {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  border-radius: 999px;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.25);
+  line-height: 1.2;
+}
+
+.leaflet-control-attribution a {
+  color: rgba(148, 197, 255, 0.85);
 }
 
 /* 現在地マーカーのスタイル */

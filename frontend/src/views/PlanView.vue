@@ -395,7 +395,7 @@ watch(isNavWindowVisible, (visible) => {
         :class="['nav-window__header', { 'nav-window__header--fullscreen': isNavWindowFullScreen }]"
         @pointerdown="startDrag"
       >
-        <span class="nav-window__title">ナビプレビュー</span>
+        <span class="nav-window__title">Guidance Console</span>
         <div class="nav-window__controls">
           <button
             type="button"
@@ -724,9 +724,12 @@ button.primary:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0));
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 12px 18px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 64, 175, 0.82));
+  border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(14px);
   cursor: grab;
   user-select: none;
   gap: 12px;
@@ -739,13 +742,16 @@ button.primary:disabled {
 
 .nav-window__header--fullscreen {
   cursor: default;
-  background: rgba(15, 23, 42, 0.08);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(15, 118, 110, 0.78));
+  border-radius: 0;
 }
 
 .nav-window__title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: #e2e8f0;
 }
 
 .nav-window__body {
