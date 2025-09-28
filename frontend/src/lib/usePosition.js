@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue';
+import { calculateDistance } from './geoutils';
 
 // 本番用: ブラウザのGeolocation APIを使用する
 export function usePosition() {
@@ -10,6 +11,9 @@ export function usePosition() {
 
   let watchId = null;
   let restartTimerId = null;
+  let lastAcceptedPos = null;
+
+  const MIN_MOVE_METERS = 10; // GPSの微小な揺れを吸収するための閾値
 
   const clearWatch = () => {
     if (watchId !== null) {
@@ -44,10 +48,20 @@ export function usePosition() {
 
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        currentPos.value = {
+        const nextPos = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
+
+        if (lastAcceptedPos) {
+          const delta = calculateDistance(lastAcceptedPos, nextPos);
+          if (delta < MIN_MOVE_METERS) {
+            return;
+          }
+        }
+
+        currentPos.value = nextPos;
+        lastAcceptedPos = nextPos;
       },
       (err) => {
         console.error('Geolocation error:', err);
@@ -59,6 +73,7 @@ export function usePosition() {
         }
 
         currentPos.value = null; // それ以外のエラー時はnullにする
+        lastAcceptedPos = null;
       },
       watchOptions
     );
@@ -74,6 +89,7 @@ export function usePosition() {
       clearTimeout(restartTimerId);
       restartTimerId = null;
     }
+    lastAcceptedPos = null;
   });
 
   // 本番では isMock:false

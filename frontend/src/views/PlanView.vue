@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useNavStore } from '@/stores/nav'
 import { usePosition } from '@/lib/usePosition'
+import { sendSwMessage } from '@/lib/swClient'
 import NavView from '@/views/NavView.vue'
 
 const nav = useNavStore()
@@ -165,6 +166,7 @@ async function submitPlan() {
     waypoints: selectedIds.value.map((id) => ({ spot_id: id }))
   }
 
+  await sendSwMessage({ type: 'RESET_TILES_CACHE' })
   await nav.fetchRoute(planOptions, { navigate: false })
   isNavWindowVisible.value = true
   isNavWindowFullScreen.value = false

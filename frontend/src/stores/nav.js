@@ -6,6 +6,16 @@ import * as api from '@/lib/api'
 // 30分
 const PLAN_TTL = 30 * 60 * 1000
 
+const createRouteCacheKey = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID()
+    } catch {}
+  }
+  const rand = Math.random().toString(16).slice(2, 10)
+  return `route-${Date.now()}-${rand}`
+}
+
 export const useNavStore = defineStore('nav', () => {
   const router = useRouter()
 
@@ -91,6 +101,7 @@ export const useNavStore = defineStore('nav', () => {
         assets: [],
         manifest_url: null,
         createdAt: Date.now(),
+        cacheKey: createRouteCacheKey(),
       }
 
       if (navigate) {

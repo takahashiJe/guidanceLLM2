@@ -4,6 +4,8 @@
  * @fileoverview 音声再生の管理（キューイング対応）を行うモジュール
  */
 
+import { readonly, shallowRef } from 'vue'
+
 // --- 内部状態 ---
 
 // 再生キュー：再生リクエストを順番に保持する配列
@@ -14,6 +16,85 @@ let isPlaying = false;
 const playedIds = new Set();
 // 現在再生中のHTMLAudioElementインスタンス
 let currentAudio = null;
+// 現在再生中の音声情報（テキスト含む）
+const currentPlayback = shallowRef(null);
+// テキスト読み込みの最新トークン（競合回避用）
+let playbackToken = 0;
+
+function resolveTextUrl(textUrl) {
+  if (!textUrl) return null;
+  if (/^https?:\/\//i.test(textUrl)) {
+    return textUrl;
+  }
+  try {
+    return `${window.location.origin}${textUrl.startsWith('/') ? '' : '/'}${textUrl}`;
+  } catch (err) {
+    console.error('[Queue] Failed to resolve text URL:', err);
+    return null;
+  }
+}
+
+async function loadTextContentIfNeeded(playInfo, token) {
+  if (playInfo.text || !playInfo.textUrl) {
+    return;
+  }
+
+  try {
+    const resolvedUrl = resolveTextUrl(playInfo.textUrl);
+    if (!resolvedUrl) {
+      throw new Error('Invalid text URL');
+    }
+
+    const res = await fetch(resolvedUrl);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const textBody = await res.text();
+
+    if (token !== playbackToken) {
+      return;
+    }
+
+    currentPlayback.value = {
+      ...playInfo,
+      text: textBody,
+      isLoading: false,
+      error: null,
+    };
+  } catch (error) {
+    if (token !== playbackToken) {
+      return;
+    }
+    console.error('[Queue] Failed to load text content:', error);
+    currentPlayback.value = {
+      ...playInfo,
+      isLoading: false,
+      error: 'テキストの読み込みに失敗しました',
+    };
+  }
+}
+
+function setPlaybackInfo(spotInfo) {
+  const token = ++playbackToken;
+  const playInfo = {
+    id: spotInfo.id,
+    name: spotInfo.name,
+    text: spotInfo.text ?? null,
+    textUrl: spotInfo.textUrl ?? null,
+    isLoading: !spotInfo.text && !!spotInfo.textUrl,
+    error: null,
+  };
+
+  currentPlayback.value = playInfo;
+  loadTextContentIfNeeded(playInfo, token).catch(() => {
+    // 内部でエラーハンドリング済み
+  });
+}
+
+function clearPlaybackInfo() {
+  playbackToken += 1;
+  currentPlayback.value = null;
+}
 
 
 /**
@@ -49,6 +130,7 @@ function playNextInQueue() {
   console.log(`[Queue] Playing: "${spotInfo.name}" (${spotInfo.id})`);
   
   currentAudio = new Audio(audioPath);
+  setPlaybackInfo(spotInfo);
 
   // 再生開始に成功したら再生済みとして記録
   currentAudio.addEventListener('play', () => {
@@ -60,6 +142,7 @@ function playNextInQueue() {
     console.log(`[Queue] Finished: "${spotInfo.name}".`);
     currentAudio = null;
     isPlaying = false;
+    clearPlaybackInfo();
     // 少し間を置いてから次を再生
     setTimeout(playNextInQueue, 500);
   });
@@ -69,6 +152,7 @@ function playNextInQueue() {
     console.error(`[Queue] Error playing "${spotInfo.name}":`, e);
     currentAudio = null;
     isPlaying = false;
+    clearPlaybackInfo();
     setTimeout(playNextInQueue, 500);
   });
 
@@ -76,6 +160,7 @@ function playNextInQueue() {
     console.error(`[Queue] Playback initiation failed for "${spotInfo.name}":`, error);
     currentAudio = null;
     isPlaying = false;
+    clearPlaybackInfo();
     setTimeout(playNextInQueue, 500);
   });
 }
@@ -129,4 +214,9 @@ export function resetPlaybackState() {
   
   isPlaying = false;
   console.log("[Audio] Playback state has been completely reset.");
+  clearPlaybackInfo();
+}
+
+export function useAudioPlaybackState() {
+  return readonly(currentPlayback);
 }

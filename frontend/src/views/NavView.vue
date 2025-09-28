@@ -41,14 +41,39 @@
           :current-pos="currentPos"
           @user-pan="handleUserPan"
         />
-        <div v-if="!isFollowMode" class="map-actions">
+        <div
+          v-if="playbackState"
+          class="audio-caption"
+          role="status"
+          aria-live="polite"
+        >
+          <div class="audio-caption__title">{{ playbackState.name }}</div>
+          <div
+            v-if="playbackState.error"
+            class="audio-caption__body audio-caption__body--error"
+          >
+            {{ playbackState.error }}
+          </div>
+          <div v-else class="audio-caption__body">
+            <span v-if="playbackState.isLoading">原稿を読み込み中...</span>
+            <span v-else-if="playbackState.text">{{ playbackState.text }}</span>
+            <span v-else>テキスト情報は提供されていません。</span>
+          </div>
+        </div>
+        <div class="map-actions">
           <button
             type="button"
             class="map-action-btn"
+            :class="{ 'is-following': isFollowMode }"
             :disabled="!currentPos"
-            @click="enableFollowMode"
+            @click="isFollowMode ? disableFollowMode() : enableFollowMode()"
+            :title="isFollowMode ? '追従を停止' : '現在地に追従'"
           >
-            追従開始
+            <svg class="icon-location" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+              <path d="M12 8v8M8 12h8"/>
+              <circle class="icon-location-dot" cx="12" cy="12" r="2.5" fill="currentColor" />
+            </svg>
           </button>
         </div>
       </div>
@@ -172,9 +197,10 @@ import {
   getIsJoined
 } from '@/lib/loraBridge'
 
-import { enqueueAudio, resetPlaybackState } from '@/lib/audioManager.js'
+import { enqueueAudio, resetPlaybackState, useAudioPlaybackState } from '@/lib/audioManager.js'
 import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
+import { sendSwMessage } from '@/lib/swClient'
 
 // import { usePosition } from '@/lib/usePosition.mock.js'
 import { usePosition } from '@/lib/usePosition.js';
@@ -192,6 +218,7 @@ const {
 } = storeToRefs(navStore)
 
 const navMap = ref(null)
+const playbackState = useAudioPlaybackState()
 const isSpotListVisible = ref(true)
 const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
@@ -210,6 +237,16 @@ const {
 const isDebug = computed(() => !!isMock)
 const isPollingEnabled = ref(false)
 const didPrecacheTiles = ref(false)
+const cachedPlanKey = ref(null)
+const precacheInFlight = ref(false)
+const TILE_PRECACHE_PROFILES = [
+  { label: 'follow-full', zooms: [FOLLOW_MODE_ZOOM], tileBuffer: 1, maxTiles: 700, batchSize: 90 },
+  { label: 'follow-thin', zooms: [FOLLOW_MODE_ZOOM], tileBuffer: 0, maxTiles: 520, batchSize: 80 },
+  { label: 'fallback-zoom', zooms: [Math.max(FOLLOW_MODE_ZOOM - 1, 1)], tileBuffer: 0, maxTiles: 360, batchSize: 70 },
+]
+const tileProfileIndex = ref(0)
+
+const activeTileProfile = () => TILE_PRECACHE_PROFILES[Math.min(tileProfileIndex.value, TILE_PRECACHE_PROFILES.length - 1)]
 const isFollowMode = ref(false)
 let followIntervalId = null
 
@@ -263,12 +300,29 @@ const startGuidance = async () => {
 const handleSwMessage = (event) => {
   const data = event.data
   if (data?.type === 'PRECACHE_TILES_RESULT' && data.summary) {
-    const { added, skipped, failed } = data.summary
+    const { added, skipped, failed, quotaExceeded } = data.summary
     console.debug('[sw] precache tiles result', data.summary)
+    if (quotaExceeded) {
+      didPrecacheTiles.value = false
+      if (tileProfileIndex.value < TILE_PRECACHE_PROFILES.length - 1) {
+        tileProfileIndex.value += 1
+        console.warn('[tiles] quota exceeded, switching profile', {
+          profile: TILE_PRECACHE_PROFILES[tileProfileIndex.value]?.label,
+        })
+        if (plan.value?.polyline?.length) {
+          window.setTimeout(() => {
+            requestTilePrecache(plan.value.polyline, { force: true })
+          }, 250)
+        }
+      } else {
+        console.error('[tiles] cache quota exceeded at minimal profile')
+      }
+      return
+    }
     if (failed > 0) {
-      pushToast('地図キャッシュ', `一部タイルの取得に失敗しました (${failed})`, 5000)
+      console.warn('[tiles] precache completed with failures', data.summary)
     } else if (added > 0) {
-      pushToast('地図キャッシュ', `タイル ${added} 件を保存しました`, 3000)
+      console.info('[tiles] precache success', data.summary)
     }
   }
 }
@@ -300,52 +354,86 @@ onUnmounted(() => {
   }
 })
 
+const clearTileCache = async () => {
+  const ok = await sendSwMessage({ type: 'RESET_TILES_CACHE' })
+  if (ok) {
+    didPrecacheTiles.value = false
+    cachedPlanKey.value = null
+    tileProfileIndex.value = 0
+  }
+}
+
 watch(
-  () => plan.value?.polyline,
-  (polyline) => {
-    if (!polyline || polyline.length === 0) {
+  () => plan.value?.cacheKey,
+  async (cacheKey, prevKey) => {
+    if (!cacheKey || !plan.value?.polyline?.length) {
+      if (prevKey) await clearTileCache()
+      cachedPlanKey.value = null
       didPrecacheTiles.value = false
       return
     }
-    if (didPrecacheTiles.value) return
-    requestTilePrecache(polyline)
+
+    if (cachedPlanKey.value && cacheKey !== cachedPlanKey.value) {
+      didPrecacheTiles.value = false
+      await clearTileCache()
+    }
+
+    if (!didPrecacheTiles.value && !precacheInFlight.value) {
+      precacheInFlight.value = true
+      try {
+        await requestTilePrecache(plan.value.polyline)
+      } finally {
+        precacheInFlight.value = false
+      }
+    }
+
+    cachedPlanKey.value = cacheKey
   },
   { immediate: true }
 )
 
-async function requestTilePrecache(polyline) {
+watch(
+  () => isNavigating.value,
+  async (navigating) => {
+    if (!navigating || !plan.value?.polyline?.length) return
+    await requestTilePrecache(plan.value.polyline, { force: true })
+  }
+)
+
+async function requestTilePrecache(polyline, { force = false } = {}) {
   if (!('serviceWorker' in navigator)) return
-  const candidateTiles = tilesForRoute(polyline, { zooms: [12, 13, 14, 15], marginDeg: 0.03, maxTiles: 800 })
+  if (!force && didPrecacheTiles.value) return
+  const profile = activeTileProfile()
+  const candidateTiles = tilesForRoute(polyline, profile)
   if (!candidateTiles.length) return
 
-  const payload = {
-    type: 'PRECACHE_TILES',
-    tiles: candidateTiles,
-    meta: {
-      requestedAt: Date.now(),
-      planCreatedAt: plan.value?.createdAt ?? null,
-    }
+  const metaBase = {
+    requestedAt: Date.now(),
+    planCreatedAt: plan.value?.createdAt ?? null,
+    profile: profile.label,
+    totalTiles: candidateTiles.length,
+    batchSize: profile.batchSize,
+    batches: Math.ceil(candidateTiles.length / profile.batchSize),
   }
 
-  const postToController = (controller) => {
-    if (!controller) return false
-    try {
-      controller.postMessage(payload)
-      didPrecacheTiles.value = true
-      return true
-    } catch (err) {
-      console.warn('[sw] failed to post precache message', err)
-      return false
+  let postedAny = false
+  for (let i = 0; i < candidateTiles.length; i += profile.batchSize) {
+    const batch = candidateTiles.slice(i, i + profile.batchSize)
+    const payload = {
+      type: 'PRECACHE_TILES',
+      tiles: batch,
+      meta: {
+        ...metaBase,
+        batchIndex: Math.floor(i / profile.batchSize),
+        batchRequested: batch.length,
+      }
     }
+    const posted = await sendSwMessage(payload)
+    postedAny = postedAny || posted
   }
 
-  if (postToController(navigator.serviceWorker.controller)) return
-
-  try {
-    const registration = await navigator.serviceWorker.ready
-    if (postToController(registration.active)) return
-  } catch (err) {
-    console.warn('[sw] service worker ready wait failed', err)
+  if (postedAny) {
+    didPrecacheTiles.value = true
   }
 }
 
@@ -394,6 +482,20 @@ watch(isNavigationReady, (ready) => {
   startRtPollingIfNeeded()
 })
 
+function enqueueAssetAudio(id, displayName, asset) {
+  if (!asset) return
+  const voiceUrl = asset?.audio?.url || asset?.audio_url
+  if (!voiceUrl) return
+
+  enqueueAudio({
+    id,
+    name: displayName,
+    voice_path: voiceUrl,
+    text: asset?.text ?? null,
+    textUrl: asset?.text_url ?? null,
+  })
+}
+
 // スポット接近時の通常案内をキューに追加するロジック
 watch(currentPos, (newPos) => {
   // ★★★ isNavigationReadyをチェックする条件を追加 ★★★
@@ -416,17 +518,10 @@ watch(currentPos, (newPos) => {
       const assetsArray = Array.isArray(plan.value.assets)
         ? plan.value.assets
         : Object.values(plan.value.assets || {});
-      
+
       const asset = assetsArray.find(a => a.spot_id === spot.spot_id && !a.situation);
 
-      const voiceUrl = asset?.audio?.url || asset?.audio_url
-      if (voiceUrl) {
-        enqueueAudio({
-          id: spot.spot_id,
-          name: spot.name,
-          voice_path: voiceUrl
-        });
-      }
+      enqueueAssetAudio(spot.spot_id, spot.name, asset);
     }
   });
 });
@@ -449,28 +544,14 @@ watch(
     if (weatherChanged && (event.next.w === 1 || event.next.w === 2)) {
       const situationType = `weather_${event.next.w}`;
       const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
-      const voiceUrl = asset?.audio?.url || asset?.audio_url
-      if (voiceUrl) {
-        enqueueAudio({
-          id: `${spotId}_${situationType}`,
-          name: `${spotName} (天気案内)`,
-          voice_path: voiceUrl
-        });
-      }
+      enqueueAssetAudio(`${spotId}_${situationType}`, `${spotName} (天気案内)`, asset);
     }
 
     const congestionChanged = !event.prev || event.prev.c !== event.next.c;
     if (congestionChanged && (event.next.c === 1 || event.next.c === 2)) {
       const situationType = `congestion_${event.next.c}`;
       const asset = assets.find(a => a.spot_id === spotId && a.situation === situationType);
-      const voiceUrl = asset?.audio?.url || asset?.audio_url
-      if (voiceUrl) {
-        enqueueAudio({
-          id: `${spotId}_${situationType}`,
-          name: `${spotName} (混雑度案内)`,
-          voice_path: voiceUrl
-        });
-      }
+      enqueueAssetAudio(`${spotId}_${situationType}`, `${spotName} (混雑度案内)`, asset);
     }
   }
 );
@@ -674,7 +755,7 @@ watch(
 </script>
 
 <style scoped>
-/* スタイルは変更ありません */
+/* Map & navigation UI styling */
 .nav-view {
   position: relative;
   width: 100%;
@@ -698,39 +779,122 @@ watch(
   height: 100%;
 }
 
+.audio-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100% - 40px));
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  padding: 16px 20px;
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+  z-index: 930;
+}
+
+.audio-caption__title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.audio-caption__body {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.audio-caption__body--error {
+  color: #fecaca;
+}
+
 .map-actions {
   position: absolute;
   right: 16px;
-  bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  bottom: calc(24px + 50px);
   z-index: 900;
 }
 
 .map-action-btn {
-  min-width: 100px;
-  padding: 10px 14px;
-  border-radius: 8px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
-  background: rgba(15, 23, 42, 0.82);
-  color: #f8fafc;
-  font-size: 0.9rem;
-  font-weight: 600;
+  background: white;
+  color: #0f172a;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.24);
-  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.2s ease-in-out;
 }
 
 .map-action-btn:hover {
-  background: rgba(37, 99, 235, 0.9);
-  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
+  background: #f1f5f9;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.28);
+  transform: translateY(-2px) scale(1.05); /* ホバー時のアニメーションを強調 */
+}
+
+/* 追従中のスタイル */
+.map-action-btn.is-following {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.38);
+}
+
+.map-action-btn.is-following:hover {
+  background: #1d4ed8;
 }
 
 .map-action-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.6;
   box-shadow: none;
+  transform: none;
+}
+
+/* --- アイコンのスタイルとアニメーション --- */
+.icon-location {
+  transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+/* 中央のドットのスタイル */
+.icon-location-dot {
+  transform: scale(0);
+  transition: transform 0.3s ease-in-out;
+  transform-origin: center;
+}
+
+/* 追従中のアイコンの変化 */
+.map-action-btn.is-following .icon-location {
+  transform: rotate(135deg); /* アイコンを回転させる */
+}
+
+.map-action-btn.is-following .icon-location-dot {
+  transform: scale(1); /* 中央のドットを表示 */
+}
+
+/* ボタン内のテキストスタイル */
+.map-action-text {
+  font-size: 10px;
+  font-weight: 600;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+/* 追従中はテキストを非表示にする */
+.map-action-btn.is-following .map-action-text {
+  display: none;
+}
+
+/* 追従中はアイコンを大きくする */
+.map-action-btn.is-following svg {
+  width: 28px;
+  height: 28px;
 }
 
 .map-follow-indicator {
@@ -755,7 +919,6 @@ watch(
   max-height: calc(100vh - 20px);
 }
 
-/* ★★★ 「ナビ開始」ボタン用のスタイルを追加 ★★★ */
 .start-nav-panel {
   background: #ffffff;
   border-radius: 8px;
