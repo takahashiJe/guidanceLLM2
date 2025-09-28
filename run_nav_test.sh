@@ -3,8 +3,8 @@
 # --- 設定 ---
 API_HOST="http://localhost:8080"
 LANGUAGE="ja"
-ORIGIN='{"lat": 39.096, "lon": 139.89}'
-WAYPOINTS='[{"spot_id": "spot_005"}, {"spot_id": "spot_019"}]'
+ORIGIN='{"lat": 39.39313041426191, "lon": 140.07357654611906}' 
+WAYPOINTS='[{"spot_id": "spot_007"}, {"spot_id": "spot_015"}]]' #, {"spot_id": "spot_003"}
 RETURN_TO_ORIGIN=true
 
 # --- 1. Routing APIを叩いて経路情報を取得 ---

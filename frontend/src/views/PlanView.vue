@@ -3,14 +3,17 @@ import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useNavStore } from '@/stores/nav'
-import { usePosition } from '@/lib/usePosition'
+// import { usePosition } from '@/lib/usePosition.js'
+import { usePosition } from '@/lib/usePosition.mock.js'
 import { sendSwMessage } from '@/lib/swClient'
 import NavView from '@/views/NavView.vue'
 
 const nav = useNavStore()
 const router = useRouter()
 const { lang, isRouteLoading, error, plan } = storeToRefs(nav)
-const { currentPos } = usePosition()
+const { currentPos, isMock } = usePosition()
+
+const isMockPositionMode = computed(() => !!isMock)
 
 const pois = ref([])
 const selectedIds = ref([])
@@ -300,6 +303,9 @@ watch(isNavWindowVisible, (visible) => {
   <div class="page">
     <header class="bar">
       <h1>ナビ計画</h1>
+      <div v-if="isMockPositionMode" class="mock-indicator" role="status">
+        モック現在地モード
+      </div>
     </header>
 
     <section class="form">
@@ -395,7 +401,7 @@ watch(isNavWindowVisible, (visible) => {
         :class="['nav-window__header', { 'nav-window__header--fullscreen': isNavWindowFullScreen }]"
         @pointerdown="startDrag"
       >
-        <span class="nav-window__title">Guidance Console</span>
+        <span class="nav-window__title">Guidance Map</span>
         <div class="nav-window__controls">
           <button
             type="button"
@@ -427,6 +433,18 @@ watch(isNavWindowVisible, (visible) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.mock-indicator {
+  margin-left: 16px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(37, 99, 235, 0.45);
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  white-space: nowrap;
 }
 .form {
   margin-top: 8px;

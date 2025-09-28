@@ -89,6 +89,12 @@ def _safe_slug(s: Optional[str]) -> Optional[str]:
     return s2 or None
 
 
+def _value_from_ref(ref: Any, key: str, default: Any = None) -> Any:
+    if isinstance(ref, dict):
+        return ref.get(key, default)
+    return getattr(ref, key, default)
+
+
 def _find_md_by_slug(lang: str, md_slug: str, max_files: int = 1) -> List[Dict]:
     """
     knowledge/{lang}/**/{md_slug}.md を最優先で探索（再帰）。
@@ -106,6 +112,34 @@ def _find_md_by_slug(lang: str, md_slug: str, max_files: int = 1) -> List[Dict]:
         if len(matches) >= max_files:
             break
     return matches
+
+
+def _load_md_by_slug(md_slug: str, lang: str) -> Optional[Dict[str, str]]:
+    safe_slug = _safe_slug(md_slug)
+    if not safe_slug:
+        return None
+
+    docs = _find_md_by_slug(lang, safe_slug, max_files=1)
+    if not docs:
+        return None
+
+    doc = docs[0]
+    text = doc.get("text")
+    if not text:
+        return None
+
+    source = doc.get("source")
+    base = _knowledge_base()
+    if source:
+        try:
+            rel = Path(source).resolve().relative_to(base)
+            source = str(rel)
+        except Exception:
+            source = str(source)
+    else:
+        source = f"{lang}/{safe_slug}.md"
+
+    return {"text": text, "source": source}
 
 
 def _chroma_search(q: str, lang: str, n: int = 4) -> List[Dict]:
@@ -137,20 +171,28 @@ def retrieve_context(spot_ref, lang: str) -> list[dict]:
     ctx: list[dict] = []
 
     # 1) md_slug を最優先で追加
-    md_slug = getattr(spot_ref, "md_slug", None)
+    md_slug = _value_from_ref(spot_ref, "md_slug")
     if md_slug:
-        md_text = _load_md_by_slug(md_slug, lang)
-        if md_text:
-            ctx.append({"text": md_text, "source": f"{lang}/spots/{md_slug}.md"})
+        md_doc = _load_md_by_slug(md_slug, lang)
+        if md_doc:
+            ctx.append(md_doc)
 
     # 2) Spot.description も追加
-    desc = getattr(spot_ref, "description", None)
+    desc = _value_from_ref(spot_ref, "description")
     if desc:
-        ctx.append({"text": desc, "source": "spot.description"})
+        if isinstance(desc, (dict, list)):
+            try:
+                desc_text = json.dumps(desc, ensure_ascii=False)
+            except Exception:
+                desc_text = str(desc)
+        else:
+            desc_text = str(desc)
+        if desc_text:
+            ctx.append({"text": desc_text, "source": "spot.description"})
 
     # 3) 追加RAG: Chroma が使える場合だけ関連章節を付与（安全に無視可）
     #    クエリは name+description を素朴に連結
-    name = getattr(spot_ref, "name", "") or ""
+    name = _value_from_ref(spot_ref, "name", "") or ""
     query = f"{name} {desc or ''}".strip()
     if query:
         coll_name = f"{COLLECTION_PREFIX}{lang}"

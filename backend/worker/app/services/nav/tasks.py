@@ -296,10 +296,17 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     logger.info("Step 2: Calling AlongPOI service...")
     # waypoint_ids = [w.spot_id for w in req.waypoints if w.spot_id and w.spot_id != "current"]
     waypoint_ids = [wp.spot_id for wp in req.waypoints_info if wp.spot_id and wp.spot_id != "current"]
+    waypoint_id_set = set(waypoint_ids)
     along_req = {"polyline": req.polyline, "segments": [s.model_dump() for s in req.segments], "buffer": req.buffer, "waypoints": waypoint_ids}
     along_result = post_along(along_req)
     along_pois = along_result.get("pois", [])
     logger.info(f"AlongPOI service returned {len(along_pois)} POIs.")
+
+    along_spot_id_set = {
+        p.get("spot_id")
+        for p in along_pois
+        if isinstance(p, dict) and p.get("spot_id") and p.get("spot_id") != "current"
+    }
 
     # --- 3. LLM Service ---
     logger.info("Step 3: Calling LLM service...")
@@ -307,9 +314,21 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     all_spot_ids = _collect_unique_spot_ids(req.waypoints_info, along_pois)
     spot_refs = _build_spot_refs(all_spot_ids, req.language)
 
+    # Waypoints は到着時案内、AlongPOI は通過時案内として区別する
+    enhanced_spot_refs: list[dict] = []
+    for ref in spot_refs:
+        sid = ref.get("spot_id")
+        playback = "arrival" if sid in waypoint_id_set else "pass_by"
+        if playback == "pass_by" and sid not in along_spot_id_set:
+            # 想定外のスポットは従来通り arrival とする
+            playback = "arrival"
+        enriched = {**ref, "playback": playback}
+        enhanced_spot_refs.append(enriched)
+    spot_refs = enhanced_spot_refs
+
     # (B) Waypointに限定して、状況説明(4パターン)をリクエスト
     conditional_spot_refs = []
-    waypoint_spot_refs = [ref for ref in spot_refs if ref['spot_id'] in waypoint_ids]
+    waypoint_spot_refs = [ref for ref in spot_refs if ref['spot_id'] in waypoint_id_set]
 
     for spot_ref in waypoint_spot_refs:
         for key in CONDITIONAL_NARRATIONS.keys():

@@ -20,6 +20,24 @@ SAFETY_FOOTER = {
     "zh": "安全提示：请简要提醒注意天气、路况与野生动物。避免鼓励冒险行为。",
 }
 
+PLAYBACK_CONTEXT_HINTS = {
+    "ja": {
+        "arrival": "旅行者はすでにスポットに到着し、目の前で説明を聞いています。未来の来訪を促す表現や「ご来訪の際は」のような語を避け、その場で見える・感じられる内容を現在形で描写してください。",
+        "pass_by": "旅行者はルートを移動中にスポットのそばを通過しています。立ち寄りを前提とせず、今まさに車窓や足元から見えるポイントを現在形で紹介し、必要なら注意喚起を添えてください。",
+        "default": "旅行者はいま、このスポットに関する音声案内を耳にしています。",
+    },
+    "en": {
+        "arrival": "The traveler is already at the spot and listening on site. Avoid future-oriented invitations such as \"when you visit\"; speak in the present tense about what they can see or feel right now.",
+        "pass_by": "The traveler is moving along the route, passing this spot without stopping. Describe in the present tense what they can notice in transit and avoid language that assumes a later visit.",
+        "default": "The traveler is currently hearing guidance about this spot.",
+    },
+    "zh": {
+        "arrival": "游客已经抵达景点并正在现场聆听，请用现在时描述此刻可以看到或感受到的内容，避免出现“到访时”等未来式表达。",
+        "pass_by": "游客正沿路线经过该地点且不会停留。请用现在时说明路过时能看到的重点，并避免鼓励之后停下来参观的措辞。",
+        "default": "游客正在聆听关于该景点的导览说明。",
+    },
+}
+
 CONDITION_HINTS = {
     "ja": {
         "weather_1": "このスポットは曇り空です。どのスポットが曇りなのかわかるようにスポット名を含めてください。案内の最後に、天候の変化に注意するよう促す一文を自然な形で加えてください。",
@@ -47,12 +65,13 @@ GUIDANCE_PROMPT_TEMPLATES = {
 [LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
 あなたは鳥海山エリアを訪れる観光客向けのプロのツアーガイドです。
 
-スポット名: {name} (ID: {spot_id})
+スポット名: {name}
 参考情報:
 {facts_txt}
 
 上記の参考情報に基づき、{lang_label}で話すためのナレーション原稿を作成してください。
 制約:
+- シーン: {context_note}
 - {style_note}
 - 構成: 1)短い導入、2)主要な事実・歴史・自然、3)豆知識、4)安全への言及。
 - 不確かな情報は避け、不明な点は簡潔にそう述べる。
@@ -65,12 +84,13 @@ GUIDANCE_PROMPT_TEMPLATES = {
 [LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
 You are a professional tour guide for tourists visiting the Mount Chokai area.
 
-Spot Name: {name} (ID: {spot_id})
+Spot Name: {name}
 Reference Information:
 {facts_txt}
 
 Based on the reference information above, please create a narration script to be spoken in {lang_label}.
 Constraints:
+- Context: {context_note}
 - {style_note}
 - Structure: 1) A brief introduction, 2) Key facts, history, or nature, 3) A piece of trivia, 4) A mention of safety.
 - Avoid uncertain information. If something is unknown, state it concisely.
@@ -83,12 +103,13 @@ Constraints:
 [LANGUAGE={lang}|{lang_label}] [STYLE=guidance]
 你是一位为游览鸟海山地区的游客服务的专业导游。
 
-景点名称: {name} (ID: {spot_id})
+景点名称: {name}
 参考信息:
 {facts_txt}
 
 请根据以上参考信息，创建一段用于{lang_label}播讲的解说稿。
 限制:
+- 场景: {context_note}
 - {style_note}
 - 结构：1) 简短介绍，2) 主要事实、历史、自然，3) 小知识，4) 安全提示。
 - 避免不确定的信息，如遇未知情况请简洁说明。
@@ -107,7 +128,7 @@ SITUATIONAL_PROMPT_TEMPLATES = {
 
 スポット「{name}」の現在の状況を伝える、簡潔な音声案内を作成してください。
 
-スポット名: {name} (ID: {spot_id})
+スポット名: {name}
 現在の状況: {condition_instruction}
 
 指示:
@@ -123,7 +144,7 @@ You are a professional tour guide for tourists visiting the Mount Chokai area.
 
 Please create a concise audio guidance message that communicates the current situation at the spot "{name}".
 
-Spot Name: {name} (ID: {spot_id})
+Spot Name: {name}
 Current Situation: {condition_instruction}
 
 Instructions:
@@ -139,7 +160,7 @@ Instructions:
 
 请针对景点“{name}”的当前状况，生成一段简洁的语音导览信息。
 
-景点名称: {name} (ID: {spot_id})
+景点名称: {name}
 当前状况: {condition_instruction}
 
 指示:
@@ -177,6 +198,13 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str,) -> str:
     name = spot.get("name") or spot.get("spot_id", "this spot")
     spot_id = spot.get("spot_id")
     situation = spot.get("situation")
+    playback = spot.get("playback") or "arrival"
+
+    context_note = PLAYBACK_CONTEXT_HINTS.get(lang, {}).get(playback)
+    if not context_note:
+        context_note = PLAYBACK_CONTEXT_HINTS.get(lang, {}).get("default")
+    if not context_note:
+        context_note = PLAYBACK_CONTEXT_HINTS.get("en", {}).get(playback, "")
 
     # --- situation がある場合：状況説明のプロンプトを生成 ---
     if situation:
@@ -213,8 +241,8 @@ def build_prompt(spot: Dict, ctx: List[Dict], lang: str,) -> str:
             name=name,
             spot_id=spot_id,
             facts_txt=facts_txt,
+            context_note=context_note or "",
             style_note=style_note,
             safety_footer=safety_footer
         )
         return prompt
-

@@ -16,6 +16,7 @@ class SpotRef(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     md_slug: Optional[str] = None
+    playback: Optional[Literal["arrival", "pass_by"]] = None
     situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
 
 class DescribeRequest(BaseModel):
@@ -24,6 +25,7 @@ class DescribeRequest(BaseModel):
 
 class DescribeItem(BaseModel):
     spot_id: str
+    playback: Optional[Literal["arrival", "pass_by"]] = None
     situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
     text: str
 
@@ -57,6 +59,7 @@ def describe_impl(payload: DescribeRequest) -> DescribeResponse:
         
         items.append(DescribeItem(
             spot_id=s.spot_id,
+            playback=s.playback,
             situation=s.situation,
             text=narration_text
         ))

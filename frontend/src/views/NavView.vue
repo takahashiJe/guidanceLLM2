@@ -1,32 +1,45 @@
 <template>
   <div class="nav-view">
-    <div
+    <button
       v-if="isDebug"
-      style="
-        position: fixed;
-        bottom: 10px;
-        right: 10px;
-        z-index: 9999;
-        background: white;
-        padding: 10px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      "
+      class="debug-toggle"
+      type="button"
+      @click="isDebugPanelVisible ? hideDebugPanel() : showDebugPanel()"
     >
-      <h4>デバッグ用パネル</h4>
-      <div style="display: flex; gap: 6px; margin-bottom: 6px">
-        <input v-model.number="debugLat" type="number" step="0.000001" placeholder="lat" style="width: 120px" />
-        <input v-model.number="debugLng" type="number" step="0.000001" placeholder="lng" style="width: 120px" />
-        <button @click="setDebugPos(debugLat, debugLng)" style="padding: 6px 10px">
+      {{ isDebugPanelVisible ? 'デバッグパネルを閉じる' : 'デバッグパネルを開く' }}
+    </button>
+
+    <div v-if="isDebug && isDebugPanelVisible" class="debug-panel" role="group">
+      <div class="debug-panel__header">
+        <h4>デバッグ用パネル</h4>
+        <button type="button" class="debug-panel__close" @click="hideDebugPanel" aria-label="デバッグパネルを閉じる">
+          ×
+        </button>
+      </div>
+      <div class="debug-panel__row">
+        <input
+          v-model.number="debugLat"
+          type="number"
+          step="0.000001"
+          placeholder="lat"
+          class="debug-panel__input"
+        />
+        <input
+          v-model.number="debugLng"
+          type="number"
+          step="0.000001"
+          placeholder="lng"
+          class="debug-panel__input"
+        />
+        <button type="button" class="debug-panel__action" @click="setDebugPos(debugLat, debugLng)">
           現在地をセット
         </button>
-        <label style="font-size: 12px; display: flex; align-items: center; gap: 4px; margin-left: 6px">
+        <label class="debug-panel__follow-toggle">
           <input type="checkbox" v-model="following" @change="toggleFollowing" />
           追従
         </label>
       </div>
-      <p style="margin: 0; font-size: 12px; color: #333">
+      <p class="debug-panel__status">
         現在地:
         <span v-if="currentPos">{{ currentPos.lat.toFixed(4) }}, {{ currentPos.lng.toFixed(4) }}</span>
         <span v-else>未取得</span>
@@ -130,7 +143,7 @@
             :title="isFollowMode ? '追従を停止' : '現在地に追従'"
           >
             <span class="map-action-btn__halo" aria-hidden="true"></span>
-            <svg class="icon-location" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="icon-location" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
               <path d="M12 8v8M8 12h8"/>
               <circle class="icon-location-dot" cx="12" cy="12" r="2.5" fill="currentColor" />
@@ -153,8 +166,8 @@
               <span class="start-nav-button__inner">
                 <svg
                   class="start-nav-button__icon"
-                  width="24"
-                  height="24"
+                  width="20"
+                  height="20"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -192,7 +205,7 @@
           
           <div v-if="isNavigationReady" class="control-buttons">
             <button @click="togglePolling" class="control-btn data-sync-btn" :class="{'is-active': isPollingEnabled}" title="リアルタイム情報">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 3v6h6" />
                 <path d="M21 21v-6h-6" />
                 <path d="M21 3 14.12 9.88" />
@@ -202,7 +215,7 @@
             </button>
             <div class="lora-panel" :class="{ 'is-connected': isLoraConnected, 'is-connecting': isLoraConnecting }">
               <div class="lora-panel__icon" aria-hidden="true">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 2v4" />
                   <path d="M5.5 10.5a8.5 8.5 0 0 1 13 0" />
                   <path d="M8.5 13.5a4.5 4.5 0 0 1 7 0" />
@@ -241,7 +254,7 @@
                 <li v-for="(poi, index) in sortedWaypoints" :key="poi.spot_id">
                   <button @click="focusOnSpot(poi)">
                     <span class="order-index">{{ index + 1 }}</span>
-                    {{ poi.name }}
+                    {{ poiListLabel(poi) }}
                     <span class="rt-badges" v-if="isNavigationReady && latestBySpot(poi.spot_id)">
                       <span class="rt-badge weather" :title="weatherTitle(latestBySpot(poi.spot_id))">{{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}</span>
                       <span v-if="latestBySpot(poi.spot_id)?.u > 0" class="rt-badge upcoming" :title="upcomingTitle(latestBySpot(poi.spot_id))">
@@ -263,7 +276,7 @@
                 <h3 class="nearby-title">Nearby Picks</h3>
                 <ul>
                   <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
-                    <button @click="focusOnSpot(poi)" class="nearby-button">{{ poi.name }}</button>
+                    <button @click="focusOnSpot(poi)" class="nearby-button">{{ poiListLabel(poi) }}</button>
                   </li>
                 </ul>
               </div>
@@ -308,8 +321,8 @@ import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 import { sendSwMessage } from '@/lib/swClient'
 
-// import { usePosition } from '@/lib/usePosition.mock.js'
-import { usePosition } from '@/lib/usePosition.js';
+import { usePosition } from '@/lib/usePosition.mock.js'
+// import { usePosition } from '@/lib/usePosition.js';
 
 const navStore = useNavStore()
 const rtStore = useRtStore()
@@ -341,6 +354,15 @@ const {
   isMock
 } = usePosition()
 const isDebug = computed(() => !!isMock)
+const isDebugPanelVisible = ref(true)
+
+const showDebugPanel = () => {
+  isDebugPanelVisible.value = true
+}
+
+const hideDebugPanel = () => {
+  isDebugPanelVisible.value = false
+}
 const isPollingEnabled = ref(false)
 const didPrecacheTiles = ref(false)
 const cachedPlanKey = ref(null)
@@ -588,9 +610,6 @@ watch(isNavigationReady, (ready) => {
     isPollingEnabled.value = false
     return
   }
-  if (!isPollingEnabled.value) {
-    isPollingEnabled.value = true
-  }
   startRtPollingIfNeeded()
 })
 
@@ -694,6 +713,18 @@ const sortedAlongPois = computed(() => {
   }
   return []
 })
+
+function poiKindLabel(poi) {
+  if (!poi || !poi.kind) return null
+  return poi.kind === 'facility' ? '施設' : (poi.kind === 'spot' ? 'スポット' : null)
+}
+
+function poiListLabel(poi) {
+  const base = poi?.name || poi?.spot_id || '(unknown)'
+  const kind = poiKindLabel(poi)
+  const category = poi?.category ? `（${poi.category}）` : ''
+  return kind ? `【${kind}】${base}${category}` : `${base}${category}`
+}
 
 const spotNameMap = computed(() => {
   const m = new Map()
@@ -939,6 +970,121 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   height: 100vh;
   overflow: hidden;
 }
+.debug-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 960;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: clamp(260px, 36vw, 360px);
+  max-width: calc(100% - 48px);
+  max-height: calc(100vh - 160px);
+  padding: 16px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.15);
+  overflow: hidden;
+}
+.debug-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.debug-panel__header h4 {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.debug-panel__close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.debug-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.debug-panel__input {
+  flex: 1 1 120px;
+  min-width: 120px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+.debug-panel__input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+.debug-panel__action {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #3b82f6;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.debug-panel__follow-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #1e293b;
+}
+.debug-panel__status {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #334155;
+}
+.debug-toggle {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 960;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: rgba(15, 23, 42, 0.85);
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .debug-panel {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: calc(100% - 32px);
+    max-height: calc(100vh - 120px);
+  }
+  .debug-toggle {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    width: auto;
+    text-align: center;
+  }
+}
 .nav-container {
   position: relative;
   width: 100%;
@@ -1076,7 +1222,7 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 .audio-caption__wave {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   height: 14px;
   color: rgba(148, 163, 184, 0.75);
   opacity: 0.4;
@@ -1237,40 +1383,40 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
   background: rgba(15, 23, 42, 0.75);
-  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.35);
-  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.3);
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(148, 163, 184, 0.25);
-  max-width: min(420px, 100%);
+  max-width: min(320px, 100%);
 }
 .control-btn {
   position: relative;
   border: none;
-  border-radius: 14px;
+  border-radius: 10px;
   background: linear-gradient(135deg, rgba(30, 64, 175, 0.9), rgba(59, 130, 246, 0.85));
   color: #e2e8f0;
   cursor: pointer;
-  padding: 12px 18px;
+  padding: 8px 12px;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 0.92rem;
-  letter-spacing: 0.04em;
+  gap: 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.32);
-  flex: 1 1 150px;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.26);
+  flex: 1 1 110px;
 }
 .control-btn svg { flex-shrink: 0; }
 .control-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.34);
 }
 .control-btn.is-active {
   background: linear-gradient(135deg, rgba(22, 163, 74, 0.92), rgba(34, 197, 94, 0.92));
-  box-shadow: 0 14px 30px rgba(34, 197, 94, 0.38);
+  box-shadow: 0 10px 22px rgba(34, 197, 94, 0.32);
   color: #f0fdf4;
 }
 .control-btn:disabled {
@@ -1280,10 +1426,10 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 }
 
 .data-sync-btn {
-  min-width: 156px;
+  min-width: 120px;
   justify-content: center;
   background: linear-gradient(135deg, rgba(29, 78, 216, 0.88), rgba(79, 70, 229, 0.88));
-  flex: 1 1 180px;
+  flex: 1 1 140px;
 }
 .control-btn.is-active.data-sync-btn {
   background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(168, 85, 247, 0.95));
@@ -1291,36 +1437,36 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 .data-sync-btn__label {
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.78rem;
-  letter-spacing: 0.18em;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
 }
 
 .lora-panel {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 10px 16px;
-  border-radius: 16px;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
   background: linear-gradient(135deg, rgba(17, 94, 89, 0.9), rgba(15, 23, 42, 0.92));
   border: 1px solid rgba(45, 212, 191, 0.3);
   color: #ccfbf1;
-  min-width: 220px;
-  box-shadow: 0 16px 30px rgba(14, 116, 144, 0.35);
+  min-width: 150px;
+  box-shadow: 0 10px 20px rgba(14, 116, 144, 0.28);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  flex: 1 1 240px;
+  flex: 1 1 160px;
 }
 .lora-panel.is-connecting {
   border-color: rgba(56, 189, 248, 0.5);
-  box-shadow: 0 16px 30px rgba(56, 189, 248, 0.28);
+  box-shadow: 0 10px 20px rgba(56, 189, 248, 0.24);
 }
 .lora-panel.is-connected {
   border-color: rgba(34, 197, 94, 0.55);
-  box-shadow: 0 16px 30px rgba(34, 197, 94, 0.32);
+  box-shadow: 0 10px 20px rgba(34, 197, 94, 0.26);
 }
 .lora-panel__icon {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1335,34 +1481,34 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   gap: 2px;
 }
 .lora-panel__label {
-  font-size: 0.78rem;
+  font-size: 0.6rem;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.16em;
   opacity: 0.7;
 }
 .lora-panel__status {
-  font-size: 0.95rem;
+  font-size: 0.74rem;
   font-weight: 600;
 }
 .lora-toggle-btn {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   border: none;
   border-radius: 999px;
-  padding: 8px 14px;
+  padding: 5px 10px;
   background: rgba(15, 23, 42, 0.55);
   color: #f8fafc;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .lora-toggle-btn:hover {
   transform: translateY(-2px);
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.7);
 }
 .lora-toggle-btn:disabled {
   opacity: 0.6;
@@ -1411,17 +1557,17 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 }
 
 .spot-list-panel {
-  width: 320px;
-  border-radius: 18px;
+  width: 210px;
+  border-radius: 12px;
   overflow: hidden;
   background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(148, 163, 184, 0.25);
-  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 14px 24px rgba(15, 23, 42, 0.32);
 }
 .spot-list-toggle {
   width: 100%;
-  padding: 18px 20px;
+  padding: 10px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1441,13 +1587,13 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   text-align: left;
 }
 .spot-list-toggle__eyebrow {
-  font-size: 0.7rem;
+  font-size: 0.56rem;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.14em;
   opacity: 0.6;
 }
 .spot-list-toggle__title {
-  font-size: 1.08rem;
+  font-size: 0.86rem;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -1468,10 +1614,10 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   overflow-y: auto;
 }
 .spot-list-content-inner {
-  padding: 14px 16px 16px;
+  padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 .spot-list-content-inner ul {
   list-style: none;
@@ -1479,19 +1625,19 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 .spot-list-content-inner li button {
   width: 100%;
   background: rgba(15, 23, 42, 0.55);
   border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 14px;
-  padding: 12px 14px;
+  border-radius: 10px;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   color: #f8fafc;
-  font-size: 0.98rem;
+  font-size: 0.8rem;
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
@@ -1502,28 +1648,28 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 }
 .order-index {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(59, 130, 246, 0.9));
   color: #0f172a;
-  box-shadow: 0 10px 18px rgba(56, 189, 248, 0.3);
+  box-shadow: 0 6px 12px rgba(56, 189, 248, 0.26);
 }
 .rt-badges {
   margin-left: auto;
   display: inline-flex;
-  gap: 6px;
+  gap: 3px;
 }
 .rt-badges .rt-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 26px;
-  min-height: 26px;
+  min-width: 18px;
+  min-height: 18px;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.25);
   padding: 4px 8px;
@@ -1546,23 +1692,23 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 }
 .nearby-section {
   border-top: 1px solid rgba(148, 163, 184, 0.2);
-  padding-top: 14px;
+  padding-top: 12px;
 }
 .nearby-title {
-  font-size: 0.9rem;
-  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(148, 197, 255, 0.8);
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .nearby-button {
   width: 100%;
   border: 1px dashed rgba(148, 163, 184, 0.25);
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(15, 23, 42, 0.4);
-  padding: 10px 12px;
+  padding: 8px 10px;
   color: #e2e8f0;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
@@ -1572,41 +1718,41 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 }
 
 .start-nav-panel {
-  width: 300px;
-  padding: 18px 20px 20px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 64, 175, 0.9));
-  box-shadow: 0 28px 48px rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(99, 102, 241, 0.4);
+  width: 240px;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(30, 64, 175, 0.92));
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(99, 102, 241, 0.34);
   color: #e2e8f0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 .start-nav-button {
   position: relative;
   overflow: hidden;
   width: 100%;
   border: none;
-  border-radius: 16px;
-  padding: 16px 18px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(14, 165, 233, 0.92));
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(14, 165, 233, 0.9));
   color: #0f172a;
   font-weight: 700;
-  font-size: 1.05rem;
-  letter-spacing: 0.05em;
+  font-size: 0.9rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  box-shadow: 0 20px 40px rgba(56, 189, 248, 0.4);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  gap: 8px;
+  box-shadow: 0 12px 24px rgba(56, 189, 248, 0.34);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .start-nav-button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 24px 48px rgba(56, 189, 248, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 28px rgba(56, 189, 248, 0.4);
 }
 .start-nav-button:disabled {
   cursor: not-allowed;
@@ -1629,21 +1775,21 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 .start-nav-button__icon {
-  filter: drop-shadow(0 6px 10px rgba(14, 165, 233, 0.35));
+  filter: drop-shadow(0 4px 8px rgba(14, 165, 233, 0.3));
 }
 .start-nav-button__label {
-  font-size: 0.9rem;
-  letter-spacing: 0.28em;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
 }
 .start-nav-button__progress {
   position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 10px;
-  height: 4px;
+  left: 10px;
+  right: 10px;
+  bottom: 8px;
+  height: 3px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.25);
   overflow: hidden;
@@ -1655,7 +1801,7 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   top: 0;
   bottom: 0;
   width: 40%;
-  min-width: 80px;
+  min-width: 60px;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(14, 165, 233, 0.9));
   border-radius: inherit;
   transform: translateX(-100%);
@@ -1682,12 +1828,12 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 .start-nav-status {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: rgba(15, 23, 42, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.3);
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   color: #e0f2fe;
 }
 .start-nav-status__pulse {
@@ -1699,7 +1845,7 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   animation: statusPulse 1.6s ease-out infinite;
 }
 .start-nav-status__text {
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
 }
 
 @keyframes statusPulse {

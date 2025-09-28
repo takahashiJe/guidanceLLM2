@@ -1,11 +1,15 @@
 // public/sw.js
 // v2 — packs(音声)のRange対応 + OSMタイルのオフライン対応
-self.addEventListener('install', (e) => { self.skipWaiting(); });
+self.addEventListener('install', (event) => {
+  event.waitUntil(precacheStaticAssets());
+  self.skipWaiting();
+});
 self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
 
 const PACKS_PREFIX = 'packs-';
 const TILES_CACHE  = 'tiles-v1';
 const RUNTIME      = 'runtime';
+const STATIC_ASSETS = ['/sound.mp3'];
 
 // タイルの許可ホスト（OSM公式）
 const TILE_HOSTS = [
@@ -24,24 +28,133 @@ const EMPTY_TILE_PNG = (() => {
   });
 })();
 
+async function precacheStaticAssets() {
+  try {
+    const cache = await caches.open(RUNTIME);
+    await Promise.all(STATIC_ASSETS.map(async (asset) => {
+      try {
+        const request = new Request(asset, { cache: 'no-cache' });
+        const response = await fetch(request);
+        if (response.ok) {
+          await cache.put(asset, response.clone());
+        }
+      } catch (err) {
+        console.warn('[sw] Failed to precache asset:', asset, err);
+      }
+    }));
+  } catch (err) {
+    console.warn('[sw] precacheStaticAssets failed:', err);
+  }
+}
+
 async function latestPacksCacheName() {
   const names = await caches.keys();
   const packs = names.filter(n => n.startsWith(PACKS_PREFIX)).sort();
   return packs.slice(-1)[0] || RUNTIME;
 }
 
+async function resetTilesCache() {
+  try {
+    await caches.delete(TILES_CACHE);
+  } catch (err) {
+    console.warn('[sw] failed to reset tiles cache:', err);
+  }
+}
+
+function isPacksRequest(request) {
+  try {
+    return new URL(request.url).pathname.startsWith('/packs/');
+  } catch {
+    return false;
+  }
+}
+
+async function resetPacksCache() {
+  const cacheNames = await caches.keys();
+  const packCacheNames = cacheNames.filter((name) => name.startsWith(PACKS_PREFIX));
+
+  await Promise.all(packCacheNames.map((name) => caches.delete(name).catch(() => {})));
+
+  const nonPackNames = cacheNames.filter((name) => !packCacheNames.includes(name));
+  await Promise.all(
+    nonPackNames.map(async (name) => {
+      try {
+        const cache = await caches.open(name);
+        const keys = await cache.keys();
+        const deletions = keys.filter((request) => isPacksRequest(request));
+        await Promise.all(deletions.map((request) => cache.delete(request)));
+      } catch (err) {
+        console.warn('[sw] failed to purge packs entries from cache', name, err);
+      }
+    })
+  );
+}
+
+async function resetCaches({ tiles = false, packs = false } = {}) {
+  const tasks = [];
+  if (tiles) tasks.push(resetTilesCache());
+  if (packs) tasks.push(resetPacksCache());
+  if (tasks.length > 0) {
+    await Promise.all(tasks);
+  }
+}
+
 self.addEventListener('message', (event) => {
   const data = event.data || {};
-  if (data.type !== 'PRECACHE_TILES') return;
-
-  const tiles = Array.isArray(data.tiles) ? data.tiles : [];
-  const clientId = event.source && 'id' in event.source ? event.source.id : null;
-  event.waitUntil(precacheTiles(tiles, { clientId }));
+  switch (data.type) {
+    case 'PRECACHE_TILES': {
+      const tiles = Array.isArray(data.tiles) ? data.tiles : [];
+      const clientId = event.source && 'id' in event.source ? event.source.id : null;
+      event.waitUntil(precacheTiles(tiles, { clientId }));
+      break;
+    }
+    case 'RESET_TILES_CACHE': {
+      event.waitUntil(resetCaches({ tiles: true, packs: true }));
+      break;
+    }
+    case 'RESET_PACKS_CACHE': {
+      event.waitUntil(resetCaches({ packs: true }));
+      break;
+    }
+    default:
+      break;
+  }
 });
+
+async function handleStaticAsset(request) {
+  const cache = await caches.open(RUNTIME);
+  const cached = await cache.match(request, { ignoreSearch: true });
+  if (cached) {
+    fetch(request).then(res => {
+      if (res && res.ok) {
+        cache.put(request, res.clone()).catch(() => {});
+      }
+    }).catch(() => {});
+    return cached;
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (err) {
+    return cached || new Response('Offline and asset not cached', { status: 504 });
+  }
+}
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
+
+  // 静的アセット（sound.mp3など）— オフライン対応
+  if (req.method === 'GET'
+      && url.origin === self.location.origin
+      && STATIC_ASSETS.includes(url.pathname)) {
+    event.respondWith(handleStaticAsset(req));
+    return;
+  }
 
   // 音声（/packs/…）— Range対応
   if (url.origin === self.location.origin && url.pathname.startsWith('/packs/')) {
