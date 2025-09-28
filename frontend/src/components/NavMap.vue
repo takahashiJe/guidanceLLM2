@@ -46,19 +46,48 @@ const props = defineProps({
   }
 });
 
+const emit = defineEmits(['user-pan']);
+
 const mapContainer = ref(null);
 const map = ref(null);
 const userLocationMarker = ref(null); // ★ ref() でラップ
 let routeLayer = null;
 let poiMarkers = [];
+let isProgrammaticMove = false;
+let programmaticResetTimer = null;
 
-const flyToSpot = (lat, lon) => {
-  if (map.value) {
-    map.value.flyTo([lat, lon], 16, {
-      animate: true,
-      duration: 1,
-    });
+const scheduleProgrammaticReset = (delay = 800) => {
+  if (programmaticResetTimer) {
+    clearTimeout(programmaticResetTimer);
+    programmaticResetTimer = null;
   }
+  programmaticResetTimer = window.setTimeout(() => {
+    isProgrammaticMove = false;
+    programmaticResetTimer = null;
+  }, delay);
+};
+
+const markProgrammaticMove = (delay = 800) => {
+  isProgrammaticMove = true;
+  scheduleProgrammaticReset(delay);
+};
+
+const flyToSpot = (lat, lon, zoom = undefined, flyOptions = {}) => {
+  if (!map.value) return;
+  let targetZoom;
+  if (typeof zoom === 'number') {
+    targetZoom = zoom;
+  } else if (zoom === null) {
+    targetZoom = map.value.getZoom();
+  } else {
+    targetZoom = 16;
+  }
+  markProgrammaticMove(Math.max(800, (flyOptions.duration ?? 1) * 1200));
+  map.value.flyTo([lat, lon], targetZoom, {
+    animate: true,
+    duration: 1,
+    ...flyOptions,
+  });
 };
 
 // ===========================================
@@ -107,6 +136,7 @@ const drawRoute = () => {
       return { color: '#ff0000', weight: 5, opacity: 0.7 };
     };
     routeLayer = L.geoJSON(props.plan.route, { style: styleFunction }).addTo(map.value);
+    markProgrammaticMove();
     map.value.fitBounds(routeLayer.getBounds());
   }
 };
@@ -128,11 +158,23 @@ const drawPois = () => {
 
 const setupMap = () => {
   if (mapContainer.value && !map.value) {
-    map.value = L.map(mapContainer.value).setView([39.145, 140.102], 10);
+    map.value = L.map(mapContainer.value);
+    markProgrammaticMove();
+    map.value.setView([39.145, 140.102], 10);
     const baseMaps = { 'Esri WorldStreetMap': esriWorldStreet, 'Carto Positron': cartoPositron };
     esriWorldStreet.addTo(map.value);
     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map.value);
     L.control.scale({ imperial: false, metric: true }).addTo(map.value);
+
+    map.value.on('movestart', () => {
+      if (!isProgrammaticMove) {
+        emit('user-pan');
+      }
+    });
+
+    map.value.on('moveend', () => {
+      scheduleProgrammaticReset(200);
+    });
 
     drawRoute();
     drawPois();
@@ -168,6 +210,10 @@ onBeforeUnmount(() => {
   if (map.value) {
     map.value.remove();
     map.value = null;
+  }
+  if (programmaticResetTimer) {
+    clearTimeout(programmaticResetTimer);
+    programmaticResetTimer = null;
   }
 });
 

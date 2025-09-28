@@ -35,23 +35,20 @@
 
     <div v-if="isRouteReady" class="nav-container">
       <div class="map-wrapper">
-        <NavMap ref="navMap" :plan="plan" :current-pos="currentPos" />
-        <div class="map-actions">
+        <NavMap
+          ref="navMap"
+          :plan="plan"
+          :current-pos="currentPos"
+          @user-pan="handleUserPan"
+        />
+        <div v-if="!isFollowMode" class="map-actions">
           <button
             type="button"
             class="map-action-btn"
             :disabled="!currentPos"
-            @click="recenterOnCurrent"
+            @click="enableFollowMode"
           >
-            現在地へ
-          </button>
-          <button
-            type="button"
-            class="map-action-btn"
-            :class="{ 'map-action-btn--active': following }"
-            @click="toggleFollowMode"
-          >
-            {{ following ? '追従中' : '追従OFF' }}
+            追従開始
           </button>
         </div>
       </div>
@@ -179,8 +176,8 @@ import { enqueueAudio, resetPlaybackState } from '@/lib/audioManager.js'
 import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 
-import { usePosition } from '@/lib/usePosition.mock.js'
-// import { usePosition } from '@/lib/usePosition.js';
+// import { usePosition } from '@/lib/usePosition.mock.js'
+import { usePosition } from '@/lib/usePosition.js';
 
 const navStore = useNavStore()
 const rtStore = useRtStore()
@@ -200,6 +197,7 @@ const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
 const isLoraConnected = ref(false)
 let loraSendInterval = null
+const FOLLOW_MODE_ZOOM = 17
 const {
   currentPos,
   debugLat,
@@ -212,19 +210,48 @@ const {
 const isDebug = computed(() => !!isMock)
 const isPollingEnabled = ref(false)
 const didPrecacheTiles = ref(false)
+const isFollowMode = ref(false)
+let followIntervalId = null
 
-const recenterOnCurrent = () => {
+const recenterOnCurrent = (options = {}) => {
   if (!navMap.value || !currentPos.value) return
-  navMap.value.flyToSpot(currentPos.value.lat, currentPos.value.lng)
+  navMap.value.flyToSpot(currentPos.value.lat, currentPos.value.lng, options.zoom ?? null, options.flyOptions)
 }
 
-const toggleFollowMode = () => {
-  toggleFollowing()
-  if (following.value) {
-    recenterOnCurrent()
+const startFollowTimer = () => {
+  if (followIntervalId) {
+    clearInterval(followIntervalId)
+    followIntervalId = null
+  }
+  followIntervalId = window.setInterval(() => {
+    recenterOnCurrent({ zoom: FOLLOW_MODE_ZOOM, flyOptions: { duration: 0.75 } })
+  }, 2000)
+}
+
+const stopFollowTimer = () => {
+  if (followIntervalId) {
+    clearInterval(followIntervalId)
+    followIntervalId = null
   }
 }
 
+const enableFollowMode = () => {
+  if (!currentPos.value) return
+  if (isFollowMode.value) return
+  isFollowMode.value = true
+  recenterOnCurrent({ zoom: FOLLOW_MODE_ZOOM, flyOptions: { duration: 0.75 } })
+  startFollowTimer()
+}
+
+const disableFollowMode = () => {
+  if (!isFollowMode.value) return
+  isFollowMode.value = false
+  stopFollowTimer()
+}
+
+const handleUserPan = () => {
+  disableFollowMode()
+}
 
 // --- ★★★ 新しいアクションを呼び出すメソッド ★★★ ---
 const startGuidance = async () => {
@@ -265,6 +292,7 @@ onUnmounted(() => {
   if (isLoraConnected.value) {
     disconnectLoraDevice()
   }
+  disableFollowMode()
   window.removeEventListener('online', _updateOnline)
   window.removeEventListener('offline', _updateOnline)
   if ('serviceWorker' in navigator) {
@@ -324,17 +352,15 @@ async function requestTilePrecache(polyline) {
 
 // マップ上の現在位置マーカーを更新
 watch(currentPos, (newPos) => {
-  if (navMap.value && newPos) {
-    navMap.value.updateCurrentPosition(newPos.lat, newPos.lng)
-    if (following.value) {
-      navMap.value.flyToSpot(newPos.lat, newPos.lng)
-    }
+  if (!newPos) {
+    disableFollowMode()
+    return
   }
-})
-
-watch(following, (isOn) => {
-  if (isOn) {
-    recenterOnCurrent()
+  if (navMap.value) {
+    navMap.value.updateCurrentPosition(newPos.lat, newPos.lng)
+    if (isFollowMode.value) {
+      recenterOnCurrent({ zoom: FOLLOW_MODE_ZOOM, flyOptions: { duration: 0.35 } })
+    }
   }
 })
 
@@ -610,7 +636,12 @@ function togglePolling() {
 
 
 function toggleSpotList() { isSpotListVisible.value = !isSpotListVisible.value }
-function focusOnSpot(poi) { if (navMap.value) { navMap.value.flyToSpot(poi.lat, poi.lon) } }
+function focusOnSpot(poi) {
+  disableFollowMode()
+  if (navMap.value) {
+    navMap.value.flyToSpot(poi.lat, poi.lon)
+  }
+}
 function weatherEmoji(w) { return { 0: '☀', 1: '☁', 2: '☂' }[w] || '▫' }
 function upcomingEmoji(u) { return { 1: '↗☁', 2: '↗☔', 3: '↗☀' }[u] || '' }
 function weatherTitle(doc) { if (!doc) return ''; const m = { 0: '晴れ', 1: '曇り', 2: '雨' }; return `現在: ${m[doc.w] ?? '-'}` }
@@ -702,8 +733,16 @@ watch(
   box-shadow: none;
 }
 
-.map-action-btn--active {
+.map-follow-indicator {
+  min-width: 100px;
+  padding: 10px 14px;
+  border-radius: 8px;
   background: rgba(16, 185, 129, 0.92);
+  color: #f0fdf4;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: 0 8px 18px rgba(16, 185, 129, 0.32);
 }
 .controls {
   position: absolute;

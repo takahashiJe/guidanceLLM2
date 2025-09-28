@@ -9,8 +9,39 @@ export function usePosition() {
   const following = ref(false);
 
   let watchId = null;
+  let restartTimerId = null;
 
-  onMounted(() => {
+  const clearWatch = () => {
+    if (watchId !== null) {
+      navigator.geolocation.clearWatch(watchId);
+      watchId = null;
+    }
+  };
+
+  const scheduleRestart = () => {
+    if (restartTimerId) {
+      clearTimeout(restartTimerId);
+    }
+    restartTimerId = window.setTimeout(() => {
+      restartTimerId = null;
+      startWatch();
+    }, 1000);
+  };
+
+  const startWatch = () => {
+    if (!('geolocation' in navigator)) {
+      console.warn('Geolocation API is not available in this environment.');
+      return;
+    }
+
+    clearWatch();
+
+    const watchOptions = {
+      enableHighAccuracy: true,
+      timeout: 30000,
+      maximumAge: 15000,
+    };
+
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
         currentPos.value = {
@@ -20,20 +51,28 @@ export function usePosition() {
       },
       (err) => {
         console.error('Geolocation error:', err);
-        currentPos.value = null; // エラー時はnullにする
+
+        if (err?.code === 3) {
+          // TIMEOUT: 位置が取得できなかった場合はウォッチを再起動して再トライ
+          scheduleRestart();
+          return;
+        }
+
+        currentPos.value = null; // それ以外のエラー時はnullにする
       },
-      {
-        enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 0,
-      }
+      watchOptions
     );
+  };
+
+  onMounted(() => {
+    startWatch();
   });
 
   onUnmounted(() => {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-      watchId = null;
+    clearWatch();
+    if (restartTimerId) {
+      clearTimeout(restartTimerId);
+      restartTimerId = null;
     }
   });
 
