@@ -59,6 +59,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useNavStore } from '@/stores/nav'
+import { fetchPoiCatalog } from '@/lib/poi'
 
 const store = useNavStore()
 
@@ -78,22 +79,35 @@ const selectedIds = ref(
   : []
 )
 
-// ---- POI読み込み（/public/pois.json）----
+// ---- POI & 施設の読み込み ----
 onMounted(async () => {
   try {
-    const res = await fetch('/pois.json', { cache: 'no-store' })
-    const arr = await res.json()
-    pois.value = Array.isArray(arr) ? arr.filter(p => p && p.spot_id) : []
+    const catalog = await fetchPoiCatalog({ includeFacilities: true })
+    pois.value = catalog.sort((a, b) => baseDisplayName(a).localeCompare(baseDisplayName(b), 'ja'))
   } catch (e) {
-    console.error('[plan] failed to load /pois.json', e)
+    console.error('[plan] failed to load poi catalog', e)
     pois.value = []
   }
 })
 
 // ---- 表示名ユーティリティ ----
+function kindLabel(poi) {
+  return poi?.kind === 'facility' ? '施設' : 'スポット'
+}
+
+function baseDisplayName(poi) {
+  const names = poi?.names || poi?.official_name
+  const localized = (names && names[langLocal.value]) || null
+  if (localized) return String(localized)
+  if (poi?.name) return String(poi.name)
+  return poi?.spot_id ? String(poi.spot_id) : '(no name)'
+}
+
 function displayName(poi) {
-  const n = (poi?.official_name && poi.official_name[langLocal.value]) || poi?.name
-  return (n && String(n)) || poi?.spot_id || '(no name)'
+  const base = baseDisplayName(poi)
+  const kind = kindLabel(poi)
+  const category = poi?.category ? `（${poi.category}）` : ''
+  return `【${kind}】${base}${category}`
 }
 function nameById(id) {
   const p = pois.value.find(x => x.spot_id === id)
@@ -103,7 +117,15 @@ function nameById(id) {
 const filtered = computed(() => {
   const needle = q.value.trim().toLowerCase()
   if (!needle) return pois.value
-  return pois.value.filter(p => displayName(p).toLowerCase().includes(needle))
+  return pois.value.filter((p) => {
+    const base = baseDisplayName(p)
+    const category = p?.category ? String(p.category) : ''
+    const spotId = p?.spot_id ? String(p.spot_id) : ''
+    const names = p?.names && typeof p.names === 'object'
+      ? Object.values(p.names).filter(Boolean).join(' ') : ''
+    return [displayName(p), base, category, spotId, names]
+      .some((str) => str && String(str).toLowerCase().includes(needle))
+  })
 })
 
 // ---- 選択操作 ----

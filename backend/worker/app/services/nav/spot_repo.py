@@ -51,15 +51,60 @@ def get_spots_by_ids(ids: Iterable[str], lang: str) -> Dict[str, SpotRow]:
         return {}
     
     sql_query = f"""
-        SELECT
-        spot_id::text AS spot_id,
-        official_name->>'{lang}' AS name,
-        description->>'{lang}' AS description,
-        md_slug,
-        ST_Y(geom) AS lat,
-        ST_X(geom) AS lon
-        FROM spots
-        WHERE spot_id IN :ids
+        WITH combined AS (
+            SELECT
+                s.spot_id::text AS spot_id,
+                COALESCE(
+                    s.official_name->>'{lang}',
+                    s.official_name->>'ja',
+                    s.official_name->>'en',
+                    s.official_name->>'zh'
+                ) AS name,
+                COALESCE(
+                    s.description->>'{lang}',
+                    s.description->>'ja',
+                    s.description->>'en',
+                    s.description->>'zh'
+                ) AS description,
+                s.md_slug,
+                ST_Y(s.geom) AS lat,
+                ST_X(s.geom) AS lon,
+                1 AS ord
+            FROM spots s
+            WHERE s.spot_id IN :ids
+
+            UNION ALL
+
+            SELECT
+                f.spot_id::text AS spot_id,
+                COALESCE(
+                    f.official_name->>'{lang}',
+                    f.official_name->>'ja',
+                    f.official_name->>'en',
+                    f.official_name->>'zh'
+                ) AS name,
+                COALESCE(
+                    f.description->>'{lang}',
+                    f.description->>'ja',
+                    f.description->>'en',
+                    f.description->>'zh'
+                ) AS description,
+                f.md_slug,
+                ST_Y(f.geom) AS lat,
+                ST_X(f.geom) AS lon,
+                2 AS ord
+            FROM facilities f
+            WHERE f.spot_id IN :ids
+        )
+        SELECT DISTINCT ON (spot_id)
+            spot_id,
+            name,
+            description,
+            md_slug,
+            lat,
+            lon
+        FROM combined
+        ORDER BY spot_id, ord
     """
     sql = text(sql_query).bindparams(bindparam("ids", expanding=True))
 

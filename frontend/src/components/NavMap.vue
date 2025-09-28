@@ -27,13 +27,6 @@ const esriWorldStreet = L.tileLayer(
   }
 );
 
-const cartoPositron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-  subdomains: ['a', 'b', 'c', 'd'],
-  attribution:
-    "&copy; <a href='https://www.openstreetmap.org/copyright' target='_blank'>OpenStreetMap</a> contributors &copy; <a href='https://carto.com/attributions' target='_blank'>CARTO</a>",
-  maxZoom: 19
-});
-
 const props = defineProps({
   plan: {
     type: Object,
@@ -46,19 +39,48 @@ const props = defineProps({
   }
 });
 
+const emit = defineEmits(['user-pan']);
+
 const mapContainer = ref(null);
 const map = ref(null);
 const userLocationMarker = ref(null); // ★ ref() でラップ
 let routeLayer = null;
 let poiMarkers = [];
+let isProgrammaticMove = false;
+let programmaticResetTimer = null;
 
-const flyToSpot = (lat, lon) => {
-  if (map.value) {
-    map.value.flyTo([lat, lon], 16, {
-      animate: true,
-      duration: 1,
-    });
+const scheduleProgrammaticReset = (delay = 800) => {
+  if (programmaticResetTimer) {
+    clearTimeout(programmaticResetTimer);
+    programmaticResetTimer = null;
   }
+  programmaticResetTimer = window.setTimeout(() => {
+    isProgrammaticMove = false;
+    programmaticResetTimer = null;
+  }, delay);
+};
+
+const markProgrammaticMove = (delay = 800) => {
+  isProgrammaticMove = true;
+  scheduleProgrammaticReset(delay);
+};
+
+const flyToSpot = (lat, lon, zoom = undefined, flyOptions = {}) => {
+  if (!map.value) return;
+  let targetZoom;
+  if (typeof zoom === 'number') {
+    targetZoom = zoom;
+  } else if (zoom === null) {
+    targetZoom = map.value.getZoom();
+  } else {
+    targetZoom = 16;
+  }
+  markProgrammaticMove(Math.max(800, (flyOptions.duration ?? 1) * 1200));
+  map.value.flyTo([lat, lon], targetZoom, {
+    animate: true,
+    duration: 1,
+    ...flyOptions,
+  });
 };
 
 // ===========================================
@@ -107,6 +129,7 @@ const drawRoute = () => {
       return { color: '#ff0000', weight: 5, opacity: 0.7 };
     };
     routeLayer = L.geoJSON(props.plan.route, { style: styleFunction }).addTo(map.value);
+    markProgrammaticMove();
     map.value.fitBounds(routeLayer.getBounds());
   }
 };
@@ -118,7 +141,9 @@ const drawPois = () => {
 
   const addPoiMarker = (poi) => {
     if (!poi || typeof poi.lat !== 'number' || typeof poi.lon !== 'number') return;
-    const marker = L.marker([poi.lat, poi.lon]).addTo(map.value).bindPopup(`<b>${poi.name}</b>`);
+    const marker = L.marker([poi.lat, poi.lon], {
+      interactive: false,
+    }).addTo(map.value);
     poiMarkers.push(marker);
   };
 
@@ -128,11 +153,24 @@ const drawPois = () => {
 
 const setupMap = () => {
   if (mapContainer.value && !map.value) {
-    map.value = L.map(mapContainer.value).setView([39.145, 140.102], 10);
-    const baseMaps = { 'Esri WorldStreetMap': esriWorldStreet, 'Carto Positron': cartoPositron };
+    map.value = L.map(mapContainer.value, { zoomControl: false });
+    markProgrammaticMove();
+    map.value.setView([39.145, 140.102], 10);
     esriWorldStreet.addTo(map.value);
-    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map.value);
     L.control.scale({ imperial: false, metric: true }).addTo(map.value);
+    if (map.value.attributionControl) {
+      map.value.attributionControl.setPrefix('');
+    }
+
+    map.value.on('movestart', () => {
+      if (!isProgrammaticMove) {
+        emit('user-pan');
+      }
+    });
+
+    map.value.on('moveend', () => {
+      scheduleProgrammaticReset(200);
+    });
 
     drawRoute();
     drawPois();
@@ -169,6 +207,10 @@ onBeforeUnmount(() => {
     map.value.remove();
     map.value = null;
   }
+  if (programmaticResetTimer) {
+    clearTimeout(programmaticResetTimer);
+    programmaticResetTimer = null;
+  }
 });
 
 watch(() => props.plan, () => {
@@ -184,6 +226,20 @@ watch(() => props.plan, () => {
 .map-container {
   width: 100%;
   height: 100%;
+}
+
+.leaflet-control-attribution {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  background: rgba(15, 23, 42, 0.65);
+  color: #e2e8f0;
+  border-radius: 999px;
+  box-shadow: 0 8px 14px rgba(15, 23, 42, 0.25);
+  line-height: 1.2;
+}
+
+.leaflet-control-attribution a {
+  color: rgba(148, 197, 255, 0.85);
 }
 
 /* 現在地マーカーのスタイル */

@@ -286,6 +286,38 @@ def _guess_md_slug(rec: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _knowledge_base() -> Path:
+    return Path(os.getenv("KNOWLEDGE_DIR", "backend/worker/data/knowledge")).resolve()
+
+
+def _knowledge_langs() -> Iterable[str]:
+    raw = os.getenv("KNOWLEDGE_LANGS")
+    if raw:
+        langs = [part.strip() for part in raw.split(",") if part.strip()]
+        if langs:
+            return langs
+    return ("ja", "en", "zh")
+
+
+def _validate_facility_md_slug(slug: Optional[str]) -> Optional[str]:
+    if not slug:
+        return None
+    cleaned = str(slug).strip()
+    if not cleaned or cleaned.lower() == "none":
+        return None
+
+    base = _knowledge_base()
+    for lang in _knowledge_langs():
+        lang_dir = base / lang
+        if not lang_dir.exists():
+            continue
+        for subdir in ("facilities", "spots"):
+            candidate = lang_dir / subdir / f"{cleaned}.md"
+            if candidate.exists():
+                return cleaned
+    return None
+
+
 def load_spots_from_poi_json(conn: Connection, poi_json_path: Path) -> None:
     data = _read_json(poi_json_path)
     if not isinstance(data, list):
@@ -341,7 +373,7 @@ def load_facilities_from_json(conn: Connection, facilities_json_path: Path) -> N
         official_name = _to_jsonb_name(names["ja"], names["en"], names["zh"])
         aliases = _guess_aliases(rec)
         desc = rec.get("description") or rec.get("desc") or None
-        md_slug = _guess_md_slug(rec)
+        md_slug = _validate_facility_md_slug(_guess_md_slug(rec))
 
         conn.execute(
             SQL_UPSERT_FACILITY,

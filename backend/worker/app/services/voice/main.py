@@ -58,6 +58,7 @@ class SingleSynthResponse(BaseModel):
 
 class SynthesizeItem(BaseModel):
     spot_id: str
+    playback: Optional[Literal["arrival", "pass_by"]] = None
     situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
     text: str
 
