@@ -316,7 +316,7 @@ import {
   getIsJoined
 } from '@/lib/loraBridge'
 
-import { enqueueAudio, resetPlaybackState, useAudioPlaybackState } from '@/lib/audioManager.js'
+import { enqueueAudio, resetPlaybackState, useAudioPlaybackState, primeAudioPlayback } from '@/lib/audioManager.js'
 import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 import { sendSwMessage } from '@/lib/swClient'
@@ -343,7 +343,7 @@ const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
 const isLoraConnected = ref(false)
 let loraSendInterval = null
-const FOLLOW_MODE_ZOOM = 17
+const FOLLOW_MODE_ZOOM = 15
 const {
   currentPos,
   debugLat,
@@ -374,11 +374,77 @@ const TILE_PRECACHE_PROFILES = [
 ]
 const tileProfileIndex = ref(0)
 
+const primeOnFirstPointer = () => {
+  primeAudioPlayback().catch(() => {})
+}
+
 const planAssetsList = computed(() => {
   const assets = plan.value?.assets
   if (!assets) return []
   return Array.isArray(assets) ? assets : Object.values(assets)
 })
+
+const prefetchedUrls = new Set()
+const pendingPrefetchUrls = new Set()
+let assetPrefetchPromise = null
+
+function resetAssetPrefetchState() {
+  prefetchedUrls.clear()
+  pendingPrefetchUrls.clear()
+  assetPrefetchPromise = null
+}
+
+function collectAssetUrls(assets) {
+  if (!Array.isArray(assets) || assets.length === 0) return []
+  const urls = []
+  for (const asset of assets) {
+    if (!asset) continue
+    const audioUrl = asset?.audio?.url || asset?.audio_url
+    if (audioUrl && !prefetchedUrls.has(audioUrl) && !pendingPrefetchUrls.has(audioUrl)) {
+      urls.push(audioUrl)
+    }
+    const textUrl = asset?.text_url
+    if (textUrl && !prefetchedUrls.has(textUrl) && !pendingPrefetchUrls.has(textUrl)) {
+      urls.push(textUrl)
+    }
+  }
+  return urls
+}
+
+function queueAssetPrefetch(assets) {
+  const urls = collectAssetUrls(assets)
+  if (!urls.length) return assetPrefetchPromise ?? Promise.resolve()
+
+  urls.forEach((url) => pendingPrefetchUrls.add(url))
+
+  const promise = (async () => {
+    const tasks = urls.map(async (url) => {
+      try {
+        const res = await fetch(url, { cache: 'no-cache' })
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`)
+        }
+        prefetchedUrls.add(url)
+      } catch (err) {
+        console.warn('[audio] Prefetch failed', url, err)
+      } finally {
+        pendingPrefetchUrls.delete(url)
+      }
+    })
+
+    await Promise.allSettled(tasks)
+  })()
+
+  assetPrefetchPromise = promise
+
+  promise.finally(() => {
+    if (assetPrefetchPromise === promise) {
+      assetPrefetchPromise = null
+    }
+  })
+
+  return promise
+}
 
 const activeTileProfile = () => TILE_PRECACHE_PROFILES[Math.min(tileProfileIndex.value, TILE_PRECACHE_PROFILES.length - 1)]
 const isFollowMode = ref(false)
@@ -426,6 +492,8 @@ const handleUserPan = () => {
 
 // --- ★★★ 新しいアクションを呼び出すメソッド ★★★ ---
 const startGuidance = async () => {
+  primeAudioPlayback().catch(() => {})
+  resetAssetPrefetchState()
   resetPlaybackState()
   await navStore.startGuidance()
 }
@@ -462,6 +530,8 @@ const handleSwMessage = (event) => {
 }
 
 onMounted(() => {
+  window.addEventListener('pointerdown', primeOnFirstPointer, { once: true })
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', handleSwMessage)
   }
@@ -474,9 +544,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('pointerdown', primeOnFirstPointer)
   rtStore.stopPolling()
   stopLoraPolling()
   resetPlaybackState()
+  resetAssetPrefetchState()
   if (isLoraConnected.value) {
     disconnectLoraDevice()
   }
@@ -587,6 +659,25 @@ watch(currentPos, (newPos) => {
 })
 
 watch(
+  [isNavigationReady, () => planAssetsList.value],
+  ([ready, assets]) => {
+    if (!ready) return
+    queueAssetPrefetch(assets)
+  },
+  { immediate: true }
+)
+
+watch(
+  () => plan.value?.pack_id ?? null,
+  (packId) => {
+    if (!packId) {
+      resetAssetPrefetchState()
+    }
+  },
+  { immediate: true }
+)
+
+watch(
   () => plan.value?.waypoints_info,
   (waypoints) => {
     if (!Array.isArray(waypoints) || waypoints.length === 0) {
@@ -663,6 +754,15 @@ watch(
   () => rtStore.notifyLog.length,
   (newLength, oldLength) => {
     // ★★★ isNavigationReadyをチェックする条件を追加 ★★★
+    const lastEvent = newLength > 0 ? rtStore.notifyLog[newLength - 1] : null
+    console.debug('[nav-view] notifyLog watcher', {
+      newLength,
+      oldLength,
+      isNavigationReady: isNavigationReady.value,
+      hasPlan: !!plan.value,
+      event: lastEvent,
+    })
+
     if (newLength <= oldLength || !isNavigationReady.value || !plan.value) return;
 
     const event = rtStore.notifyLog[newLength - 1];
@@ -787,6 +887,7 @@ function stopLoraPolling() {
 }
 
 async function connectLoraDevice() {
+  primeAudioPlayback().catch(() => {})
   isLoraConnecting.value = true
   try {
     await connect(
@@ -829,6 +930,9 @@ window.addEventListener('online', _updateOnline)
 window.addEventListener('offline', _updateOnline)
 
 watch(online, (isOnline) => {
+  if (isOnline && isNavigationReady.value) {
+    queueAssetPrefetch(planAssetsList.value)
+  }
   if (!isPollingEnabled.value) {
     rtStore.stopPolling()
     return
@@ -859,6 +963,7 @@ function stopAllRtPolling() {
 }
 
 function togglePolling() {
+  primeAudioPlayback().catch(() => {})
   isPollingEnabled.value = !isPollingEnabled.value
   if (isPollingEnabled.value) startRtPollingIfNeeded()
   else stopAllRtPolling()
@@ -954,6 +1059,13 @@ function queueSituationAnnouncement(spotId, situationType) {
   const spotName = spotNameMap.value.get(spotId) || spotId
   const displayName = `${spotName} · ${meta.title}`
   const fallbackText = typeof meta.fallback === 'function' ? meta.fallback(spotName) : meta.fallback ?? null
+
+  console.debug('[nav-view] queueSituationAnnouncement', {
+    spotId,
+    situationType,
+    hasAsset: !!asset,
+    asset,
+  })
 
   enqueueAssetAudio(`${spotId}_${situationType}`, displayName, asset, { fallbackText })
 }

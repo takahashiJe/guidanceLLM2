@@ -23,6 +23,11 @@ let playbackToken = 0;
 
 const CHIME_PATH = '/sound.mp3';
 
+// 再生制限解除フラグ
+let isPlaybackPrimed = false;
+let primingInFlight = null;
+let audioContext = null;
+
 function resolveTextUrl(textUrl) {
   if (!textUrl) return null;
   if (/^https?:\/\//i.test(textUrl)) {
@@ -207,6 +212,8 @@ export function enqueueAudio(spotInfo) {
     return;
   }
 
+  console.debug('[Audio] enqueueAudio request', spotInfo)
+
   // 既に再生済みか、キューに同じIDが存在する場合は追加しない
   if (playedIds.has(spotInfo.id)) {
     console.log(`[Audio] ID "${spotInfo.id}" has already been played. Won't enqueue.`);
@@ -219,9 +226,60 @@ export function enqueueAudio(spotInfo) {
 
   console.log(`[Audio] Enqueueing: "${spotInfo.name}" (ID: ${spotInfo.id})`);
   playbackQueue.push(spotInfo);
-  
+
   // 現在再生中でなければ、キューの処理を開始する
   playNextInQueue();
+}
+
+export async function primeAudioPlayback() {
+  if (typeof window === 'undefined') return false;
+  if (isPlaybackPrimed) return true;
+  if (primingInFlight) return primingInFlight;
+
+  primingInFlight = (async () => {
+    try {
+      if (!audioContext && (window.AudioContext || window.webkitAudioContext)) {
+        try {
+          const Ctor = window.AudioContext || window.webkitAudioContext;
+          audioContext = new Ctor();
+        } catch (ctxError) {
+          console.warn('[Audio] Failed to create AudioContext.', ctxError);
+          audioContext = null;
+        }
+      }
+
+      if (audioContext) {
+        try {
+          await audioContext.resume();
+          isPlaybackPrimed = true;
+          console.debug('[Audio] AudioContext resumed.');
+          return true;
+        } catch (resumeError) {
+          console.warn('[Audio] AudioContext resume failed, falling back to HTMLAudioElement.', resumeError);
+        }
+      }
+
+      const unlocker = new Audio(CHIME_PATH);
+      unlocker.muted = true;
+      unlocker.volume = 0;
+      unlocker.preload = 'auto';
+      const playPromise = unlocker.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        await playPromise;
+      }
+      unlocker.pause();
+      isPlaybackPrimed = true;
+      console.debug('[Audio] Playback primed successfully.');
+      return true;
+    } catch (error) {
+      console.warn('[Audio] Failed to prime playback.', error);
+      return false;
+    } finally {
+      primingInFlight = null;
+    }
+  })();
+
+  return primingInFlight;
 }
 
 /**

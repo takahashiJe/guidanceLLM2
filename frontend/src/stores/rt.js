@@ -178,6 +178,13 @@ export const useRtStore = defineStore('rt', {
       const prev = this.lastBySpot[spotId] ?? null
       const changed = !this._isSame(prev, normalized)
 
+      console.debug('[rt-store] processRtDoc', {
+        spotId,
+        prev,
+        normalized,
+        changed,
+      })
+
       this.lastBySpot[spotId] = normalized
 
       if (changed) {
