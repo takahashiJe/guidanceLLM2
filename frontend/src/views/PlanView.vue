@@ -12,7 +12,8 @@ import NavView from '@/views/NavView.vue'
 const nav = useNavStore()
 const router = useRouter()
 const { lang, isRouteLoading, error, plan } = storeToRefs(nav)
-const { currentPos, isMock } = usePosition()
+const position = usePosition()
+const { currentPos, isMock } = position
 
 const isMockPositionMode = computed(() => !!isMock)
 
@@ -305,6 +306,18 @@ watch(isNavWindowVisible, (visible) => {
     isNavWindowFullScreen.value = false
   }
 })
+
+watch(() => nav.plan?.route, (newRoute) => {
+  if (
+    position.isMock &&
+    newRoute?.features?.[0]?.geometry?.type === 'LineString' &&
+    newRoute.features[0].geometry.coordinates &&
+    position.setMockTrack
+  ) {
+    const track = newRoute.features[0].geometry.coordinates;
+    position.setMockTrack(track);
+  }
+}, { deep: true });
 </script>
 
 <template>

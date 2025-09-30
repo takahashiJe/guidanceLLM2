@@ -18,26 +18,32 @@
       </div>
       <div class="debug-panel__row">
         <input
-          v-model.number="debugLat"
+          :value="debugLat"
           type="number"
           step="0.000001"
           placeholder="lat"
           class="debug-panel__input"
+          readonly
         />
         <input
-          v-model.number="debugLng"
+          :value="debugLng"
           type="number"
           step="0.000001"
           placeholder="lng"
           class="debug-panel__input"
+          readonly
         />
-        <button type="button" class="debug-panel__action" @click="setDebugPos(debugLat, debugLng)">
-          現在地をセット
+      </div>
+      <div class="debug-panel__row">
+        <button type="button" class="debug-panel__action" @click="startJourney()" :disabled="isJourneyInProgress">
+          ▶ Start
         </button>
-        <label class="debug-panel__follow-toggle">
-          <input type="checkbox" v-model="following" @change="toggleFollowing" />
-          追従
-        </label>
+        <button type="button" class="debug-panel__action" @click="stopJourney()" :disabled="!isJourneyInProgress">
+          ❚❚ Pause
+        </button>
+        <button type="button" class="debug-panel__action" @click="resetJourney()">
+          ↩ Reset
+        </button>
       </div>
       <p class="debug-panel__status">
         現在地:
@@ -203,7 +209,7 @@
             </div>
           </div>
           
-          <div v-if="isNavigationReady" class="control-buttons">
+          <div v-if="isRouteReady" class="control-buttons">
             <button @click="togglePolling" class="control-btn data-sync-btn" :class="{'is-active': isPollingEnabled}" title="リアルタイム情報">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 3v6h6" />
@@ -213,7 +219,7 @@
               </svg>
               <span class="data-sync-btn__label">Live Sync</span>
             </button>
-            <div class="lora-panel" :class="{ 'is-connected': isLoraConnected, 'is-connecting': isLoraConnecting }">
+            <div v-if="isNavigationReady" class="lora-panel" :class="{ 'is-connected': isLoraConnected, 'is-connecting': isLoraConnecting }">
               <div class="lora-panel__icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 2v4" />
@@ -258,7 +264,7 @@
                       <span v-if="isFacilitySpotId(poi.spot_id)" class="facility-chip" aria-hidden="true">🏢</span>
                       {{ poiListLabel(poi) }}
                     </span>
-                    <span class="rt-badges" v-if="isNavigationReady && latestBySpot(poi.spot_id)">
+                    <span class="rt-badges" v-if="isRouteReady && latestBySpot(poi.spot_id)">
                       <span
                         v-if="!isFacilitySpotId(poi.spot_id)"
                         class="rt-badge weather"
@@ -337,7 +343,6 @@ import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 import { sendSwMessage } from '@/lib/swClient'
 import { fetchPoiCatalog } from '@/lib/poi'
-
 import { usePosition } from '@/lib/usePosition.mock.js'
 // import { usePosition } from '@/lib/usePosition.js';
 
@@ -366,10 +371,13 @@ const {
   currentPos,
   debugLat,
   debugLng,
-  following,
   setDebugPos,
-  toggleFollowing,
-  isMock
+  isMock,
+  // New journey controls
+  isJourneyInProgress,
+  startJourney,
+  stopJourney,
+  resetJourney,
 } = usePosition()
 const isDebug = computed(() => !!isMock)
 const isDebugPanelVisible = ref(true)
@@ -741,7 +749,7 @@ watch(
   { immediate: true }
 )
 
-watch(isNavigationReady, (ready) => {
+watch(isRouteReady, (ready) => {
   if (!ready) {
     stopAllRtPolling()
     isPollingEnabled.value = false
@@ -990,15 +998,26 @@ watch(online, (isOnline) => {
 })
 
 function startRtPollingIfNeeded() {
-  if (!isPollingEnabled.value) return
+  if (!isPollingEnabled.value) return;
+
+  // ナビ開始前はHTTPポーリングのみ
+  if (!isNavigationReady.value) {
+    if (online.value) {
+      stopLoraPolling();
+      rtStore.startPolling(plan.value?.waypoints_info || []);
+    }
+    return;
+  }
+
+  // ナビ開始後はLoRaを優先
   if (isLoraConnected.value) {
-    rtStore.stopPolling()
-    startLoraPolling()
+    rtStore.stopPolling();
+    startLoraPolling();
   } else if (online.value) {
-    stopLoraPolling()
-    rtStore.startPolling(plan.value?.waypoints_info || [])
+    stopLoraPolling();
+    rtStore.startPolling(plan.value?.waypoints_info || []);
   } else {
-    pushToast('リアルタイム', 'オフラインのためHTTP取得不可。LoRa接続すると取得できます。', 5000)
+    pushToast('リアルタイム', 'オフラインのためHTTP取得不可。LoRa接続すると取得できます。', 5000);
   }
 }
 
