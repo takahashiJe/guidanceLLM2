@@ -254,9 +254,22 @@
                 <li v-for="(poi, index) in sortedWaypoints" :key="poi.spot_id">
                   <button @click="focusOnSpot(poi)">
                     <span class="order-index">{{ index + 1 }}</span>
-                    {{ poiListLabel(poi) }}
+                    <span class="poi-label">
+                      <span v-if="isFacilitySpotId(poi.spot_id)" class="facility-chip" aria-hidden="true">🏢</span>
+                      {{ poiListLabel(poi) }}
+                    </span>
                     <span class="rt-badges" v-if="isNavigationReady && latestBySpot(poi.spot_id)">
-                      <span class="rt-badge weather" :title="weatherTitle(latestBySpot(poi.spot_id))">{{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}</span>
+                      <span
+                        v-if="!isFacilitySpotId(poi.spot_id)"
+                        class="rt-badge weather"
+                        :title="weatherTitle(latestBySpot(poi.spot_id))"
+                      >{{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}</span>
+                      <span
+                        v-else
+                        class="rt-badge facility"
+                        title="施設"
+                        aria-label="施設"
+                      >🏢</span>
                       <span v-if="latestBySpot(poi.spot_id)?.u > 0" class="rt-badge upcoming" :title="upcomingTitle(latestBySpot(poi.spot_id))">
                         {{ upcomingEmoji(latestBySpot(poi.spot_id)?.u) }}
                         <small v-if="typeof latestBySpot(poi.spot_id)?.h === 'number'">{{ latestBySpot(poi.spot_id)?.h }}h</small>
@@ -276,7 +289,10 @@
                 <h3 class="nearby-title">Nearby Picks</h3>
                 <ul>
                   <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
-                    <button @click="focusOnSpot(poi)" class="nearby-button">{{ poiListLabel(poi) }}</button>
+                    <button @click="focusOnSpot(poi)" class="nearby-button">
+                      <span v-if="isFacilitySpotId(poi.spot_id)" class="facility-chip" aria-hidden="true">🏢</span>
+                      {{ poiListLabel(poi) }}
+                    </button>
                   </li>
                 </ul>
               </div>
@@ -320,6 +336,7 @@ import { enqueueAudio, resetPlaybackState, useAudioPlaybackState, primeAudioPlay
 import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 import { sendSwMessage } from '@/lib/swClient'
+import { fetchPoiCatalog } from '@/lib/poi'
 
 import { usePosition } from '@/lib/usePosition.mock.js'
 // import { usePosition } from '@/lib/usePosition.js';
@@ -343,6 +360,7 @@ const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
 const isLoraConnected = ref(false)
 let loraSendInterval = null
+const facilityIds = ref(new Set())
 const FOLLOW_MODE_ZOOM = 15
 const {
   currentPos,
@@ -355,6 +373,32 @@ const {
 } = usePosition()
 const isDebug = computed(() => !!isMock)
 const isDebugPanelVisible = ref(true)
+
+async function loadFacilityCatalog() {
+  try {
+    const catalog = await fetchPoiCatalog({ includeFacilities: true })
+    facilityIds.value = new Set(
+      catalog
+        .filter((item) => item.kind === 'facility')
+        .map((item) => item.spot_id)
+    )
+  } catch (e) {
+    console.error('[nav-view] failed to load facility catalog', e)
+    facilityIds.value = new Set()
+  }
+}
+
+function isFacilitySpotId(spotId) {
+  if (!spotId) return false
+  if (facilityIds.value && typeof facilityIds.value.has === 'function' && facilityIds.value.has(spotId)) {
+    return true
+  }
+  const alongList = plan.value?.along_pois
+  if (Array.isArray(alongList)) {
+    return alongList.some((poi) => poi.spot_id === spotId && poi.kind === 'facility')
+  }
+  return false
+}
 
 const showDebugPanel = () => {
   isDebugPanelVisible.value = true
@@ -529,7 +573,7 @@ const handleSwMessage = (event) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('pointerdown', primeOnFirstPointer, { once: true })
 
   if ('serviceWorker' in navigator) {
@@ -541,6 +585,8 @@ onMounted(() => {
     router.push('/plan')
     return
   }
+
+  await loadFacilityCatalog()
 })
 
 onUnmounted(() => {
@@ -772,7 +818,7 @@ watch(
     const weatherChanged = !Number.isFinite(prevWeather)
       ? Number.isFinite(weatherCode)
       : prevWeather !== weatherCode
-    if (weatherChanged) {
+    if (weatherChanged && !isFacilitySpotId(spotId)) {
       const situationType = WEATHER_SITUATION_MAP[weatherCode]
       if (situationType) {
         queueSituationAnnouncement(spotId, situationType)
@@ -821,9 +867,8 @@ function poiKindLabel(poi) {
 
 function poiListLabel(poi) {
   const base = poi?.name || poi?.spot_id || '(unknown)'
-  const kind = poiKindLabel(poi)
   const category = poi?.category ? `（${poi.category}）` : ''
-  return kind ? `【${kind}】${base}${category}` : `${base}${category}`
+  return `${base}${category}`
 }
 
 const spotNameMap = computed(() => {

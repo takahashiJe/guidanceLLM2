@@ -3,20 +3,32 @@
 # --- 設定 ---
 API_HOST="http://localhost:8080"
 LANGUAGE="ja"
-ORIGIN='{"lat": 39.39313041426191, "lon": 140.07357654611906}' 
-WAYPOINTS='[{"spot_id": "spot_007"}, {"spot_id": "spot_015"}]]' #, {"spot_id": "spot_003"}
 RETURN_TO_ORIGIN=true
+
+ORIGIN_LAT=39.39313041426191
+ORIGIN_LON=140.07357654611906
+WAYPOINTS_JSON='[
+  {"spot_id": "spot_007"},
+  {"spot_id": "spot_004"}
+]'
 
 # --- 1. Routing APIを叩いて経路情報を取得 ---
 echo "1. Routing APIを呼び出しています..."
+read -r -d '' ROUTE_PAYLOAD <<EOF
+{
+  "language": "${LANGUAGE}",
+  "origin": {
+    "lat": ${ORIGIN_LAT},
+    "lon": ${ORIGIN_LON}
+  },
+  "waypoints": ${WAYPOINTS_JSON},
+  "return_to_origin": ${RETURN_TO_ORIGIN}
+}
+EOF
+
 ROUTE_RESPONSE=$(curl -s -X POST "${API_HOST}/api/route" \
   -H "Content-Type: application/json" \
-  -d "{
-        \"language\": \"${LANGUAGE}\",
-        \"origin\": ${ORIGIN},
-        \"waypoints\": ${WAYPOINTS},
-        \"return_to_origin\": ${RETURN_TO_ORIGIN}
-      }")
+  -d "${ROUTE_PAYLOAD}")
 
 # エラーチェック
 if [ -z "$ROUTE_RESPONSE" ] || ! echo "$ROUTE_RESPONSE" | jq . &>/dev/null; then

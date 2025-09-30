@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Iterable, Optional, Tuple
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, bindparam
 from dataclasses import dataclass
 
 # ─────────────────────────────────────────────────────────────
@@ -47,28 +47,27 @@ class SpotRepo:
 
         # 1回のSQLで両テーブルを横断検索（SRID=4326 の POINT 前提）
         sql = text("""
-            WITH target AS (
-              SELECT unnest(:ids) AS spot_id
-            ),
-            s AS (
-              SELECT t.spot_id, ST_X(sp.geom) AS lon, ST_Y(sp.geom) AS lat, 1 AS ord
-              FROM target t
-              JOIN spots sp ON sp.spot_id = t.spot_id
-            ),
-            f AS (
-              SELECT t.spot_id, ST_X(fc.geom) AS lon, ST_Y(fc.geom) AS lat, 2 AS ord
-              FROM target t
-              JOIN facilities fc ON fc.spot_id = t.spot_id
-            ),
-            u AS (
-              SELECT * FROM s
+            WITH combined AS (
+              SELECT sp.spot_id::text AS spot_id,
+                     ST_X(sp.geom) AS lon,
+                     ST_Y(sp.geom) AS lat,
+                     1 AS ord
+              FROM spots sp
+              WHERE sp.spot_id IN :ids
+
               UNION ALL
-              SELECT * FROM f
+
+              SELECT fc.spot_id::text AS spot_id,
+                     ST_X(fc.geom) AS lon,
+                     ST_Y(fc.geom) AS lat,
+                     2 AS ord
+              FROM facilities fc
+              WHERE fc.spot_id IN :ids
             )
             SELECT DISTINCT ON (spot_id) spot_id, lon, lat
-            FROM u
+            FROM combined
             ORDER BY spot_id, ord;
-        """)
+        """).bindparams(bindparam("ids", expanding=True))
 
         out: Dict[str, Tuple[float, float]] = {}
         with _engine.begin() as conn:
@@ -87,23 +86,61 @@ class SpotRepo:
             return {}
 
         sql = text(f"""
-            WITH all_pois AS (
-                SELECT spot_id, official_name, description, md_slug, geom, 1 as tbl_ord
-                FROM spots WHERE spot_id = ANY(:ids)
+            WITH combined AS (
+                SELECT
+                    s.spot_id::text AS spot_id,
+                    COALESCE(
+                        s.official_name->>'{lang}',
+                        s.official_name->>'ja',
+                        s.official_name->>'en',
+                        s.official_name->>'zh'
+                    ) AS name,
+                    COALESCE(
+                        s.description->>'{lang}',
+                        s.description->>'ja',
+                        s.description->>'en',
+                        s.description->>'zh'
+                    ) AS description,
+                    s.md_slug,
+                    ST_Y(s.geom) AS lat,
+                    ST_X(s.geom) AS lon,
+                    1 AS ord
+                FROM spots s
+                WHERE s.spot_id IN :ids
+
                 UNION ALL
-                SELECT spot_id, official_name, description, md_slug, geom, 2 as tbl_ord
-                FROM facilities WHERE spot_id = ANY(:ids)
+
+                SELECT
+                    f.spot_id::text AS spot_id,
+                    COALESCE(
+                        f.official_name->>'{lang}',
+                        f.official_name->>'ja',
+                        f.official_name->>'en',
+                        f.official_name->>'zh'
+                    ) AS name,
+                    COALESCE(
+                        f.description->>'{lang}',
+                        f.description->>'ja',
+                        f.description->>'en',
+                        f.description->>'zh'
+                    ) AS description,
+                    f.md_slug,
+                    ST_Y(f.geom) AS lat,
+                    ST_X(f.geom) AS lon,
+                    2 AS ord
+                FROM facilities f
+                WHERE f.spot_id IN :ids
             )
             SELECT DISTINCT ON (spot_id)
-                spot_id::text,
-                official_name->>'{lang}' AS name,
-                description->>'{lang}' AS description,
+                spot_id,
+                name,
+                description,
                 md_slug,
-                ST_Y(geom) AS lat,
-                ST_X(geom) AS lon
-            FROM all_pois
-            ORDER BY spot_id, tbl_ord;
-        """)
+                lat,
+                lon
+            FROM combined
+            ORDER BY spot_id, ord;
+        """).bindparams(bindparam("ids", expanding=True))
 
         out: Dict[str, SpotInfo] = {}
         with _engine.begin() as conn:
