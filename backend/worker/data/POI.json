@@ -1536,7 +1536,7 @@
       "osm_type": null,
       "osm_id": null
     },
-    "md_slug": "None"
+    "md_slug": "spot_dohara_falls"
   },
   {
     "spot_id": "spot_036",
@@ -1606,7 +1606,7 @@
       "osm_type": null,
       "osm_id": null
     },
-    "md_slug": "None"
+    "md_slug": "spot_chokai_kogen"
   },
   {
     "spot_id": "spot_037",
@@ -1927,6 +1927,6 @@
       "osm_type": null,
       "osm_id": null
     },
-    "md_slug": "None"
+    "md_slug": "spot_hanadate_clean_heights"
   }
 ]
