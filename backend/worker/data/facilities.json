@@ -196,7 +196,7 @@
       "osm_type": "node",
       "osm_id": 5862583451
     },
-    "md_slug": "None"
+    "md_slug": "facility_base_yunodai"
   },
   {
     "spot_id": "spot_027",
@@ -586,7 +586,7 @@
       "osm_type": "way",
       "osm_id": 954237786
     },
-    "md_slug": "None"
+    "md_slug": "facility_hut_takinokoya"
   },
   {
     "spot_id": "spot_033",
