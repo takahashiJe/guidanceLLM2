@@ -343,8 +343,8 @@ import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 import { sendSwMessage } from '@/lib/swClient'
 import { fetchPoiCatalog } from '@/lib/poi'
-import { usePosition } from '@/lib/usePosition.mock.js'
-// import { usePosition } from '@/lib/usePosition.js';
+// import { usePosition } from '@/lib/usePosition.mock.js'
+import { usePosition } from '@/lib/usePosition.js';
 
 const navStore = useNavStore()
 const rtStore = useRtStore()
@@ -763,13 +763,22 @@ function enqueueAssetAudio(id, displayName, asset, { fallbackText = null } = {})
   const voiceUrl = asset?.audio?.url || asset?.audio_url
   if (!voiceUrl) return false
 
-  enqueueAudio({
+  const payload = {
     id,
     name: displayName,
     voice_path: voiceUrl,
-    text: asset?.text ?? fallbackText ?? null,
+    text: asset?.text_url ? null : (asset?.text || fallbackText || null),
     textUrl: asset?.text_url ?? null,
-  })
+  }
+
+  console.debug('[AudioQueue] Enqueueing asset', {
+    triggerId: id,
+    asset,
+    fallbackText,
+    finalPayload: payload,
+  });
+
+  enqueueAudio(payload)
 
   return true
 }

@@ -17,7 +17,7 @@ export function tileUrl(z, x, y) {
  * @returns {Array<{url:string,z:number,x:number,y:number}>}
  */
 export function tilesForRoute(polyline, opts = {}) {
-  const { zooms = [12, 13, 14, 15], marginDeg = 0.05, maxTiles = 800 } = opts;
+  const { zooms = [15], marginDeg = 0.05, maxTiles = 800 } = opts;
   if (!Array.isArray(polyline) || polyline.length === 0) return [];
 
   let minLat = 90;

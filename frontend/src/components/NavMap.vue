@@ -18,8 +18,10 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
+const TILE_URL_TEMPLATE = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+
 const esriWorldStreet = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+  TILE_URL_TEMPLATE,
   {
     attribution:
       "Tiles &copy; Esri — Source: Esri, HERE, Garmin, FAO, NOAA, USGS, EPA, NPS",
@@ -169,6 +171,9 @@ const setupMap = () => {
     });
 
     map.value.on('moveend', () => {
+      if (isProgrammaticMove) {
+        esriWorldStreet.setUrl(TILE_URL_TEMPLATE);
+      }
       scheduleProgrammaticReset(200);
     });
 
