@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.responses import Response
 
 from .schemas import RTDoc, RTDocResponse
+from backend.api.logging_config import get_lora_logger
 
 try:
     import paho.mqtt.client as mqtt
@@ -89,12 +90,10 @@ def _on_connect(client, userdata, flags, rc, properties=None):
 
 def _on_message(client, userdata, msg):
     """ ★★★ TTNからのUplinkメッセージを処理する関数 ★★★ """
-    print(f"【DEBUG】MQTTメッセージ受信コールバック開始")
+    lora_logger = get_lora_logger()
     try:
-        decoded_payload = msg.payload.decode("utf-8")
-        print(f"【DEBUG】ペイロードデコード済み: {decoded_payload}")
         ttn_msg = json.loads(msg.payload.decode("utf-8"))
-        print(f"TTNメッセージ内容: {json.dumps(ttn_msg, indent=2, ensure_ascii=False)}")
+        lora_logger.info(f"UPLINK: {json.dumps(ttn_msg, indent=2, ensure_ascii=False)}")
 
         # 'data' キーが存在し、その中に 'uplink_message' があるかチェック
         if "data" in ttn_msg and "uplink_message" in ttn_msg["data"]:
@@ -120,7 +119,7 @@ def _on_message(client, userdata, msg):
         _publish_downlink(response_doc.model_dump())
 
     except Exception as e:
-        print(f"MQTTメッセージの処理中にエラーが発生しました: {e}")
+        lora_logger.error(f"UPLINK_ERROR: {e}\nPayload: {msg.payload.decode(errors='ignore')}")
         return
 
 def _publish_downlink(payload: RTDoc):
@@ -144,13 +143,13 @@ def _publish_downlink(payload: RTDoc):
         }]
     }
     
+    lora_logger = get_lora_logger()
     try:
         downlink_json_for_ttn = json.dumps(downlink_msg)
         _MQTT_CLIENT.publish(MQTT_DOWNLINK_TOPIC, downlink_json_for_ttn, qos=1)
-        print(f"【DEBUG】ダウンリンク送信成功: {downlink_json_for_ttn}")
+        lora_logger.info(f"DOWNLINK: {downlink_json_for_ttn}")
     except Exception as e:
-        print(f"【ERROR】ダウンリンク送信失敗: {e}")
-
+        lora_logger.error(f"DOWNLINK_ERROR: {e}")
 
 def _mqtt_worker():
     global _MQTT_CLIENT

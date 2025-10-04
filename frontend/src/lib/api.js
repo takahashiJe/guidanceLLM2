@@ -1,20 +1,45 @@
 // src/lib/api.js
+import { useNavStore } from '@/stores/nav';
+
 const BACK_BASE = '/back';              // Nginxで /back → APIゲートウェイにリバースプロキシ
 const API_BASE  = `${BACK_BASE}/api`;
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function apiFetch(path, opts = {}) {
-  const url = `${API_BASE}${path}`;
+  const navStore = useNavStore();
+  let url = `${API_BASE}${path}`;
+
+  // Inject deviceId as a query parameter for all requests
+  if (navStore.deviceId) {
+    const separator = url.includes('?') ? '&' : '?';
+    url += `${separator}uuid=${navStore.deviceId}`;
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(opts.headers || {}),
   };
+
   const init = {
     method: 'GET',
     ...opts,
     headers,
   };
+
+  // For non-GET requests, also inject deviceId into the body if it exists
+  if (init.method.toUpperCase() !== 'GET' && init.body) {
+    try {
+      const payload = JSON.parse(init.body);
+      if (navStore.deviceId) {
+        payload.uuid = navStore.deviceId;
+      }
+      init.body = JSON.stringify(payload);
+    } catch (e) {
+      console.error('Failed to inject deviceId into request body', e);
+    }
+  }
+
   console.debug('[api]', init.method, path);
   const res = await fetch(url, init);
   const txt = await res.text();

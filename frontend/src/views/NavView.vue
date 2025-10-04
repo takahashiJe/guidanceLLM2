@@ -384,7 +384,7 @@ const isDebugPanelVisible = ref(true)
 
 async function loadFacilityCatalog() {
   try {
-    const catalog = await fetchPoiCatalog({ includeFacilities: true })
+    const catalog = fetchPoiCatalog({ includeFacilities: true })
     facilityIds.value = new Set(
       catalog
         .filter((item) => item.kind === 'facility')

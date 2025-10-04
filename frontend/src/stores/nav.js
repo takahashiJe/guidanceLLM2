@@ -3,6 +3,8 @@ import { defineStore } from 'pinia'
 import { useRouter } from 'vue-router'
 import * as api from '@/lib/api'
 
+import { getDeviceUUID } from '@/lib/uuid'
+
 // 30分
 const PLAN_TTL = 30 * 60 * 1000
 
@@ -36,6 +38,7 @@ export const useNavStore = defineStore('nav', () => {
   const isNavigating = ref(false)     // ガイダンス生成タスク実行中
   const error = ref(null)             // エラーメッセージ
   const taskId = ref(null)            // CeleryタスクID
+  const deviceId = ref(null)          // デバイスUUID
 
   // 4. 内部管理用
   let pollTimer = null
@@ -187,6 +190,11 @@ export const useNavStore = defineStore('nav', () => {
     reset()
   }
 
+  const initializeDeviceId = () => {
+    deviceId.value = getDeviceUUID()
+    console.log('Device ID initialized:', deviceId.value)
+  }
+
   return {
     // State
     lang,
@@ -196,6 +204,7 @@ export const useNavStore = defineStore('nav', () => {
     isRouteLoading,
     isNavigating,
     error,
+    deviceId,
     // Getters
     isRouteReady,
     isNavigationReady,
@@ -205,6 +214,7 @@ export const useNavStore = defineStore('nav', () => {
     fetchRoute,
     startGuidance,
     reset,
+    initializeDeviceId,
   }
 }, {
   persist: true // LocalStorageに保存

@@ -102,7 +102,7 @@ const previousWindowState = reactive({ x: navWindow.x, y: navWindow.y, width: na
 // --- POIデータ読み込み ---
 onMounted(async () => {
   try {
-    const catalog = await fetchPoiCatalog({ includeFacilities: true })
+    const catalog = fetchPoiCatalog({ includeFacilities: true })
     pois.value = catalog.sort((a, b) => baseDisplayName(a).localeCompare(baseDisplayName(b), 'ja'))
   } catch (e) {
     console.error('[plan] failed to load poi catalog', e)

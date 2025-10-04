@@ -2,58 +2,12 @@
 // 自然スポット（POI）と施設のメタデータを正規化して提供する
 
 import facilitiesCatalogRaw from '@/assets/facilities.json'
+import poisCatalogRaw from '@/assets/POI.json'
 
-/**
- * まずフロントの /public/pois.json（配信時は /<base>/pois.json）を最優先で読みに行く。
- * 成功しなければ API 候補を順に試す。
- * 必要なら VITE_POIS_URL で固定URLを指定できる。
- */
-const FRONT_POIS =
-  (import.meta.env.BASE_URL || '/') + 'pois.json'
-
-const API_CANDIDATES = [
-  '/back/api/nav/pois',
-  '/back/api/pois',
-  '/back/api/poi',
-]
-
-// 明示URLがあればそれを最優先に
-const EXPLICIT = import.meta.env.VITE_POIS_URL
-  ? [import.meta.env.VITE_POIS_URL]
-  : []
-
-const CANDIDATES = [
-  ...EXPLICIT,
-  FRONT_POIS,          // ← ここを最初に試す
-  ...API_CANDIDATES,
-]
-
-async function tryFetchJson(url) {
-  try {
-    const res = await fetch(url, { headers: { 'Accept': 'application/json' } })
-    if (!res.ok) return null
-    return await res.json()
-  } catch {
-    return null
-  }
-}
-
-export async function fetchPois() {
-  let raw = null
-
-  for (const url of CANDIDATES) {
-    raw = await tryFetchJson(url)
-    if (raw) break
-  }
-
-  if (!raw) {
-    console.warn('[poi] 取得に失敗（candidates=', CANDIDATES, '）')
-    return []
-  }
-
-  const arr = Array.isArray(raw) ? raw
-    : (Array.isArray(raw.items) ? raw.items
-    : (Array.isArray(raw.features) ? raw.features : []))
+export function fetchPois() {
+  const arr = Array.isArray(poisCatalogRaw) ? poisCatalogRaw
+    : (Array.isArray(poisCatalogRaw.items) ? poisCatalogRaw.items
+    : (Array.isArray(poisCatalogRaw.features) ? poisCatalogRaw.features : []))
 
   const list = arr.map((item) => normalizePoi(item, { kind: 'spot' })).filter(Boolean)
   return dedupeBySpotId(list)
@@ -69,8 +23,8 @@ export function getFacilities() {
   return FACILITY_LIST.map((item) => ({ ...item }))
 }
 
-export async function fetchPoiCatalog({ includeFacilities = true } = {}) {
-  const spots = await fetchPois()
+export function fetchPoiCatalog({ includeFacilities = true } = {}) {
+  const spots = fetchPois()
   if (!includeFacilities) {
     return spots
   }
