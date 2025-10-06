@@ -1,0 +1,90 @@
+services:
+  # === Vector DB ===
+  chromadb:
+    image: chromadb/chroma:0.6.3
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=TRUE
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # === Vector DBデータ投入 ===
+  knowledge-init:
+    image: python:3.11-slim
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    working_dir: /app
+    environment:
+      CHROMA_URL: http://chromadb:8000
+      OLLAMA_URL: http://ollama:11434
+      KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
+      EMBED_MODEL: mxbai-embed-large:latest
+      COLLECTION_PREFIX: guidance_
+      LANGS: ja,en,zh
+    volumes:
+      - ./backend:/app/backend:ro
+    command: >
+      bash -lc "pip install --no-cache-dir requests==2.32.3 && python backend/script/ingest_knowledge.py"
+
+  # === Ollama (GPU想定) ===
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_DEFAULT_MODEL=qwen3:8b
+      - OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
+    volumes:
+      - ollama_models:/root/.ollama
+    gpus: all
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 300s
+    restart: unless-stopped
+
+  # === LLM Celery Worker ===
+  celery-llm:
+    build:
+      context: .
+      dockerfile: ./backend/Dockerfile
+    command: bash -lc "celery -A backend.worker.app.services.llm.celery_app.celery_app worker --loglevel=info --pool=threads --concurrency=1 -Q llm"
+    environment:
+      # Redis is expected to be on the main server. Set REDIS_HOST to the main server's IP.
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
+      CHROMA_URL: http://chromadb:8000
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen3:8b
+      EMBED_MODEL: mxbai-embed-large:latest
+      COLLECTION_PREFIX: guidance_
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+    # When running separately, redis is on a different machine, so depends_on is not used for it.
+    depends_on:
+      - chromadb
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+  chromadb_data:

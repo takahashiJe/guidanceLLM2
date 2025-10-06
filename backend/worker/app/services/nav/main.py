@@ -1,4 +1,3 @@
-# backend/worker/app/services/nav/tasks.py
 
 from __future__ import annotations
 
@@ -7,16 +6,10 @@ import uuid
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import List, Literal, Optional, Dict, Any, Tuple
+from typing import List, Literal, Optional, Dict, Any
 
 from pydantic import BaseModel, Field
-from celery import Celery
-
-from shapely.geometry import Point, LineString
-from shapely.ops import transform
-from pyproj import Transformer
-
-from backend.worker.app.services.nav.celery_app import celery_app
+from fastapi import FastAPI, HTTPException, Request
 
 # 各サービスを呼び出すためのHTTPクライアント
 from backend.worker.app.services.nav.client_routing import post_route
@@ -29,17 +22,13 @@ from backend.worker.app.services.nav.spot_repo import get_spots_by_ids
 import logging
 logger = logging.getLogger(__name__)
 
-# =================================================================
-# ==== Schemas (スキーマ定義) ====
-# =================================================================
-# class Waypoint(BaseModel):
-#     spot_id: Optional[str] = None
+app = FastAPI(title="nav service")
 
+# Schemas from tasks.py
 class Coord(BaseModel):
     lat: float
     lon: float
 
-# 【新規】Routing部からの入力を受け取るためのヘルパースキーマ
 class WaypointInfo(BaseModel):
     spot_id: str
     name: str
@@ -54,23 +43,14 @@ class Segment(BaseModel):
     end_idx: int
 
 class PlanRequest(BaseModel):
-    """Routingサービスリファクタリング後の入力スキーマ"""
     language: Literal["ja", "en", "zh"]
     buffer: dict = Field(default_factory=lambda: {"car": 300, "foot": 10})
-    
-    # Routingサービスからの出力をそのまま受け取る
-    route: dict # GeoJSON FeatureCollection
+    route: dict
     polyline: List[List[float]]
     segments: List[Segment]
-    legs: List[dict] #
+    legs: List[dict]
     waypoints_info: List[WaypointInfo]
-
-class Leg(BaseModel):
-    mode: Literal["car", "foot"]
-    from_: Coord = Field(..., alias="from")
-    to: Coord
-    distance_m: float
-    duration_s: float
+    pack_id: Optional[str] = None # pack_id is now optional
 
 class Asset(BaseModel):
     spot_id: str
@@ -82,11 +62,7 @@ class Asset(BaseModel):
     format: Optional[Literal["mp3","wav"]] = None
 
 class PlanResponse(BaseModel):
-    """Routingサービスリファクタリング後の出力スキーマ"""
     pack_id: str
-    # 経路情報はレスポンスに含めず、manifest_urlから取得する方針
-    # route: dict
-    # legs: List[Leg]
     along_pois: List[dict]
     assets: List[Asset]
     manifest_url: str
@@ -98,10 +74,7 @@ CONDITIONAL_NARRATIONS = {
     "congestion_2": "c=2 (Full)",
 }
 
-# =================================================================
-# ==== Helpers (ヘルパー関数) ====
-# =================================================================
-# def _collect_unique_spot_ids(waypoints: List[Waypoint], along_pois: List[dict]) -> List[str]:
+# Helper functions from tasks.py
 def _collect_unique_spot_ids(waypoints_info: List[WaypointInfo], along_pois: List[dict]) -> List[str]:
     planned = [w.spot_id for w in waypoints_info if w.spot_id and w.spot_id != "current"]
     along = [p.get("spot_id") for p in along_pois if p.get("spot_id")]
@@ -133,17 +106,6 @@ def _build_spot_refs(spot_ids: List[str], language: str) -> List[dict]:
         })
     return items
 
-def _lonlat_to_coord(ll):
-    if not isinstance(ll, (list, tuple)) or len(ll) != 2: return None
-    lon, lat = ll
-    return {"lat": float(lat), "lon": float(lon)}
-
-def _idx_to_coord(polyline, idx):
-    try:
-        return _lonlat_to_coord(polyline[int(idx)])
-    except Exception:
-        return None
-
 def _normalize_legs(raw_legs: list, polyline: list) -> list:
     out = []
     for lg in (raw_legs or []):
@@ -161,11 +123,6 @@ def _normalize_legs(raw_legs: list, polyline: list) -> list:
     return out
 
 def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[dict]:
-    """
-    LLMとVoiceの結果をマージし、フロントエンド向けのAssetリストを作成する。
-    spot_id と situation を使って、正しくメタデータを付与する。
-    """
-    # LLMへのリクエストアイテムを (spot_id, situation) のタプルをキーとする辞書に格納
     llm_item_map = {
         (item.get("spot_id"), item.get("situation")): item
         for item in llm_items
@@ -174,10 +131,9 @@ def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[
     assets = []
     processed_keys = set()
 
-    # 音声生成が成功したアイテムを処理
     for vr in voice_results or []:
         sid = vr.get("spot_id")
-        ntype = vr.get("situation")  # Voiceサービスがこのキーをパススルーすることを期待
+        ntype = vr.get("situation")
         if not sid:
             continue
 
@@ -196,7 +152,6 @@ def _normalize_assets(voice_results: list[dict], llm_items: list[dict]) -> list[
             })
             processed_keys.add(key)
 
-    # 音声生成に失敗したか、そもそも音声生成がなかったアイテムを処理 (テキスト情報のみ)
     for key, item in llm_item_map.items():
         if key not in processed_keys:
             assets.append({
@@ -233,100 +188,39 @@ def _write_manifest(pack_id: str, language: str, route_fc: dict, polyline: list,
     except Exception:
         logger.exception("NAV failed to write manifest.json for pack_id=%s", pack_id)
 
-def _proj() -> Transformer:
-    return Transformer.from_crs(4326, 3857, always_xy=True)
 
-# def _reduce_hits_to_along_pois_local(hits: List[Dict], polyline: List[List[float]]) -> List[Dict]:
-#     if not hits or not polyline or len(polyline) < 2:
-#         return []
+@app.post("/plan", response_model=PlanResponse)
+def plan_endpoint(req: PlanRequest, request: Request):
+    request_id = request.headers.get("x-request-id", str(uuid.uuid4()))
+    pack_id = req.pack_id or str(uuid.uuid4())
+    logger.info(f"[{request_id}] Workflow started for pack_id: {pack_id}")
 
-#     to3857 = _proj().transform
-#     line_lonlat = [(p[0], p[1]) for p in polyline]
-#     line_3857 = transform(to3857, LineString(line_lonlat))
-#     segs_3857 = []
-#     for i in range(len(line_lonlat) - 1):
-#         seg = LineString([line_lonlat[i], line_lonlat[i + 1]])
-#         segs_3857.append(transform(to3857, seg))
-
-#     out: List[Dict] = []
-#     for h in hits:
-#         lon, lat = float(h["lon"]), float(h["lat"])
-#         pt_3857 = transform(to3857, Point(lon, lat))
-#         dist_m = float(line_3857.distance(pt_3857))
-#         best_idx = 0
-#         best_d = float("inf")
-#         for i, seg in enumerate(segs_3857):
-#             d = seg.distance(pt_3857)
-#             if d < best_d:
-#                 best_d = d
-#                 best_idx = i
-
-#         distance_m = float(h.get("distance_m", dist_m))
-#         out.append(
-#             {
-#                 "spot_id": h.get("spot_id"),
-#                 "name": h.get("name"),
-#                 "lon": float(h.get("lon")) if "lon" in h else None,
-#                 "lat": float(h.get("lat")) if "lat" in h else None,
-#                 "kind": h.get("kind"),
-#                 "nearest_idx": int(best_idx),
-#                 "distance_m": distance_m,
-#                 "source_segment_mode": h.get("source_segment_mode"),
-#             }
-#         )
-#     return out
-
-# =================================================================
-# ==== Main Workflow Task ====
-# =================================================================
-@celery_app.task(name="nav.plan", bind=True)
-def plan_workflow(self, payload: Dict[str, Any]) -> dict:
-    pack_id = str(uuid.uuid4())
-    payload["pack_id"] = pack_id
-    req = PlanRequest(**payload)
-    logger.info(f"[{self.request.id}] Workflow started for pack_id: {pack_id}")
-
-    # # --- 1. Routing Service ---
-    # logger.info("Step 1: Calling Routing service...")
-    # routing_req = {"origin": req.origin.model_dump(), "waypoints": [w.model_dump() for w in req.waypoints], "car_to_trailhead": True}
-    # routing_result = post_route(routing_req)
-    # logger.info("Routing service returned.")
-
-    # --- 2. AlongPOI Service ---
+    # --- AlongPOI Service ---
     logger.info("Step 2: Calling AlongPOI service...")
-    # waypoint_ids = [w.spot_id for w in req.waypoints if w.spot_id and w.spot_id != "current"]
     waypoint_ids = [wp.spot_id for wp in req.waypoints_info if wp.spot_id and wp.spot_id != "current"]
-    waypoint_id_set = set(waypoint_ids)
     along_req = {"polyline": req.polyline, "segments": [s.model_dump() for s in req.segments], "buffer": req.buffer, "waypoints": waypoint_ids}
     along_result = post_along(along_req)
     along_pois = along_result.get("pois", [])
     logger.info(f"AlongPOI service returned {len(along_pois)} POIs.")
 
-    along_spot_id_set = {
-        p.get("spot_id")
-        for p in along_pois
-        if isinstance(p, dict) and p.get("spot_id") and p.get("spot_id") != "current"
-    }
+    along_spot_id_set = {p.get("spot_id") for p in along_pois if isinstance(p, dict) and p.get("spot_id") and p.get("spot_id") != "current"}
 
-    # --- 3. LLM Service ---
+    # --- LLM Service ---
     logger.info("Step 3: Calling LLM service...")
-    # (A) 全てのスポット(Waypoint + AlongPOI)の通常案内をリクエスト
     all_spot_ids = _collect_unique_spot_ids(req.waypoints_info, along_pois)
     spot_refs = _build_spot_refs(all_spot_ids, req.language)
 
-    # Waypoints は到着時案内、AlongPOI は通過時案内として区別する
+    waypoint_id_set = set(waypoint_ids)
     enhanced_spot_refs: list[dict] = []
     for ref in spot_refs:
         sid = ref.get("spot_id")
         playback = "arrival" if sid in waypoint_id_set else "pass_by"
         if playback == "pass_by" and sid not in along_spot_id_set:
-            # 想定外のスポットは従来通り arrival とする
             playback = "arrival"
         enriched = {**ref, "playback": playback}
         enhanced_spot_refs.append(enriched)
     spot_refs = enhanced_spot_refs
 
-    # (B) Waypointに限定して、状況説明(4パターン)をリクエスト
     conditional_spot_refs = []
     waypoint_spot_refs = [ref for ref in spot_refs if ref['spot_id'] in waypoint_id_set]
 
@@ -336,7 +230,6 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
             conditional_ref["situation"] = key
             conditional_spot_refs.append(conditional_ref)
 
-    # (C) スポットガイダンスと状況説明を結合してLLMに一括送信
     combined_spots_for_llm = spot_refs + conditional_spot_refs
 
     llm_items = []
@@ -350,7 +243,7 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     else:
         logger.info("No spots to describe, skipping LLM service.")
 
-    # --- 4. Voice Service ---
+    # --- Voice Service ---
     logger.info("Step 4: Calling Voice service...")
     voice_results = []
     if llm_items:
@@ -368,18 +261,13 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
     else:
         logger.info("No text to synthesize, skipping Voice service.")
 
-    # --- 5. Finalize & Create Response ---
+    # --- Finalize & Create Response ---
     logger.info("Step 5: Finalizing the plan...")
     polyline = req.polyline
     raw_legs = req.legs
     legs = _normalize_legs(raw_legs, polyline)
 
     assets = _normalize_assets(voice_results, llm_items)
-
-    # Routing部リファクタリングしたからいらない．入力でもらうから作らなくていい
-    # waypoint_id_set = set(waypoint_ids)
-    # waypoint_spot_data = [s for s in spot_refs if s['spot_id'] in waypoint_id_set]
-    # waypoints_info = _reduce_hits_to_along_pois_local(waypoint_spot_data, polyline)
 
     _write_manifest(
         pack_id,
@@ -395,16 +283,14 @@ def plan_workflow(self, payload: Dict[str, Any]) -> dict:
 
     response = {
         "pack_id": pack_id,
-        "route": req.route,
-        "polyline": req.polyline,
-        "segments": [s.model_dump() for s in req.segments], 
-        "legs": req.legs,
-        "waypoints_info": [w.model_dump() for w in req.waypoints_info],
         "along_pois": along_pois,
-        "assets": [Asset(**a).model_dump() for a in assets], # スキーマで検証
-        "language": req.language,
+        "assets": [Asset(**a).model_dump() for a in assets],
         "manifest_url": f"/packs/{pack_id}/manifest.json",
     }
 
-    logger.info(f"[{self.request.id}] Workflow finished successfully for pack_id: {pack_id}")
+    logger.info(f"[{request_id}] Workflow finished successfully for pack_id: {pack_id}")
     return response
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}

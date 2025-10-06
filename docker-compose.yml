@@ -1,45 +1,4 @@
 services:
-  # === Vector DB ===
-  chromadb:
-    image: chromadb/chroma:0.6.3   # バージョンを明示推奨
-    ports:
-      - "8000:8000"
-    volumes:
-      - chromadb_data:/chroma/chroma  # データ永続化フォルダ
-    environment:
-      - IS_PERSISTENT=TRUE
-      - PERSIST_DIRECTORY=/chroma/chroma
-      - ANONYMIZED_TELEMETRY=TRUE
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-# # === Vector DBデータ投入 ===
-#   knowledge-init:
-#     image: python:3.11-slim
-#     depends_on:
-#       chromadb:
-#         condition: service_healthy
-#       ollama:
-#         condition: service_healthy
-#     working_dir: /app
-#     environment:
-#       CHROMA_URL: http://chromadb:8000
-#       OLLAMA_URL: http://ollama:11434
-#       KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
-#       EMBED_MODEL: mxbai-embed-large:latest
-#       COLLECTION_PREFIX: guidance_
-#       LANGS: ja,en,zh
-#     volumes:
-#       - ./backend:/app/backend:ro
-#     # “空なら投入”はスクリプト側で判定するので常に安全に実行可
-#     command: >
-#       bash -lc "pip install --no-cache-dir requests==2.32.3 && python backend/script/ingest_knowledge.py"
-
   # === Static DB (POI / access_points) ===
   static-db:
     image: postgis/postgis:16-3.4
@@ -90,28 +49,6 @@ services:
         echo '--- Running init script...'
         python -B script/init_static_db.py
       "
-
-  # === Ollama (GPU想定) ===
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    environment:
-      - OLLAMA_KEEP_ALIVE=24h
-      # 開発でモデルを固定したい場合は環境変数を持たせておく（pullは下の sidecar）
-      - OLLAMA_DEFAULT_MODEL=qwen3:8b
-      - OLLAMA_EMBEDDING_MODEL=mxbai-embed-large:latest
-    volumes:
-      - ollama_models:/root/.ollama
-    # GPU を使う場合（Compose v2+）
-    gpus: all
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 300s
-    restart: unless-stopped
   
   # === OSRM (car / foot) ===
   osrm-car:
@@ -177,21 +114,6 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
-  # # Celery Worker（将来の会話系タスク用。今は並行で常駐させるだけ）
-  # celery:
-  #   build:
-  #     context: .
-  #     dockerfile: ./backend/Dockerfile
-  #   environment:
-  #     CELERY_BROKER_URL: redis://redis:6379/0
-  #     CELERY_RESULT_BACKEND: redis://redis:6379/1
-  #   depends_on:
-  #     - redis
-  #   command: >
-  #     bash -lc "celery -A backend.worker.celery.celery_app.celery_app
-  #     worker --loglevel=info --pool=threads --concurrency=1"
-  #   restart: unless-stopped
-
   redis:
     image: redis:7.2-alpine
     ports: ["6379:6379"]
@@ -228,22 +150,6 @@ services:
     depends_on: [static-db]
     ports: ["9102:9102"]
 
-  svc-llm:
-    build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "uvicorn backend.worker.app.services.llm.main:app --host 0.0.0.0 --port 9103"
-    environment:
-      KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
-      CHROMA_URL: http://chromadb:8000
-      OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: qwen3:8b
-      EMBED_MODEL: mxbai-embed-large:latest
-      COLLECTION_PREFIX: guidance_
-    depends_on: [chromadb, ollama]
-    volumes: 
-      - ./backend:/app/backend
-      - ./backend/worker/data:/app/backend/worker/data:ro
-    ports: ["9103:9103"]
-
   svc-voice:
     build:
       context: .
@@ -276,11 +182,10 @@ services:
 
   svc-nav:
     build: { context: ., dockerfile: ./backend/Dockerfile }
-    command: bash -lc "celery -A backend.worker.app.services.nav.celery_app.celery_app worker --loglevel=debug --pool=threads --concurrency=1 -Q nav"
+    command: bash -lc "uvicorn backend.worker.app.services.nav.main:app --host 0.0.0.0 --port 9100"
     environment:
       ROUTING_BASE: http://svc-routing:9101
       ALONGPOI_BASE: http://svc-alongpoi:9102
-      LLM_BASE: http://svc-llm:9103
       VOICE_BASE: http://svc-voice:9104
       PACKS_DIR: /packs
       PACKS_BASE_URL: /packs
@@ -289,10 +194,12 @@ services:
       STATIC_DB_NAME: static_db
       STATIC_DB_USER: static_db
       STATIC_DB_PASSWORD: static_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     volumes:
       - ./backend:/app/backend
       - /var/www/packs:/packs
-    depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice]
+    depends_on: [svc-routing, svc-alongpoi, svc-voice, redis]
     ports: ["9100:9100"]
   
   # --- Frontend (開発用) ---
@@ -310,6 +217,4 @@ services:
   #     - /app/node_modules
 
 volumes:
-  ollama_models:
   pgdata_static:
-  chromadb_data:

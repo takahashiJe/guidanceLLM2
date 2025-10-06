@@ -22,43 +22,23 @@ export const useNavStore = defineStore('nav', () => {
   const router = useRouter()
 
   // --- State ---
-  // ★★★ 修正箇所 ★★★
-  // 元の構造を維持しつつ、新しいUI状態フラグを追加
-  
-  // 1. 計画作成時のオプション（リファクタリング前の構造を維持）
   const lang = ref('ja')
   const origin = ref(null)
   const waypointsByIds = ref([])
-  
-  // 2. APIから取得した計画データ
-  const plan = ref(null) // ルート情報とガイダンス情報をここにマージしていく
-  
-  // 3. UIの状態を管理する新しいフラグ
-  const isRouteLoading = ref(false)   // ルート計算中
-  const isNavigating = ref(false)     // ガイダンス生成タスク実行中
-  const error = ref(null)             // エラーメッセージ
-  const taskId = ref(null)            // CeleryタスクID
-  const deviceId = ref(null)          // デバイスUUID
-
-  // 4. 内部管理用
-  let pollTimer = null
+  const plan = ref(null)
+  const isRouteLoading = ref(false)
+  const isNavigating = ref(false) // This now represents the single, synchronous navigation plan generation step
+  const error = ref(null)
+  const deviceId = ref(null)
 
   // --- Getters ---
-  // ★★★ 修正箇所 ★★★
-  // isRouteReady と isNavigationReady を getter として定義
-
   const isRouteReady = computed(() => !!plan.value?.route)
   const isNavigationReady = computed(() => !!plan.value?.assets && plan.value.assets.length > 0)
-
-  // ゲッターは元の実装のままで正しく動作するため変更なし
   const waypoints = computed(() => plan.value?.waypoints_info || [])
   const alongPois = computed(() => plan.value?.along_pois || [])
 
   // --- Actions ---
 
-  /**
-   * ストアを初期状態にリセットする
-   */
   const reset = () => {
     lang.value = 'ja'
     origin.value = null
@@ -67,18 +47,9 @@ export const useNavStore = defineStore('nav', () => {
     isRouteLoading.value = false
     isNavigating.value = false
     error.value = null
-    taskId.value = null
-    if (pollTimer) {
-      clearTimeout(pollTimer)
-      pollTimer = null
-    }
     console.log('NavStore reset')
   }
 
-  /**
-   * 【ステップ1】ルート計画を作成し、地図表示の準備をする
-   * @param {object} planOptions
-   */
   const fetchRoute = async (planOptions, opts = {}) => {
     const { navigate = true } = opts
     reset()
@@ -118,16 +89,12 @@ export const useNavStore = defineStore('nav', () => {
     }
   }
 
-  /**
-   * 【ステップ2】ガイダンスの生成を開始し、結果をポーリングする
-   */
   const startGuidance = async () => {
     if (!isRouteReady.value || isNavigating.value) return
     
     isNavigating.value = true
     error.value = null
     try {
-      // 現在ストアに保持しているルート情報をバックエンドに渡す
       const navRequestPayload = {
         language: lang.value,
         buffer: { car: 300, foot: 10 },
@@ -138,53 +105,28 @@ export const useNavStore = defineStore('nav', () => {
         waypoints_info: plan.value.waypoints_info,
       }
 
-      const task = await api.startNavigationTask(navRequestPayload)
-      taskId.value = task.task_id
-      console.log('Navigation task started:', taskId.value)
-      pollPlanResult(taskId.value)
+      // Call the new synchronous API function
+      const navigationPlan = await api.createPlan(navRequestPayload)
+      console.log('Navigation plan received:', navigationPlan)
 
-    } catch (e) {
-      console.error('Failed to start navigation task', e)
-      error.value = e.message || 'ナビゲーションの開始に失敗しました'
-      isNavigating.value = false
-    }
-  }
-
-  /**
-   * タスクの結果をポーリングで取得する
-   * @param {string} currentTaskId
-   */
-  const pollPlanResult = async (currentTaskId) => {
-    if (pollTimer) clearTimeout(pollTimer)
-
-    try {
-      const res = await api.getPlanResult(currentTaskId)
-      
-      if (res.ready === false) { // 202 Accepted
-        console.log(`Task ${currentTaskId} is still running... polling again in 5s`)
-        pollTimer = setTimeout(() => pollPlanResult(currentTaskId), 5000)
-      } else { // 200 OK
-        console.log('Task finished, plan received:', res)
-        
-        // 受信したガイダンス情報を既存のplanオブジェクトにマージ
-        plan.value = {
-          ...plan.value, // 既存のルート情報を維持
-          pack_id: res.pack_id,
-          along_pois: res.along_pois,
-          assets: res.assets,
-          manifest_url: res.manifest_url,
-          createdAt: Date.now()
-        }
-        isNavigating.value = false
+      // Merge the navigation data into the existing plan
+      plan.value = {
+        ...plan.value,
+        pack_id: navigationPlan.pack_id,
+        along_pois: navigationPlan.along_pois,
+        assets: navigationPlan.assets,
+        manifest_url: navigationPlan.manifest_url,
+        createdAt: Date.now(), // Update timestamp
       }
+
     } catch (e) {
-      console.error('Failed to poll plan result', e)
-      error.value = e.message
+      console.error('Failed to generate navigation plan', e)
+      error.value = e.message || 'ナビゲーションの生成に失敗しました'
+    } finally {
       isNavigating.value = false
     }
   }
 
-  // TTLチェックは pinia-plugin-persistedstate があれば不要になることが多いが、念のため残す
   if (plan.value?.createdAt && Date.now() - plan.value.createdAt > PLAN_TTL) {
     console.log('Plan expired, resetting...')
     reset()
