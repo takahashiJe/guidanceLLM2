@@ -60,6 +60,7 @@
 
 body {
   min-height: 100vh;
+  overflow: hidden; /* ページ全体のスクロールを禁止 */
   color: var(--color-text);
   background: var(--color-background);
   transition:

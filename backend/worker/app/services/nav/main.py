@@ -106,6 +106,14 @@ def _build_spot_refs(spot_ids: List[str], language: str) -> List[dict]:
         })
     return items
 
+
+def _idx_to_coord(polyline: list, idx: int) -> dict | None:
+    if idx is None or not (0 <= idx < len(polyline)):
+        return None
+    coord = polyline[idx]
+    return {"lat": coord[0], "lon": coord[1]}
+
+
 def _normalize_legs(raw_legs: list, polyline: list) -> list:
     out = []
     for lg in (raw_legs or []):
@@ -191,6 +199,7 @@ def _write_manifest(pack_id: str, language: str, route_fc: dict, polyline: list,
 
 @app.post("/plan", response_model=PlanResponse)
 def plan_endpoint(req: PlanRequest, request: Request):
+    print("--- [svc-nav /plan] ENTERED ENDPOINT. --- ", flush=True)
     request_id = request.headers.get("x-request-id", str(uuid.uuid4()))
     pack_id = req.pack_id or str(uuid.uuid4())
     logger.info(f"[{request_id}] Workflow started for pack_id: {pack_id}")
@@ -199,7 +208,9 @@ def plan_endpoint(req: PlanRequest, request: Request):
     logger.info("Step 2: Calling AlongPOI service...")
     waypoint_ids = [wp.spot_id for wp in req.waypoints_info if wp.spot_id and wp.spot_id != "current"]
     along_req = {"polyline": req.polyline, "segments": [s.model_dump() for s in req.segments], "buffer": req.buffer, "waypoints": waypoint_ids}
+    print("--- [svc-nav /plan] CALLING ALONGPOI... ---", flush=True)
     along_result = post_along(along_req)
+    print("--- [svc-nav /plan] ALONGPOI CALL COMPLETE. --- ", flush=True)
     along_pois = along_result.get("pois", [])
     logger.info(f"AlongPOI service returned {len(along_pois)} POIs.")
 

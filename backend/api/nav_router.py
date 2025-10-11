@@ -24,6 +24,7 @@ def create_nav_plan(req: PlanRequest, request: Request):
     Accepts a navigation plan request, forwards it to the synchronous Nav service,
     and returns the complete plan.
     """
+    print("--- [API Gateway /nav/plan] Received request. Forwarding to svc-nav... ---")
     headers = {"x-request-id": _request_id(request.headers)}
     
     # The request to the nav service is now a direct HTTP call.
@@ -34,7 +35,8 @@ def create_nav_plan(req: PlanRequest, request: Request):
                 f"{NAV_BASE}/plan",
                 json=req.model_dump(by_alias=True),
                 headers=headers,
-                timeout=REQ_TIMEOUT,
+                # timeout=REQ_TIMEOUT,
+                timeout=3000,
             )
             response.raise_for_status() # Raise an exception for 4xx or 5xx status codes
             

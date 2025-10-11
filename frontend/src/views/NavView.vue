@@ -343,8 +343,8 @@ import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 import { sendSwMessage } from '@/lib/swClient'
 import { fetchPoiCatalog } from '@/lib/poi'
-// import { usePosition } from '@/lib/usePosition.mock.js'
-import { usePosition } from '@/lib/usePosition.js';
+import { usePosition } from '@/lib/usePosition.mock.js'
+// import { usePosition } from '@/lib/usePosition.js';
 
 const navStore = useNavStore()
 const rtStore = useRtStore()

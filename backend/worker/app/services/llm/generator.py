@@ -13,7 +13,7 @@ def retrieve_context(spot_ref: Dict, lang: str):
 
 def generate_text(prompt: str) -> str:
     # Ollama で生成
-    model = os.getenv("OLLAMA_MODEL", "qwen3:30")
+    model = os.getenv("OLLAMA_GENERATION_MODEL") or ollama.DEFAULT_MODEL
     return ollama.generate(prompt, model=model)
 
 

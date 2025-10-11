@@ -5,7 +5,7 @@ import re
 from typing import List, Literal, Optional
 from pydantic import BaseModel
 
-from backend.worker.app.services.llm.celery_app import celery_app
+from backend.worker.celery_app import celery_app
 from backend.worker.app.services.llm import generator, prompt
 import logging
 logger = logging.getLogger(__name__)
@@ -36,14 +36,34 @@ def _extract_narration(raw_text: str) -> str:
     """
     LLMが生成した <think>...</think> ブロックを除去し、
     その後に続く本番のナレーションテキストのみを抽出する。
+    さらに、LLMがエコーバックするプロンプトの定型文も除去する。
     """
-    # <think> タグ（複数行モード re.DOTALL を使用）を除去
-    clean_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL)
+    clean_text = raw_text
+
+    # 1. <think> タグを除去 (複数行モード re.DOTALL を使用)
+    clean_text = re.sub(r"<think>.*?</think>", "", clean_text, flags=re.DOTALL)
+
+    # 2. プロンプトの定型文を除去
+    # 各行の先頭からマッチさせるため、re.MULTILINE フラグを使用
+    patterns_to_remove = [
+        # LLM unavailable の行やデバッグ情報
+        r"^\[LLM unavailable\].*?日本語\]\s*",
+        # ツアーガイドのペルソナ設定
+        r"^あなたは鳥海山エリアを訪れる観光客向けのプロのツアーガイドです。\s*",
+        # 音声案内作成の指示
+        r"^スポット「.*?」の現在の状況を伝える、簡潔な音声案内を作成してください。\s*",
+        # スポット名と現在の状況のプレフィックス (ナレーション本体と区別するため)
+        r"^スポット名: .*?\s*",
+        r"^現在の状況: .*?\s*",
+    ]
+
+    for pattern in patterns_to_remove:
+        clean_text = re.sub(pattern, "", clean_text, flags=re.MULTILINE | re.DOTALL)
     
     # 残ったテキストの先頭と末尾の空白（改行含む）を除去
     return clean_text.strip()
 
-@celery_app.task(name="llm.describe")
+@celery_app.task(name="llm.describe", queue="generation")
 def describe(payload: dict) -> dict:
     """
     LLMでスポットの説明文を生成するCeleryタスク。
@@ -58,8 +78,11 @@ def describe(payload: dict) -> dict:
 
         # generator が生のテキスト(思考タグ含む)を返す
         raw_text = generator.generate_text(ptxt) # generator.py を使用
+        logger.info(f"LLM raw output for spot {s.spot_id}: {raw_text}")
+
         # 抽出関数を通してクリーンアップする
         narration_text = _extract_narration(raw_text)
+        logger.info(f"LLM cleaned narration for spot {s.spot_id}: {narration_text}")
         
         items.append(DescribeItem(
             spot_id=s.spot_id,

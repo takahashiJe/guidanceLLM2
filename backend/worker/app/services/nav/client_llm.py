@@ -1,21 +1,28 @@
-
 from __future__ import annotations
 
+import os
+import httpx
 import logging
-from backend.api.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
+LLM_SVC_BASE = os.getenv("LLM_SVC_BASE", "http://svc-llm:9103")
+REQ_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT_SECONDS", "3000"))
+
 def post_describe(payload: dict) -> dict:
     """
-    LLMサービスのCeleryタスクを呼び出す。
+    Makes an HTTP POST request to the llm service's /describe endpoint.
     """
+    url = f"{LLM_SVC_BASE}/describe"
     try:
-        # `llm.describe` タスクを `llm` キューに送信し、同期的に結果を待つ
-        async_result = celery_app.send_task("llm.describe", args=[payload], queue="llm")
-        # タスクが完了するまで待機し、結果を取得する
-        result = async_result.get(timeout=300)  # タイムアウトを秒単位で設定
-        return result
-    except Exception as e:
-        logger.exception("LLM service task failed")
-        raise RuntimeError("LLM service task failed") from e
+        # with httpx.Client(timeout=REQ_TIMEOUT) as client:
+        with httpx.Client(timeout=REQ_TIMEOUT) as client:
+            response = client.post(url, json=payload)
+            response.raise_for_status()  # Raise an exception for 4xx or 5xx status codes
+            return response.json()
+    except httpx.RequestError as e:
+        logger.exception(f"Request to LLM service failed: {e}")
+        raise RuntimeError(f"LLM service is unavailable: {e}") from e
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"Error response from LLM service: {e.response.status_code} {e.response.text}")
+        raise RuntimeError(f"Error from LLM service: {e.response.text}") from e

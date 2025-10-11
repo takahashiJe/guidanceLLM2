@@ -6,33 +6,28 @@ import { useNavStore } from '@/stores/nav'
 const route = useRoute()
 const navStore = useNavStore()
 
-// 現在のルートパスに応じてCSSクラスを切り替える
-const appClass = computed(() => {
-  return {
-    'nav-active': route.path === '/nav'
-  }
-})
-
 const deviceId = computed(() => navStore.deviceId)
 
 // アプリケーションマウント時にUUIDを初期化
 onMounted(() => {
   navStore.initializeDeviceId()
 })
+
+const isNavOrChat = computed(() => {
+  return route.path === '/nav' || route.path === '/chat'
+})
 </script>
 
 <template>
-  <div id="app" :class="appClass">
-    <header v-if="!appClass['nav-active']">
+  <div id="app">
+    <header v-if="!isNavOrChat">
       <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
       <div class="wrapper">
         <h1>Guidance LLM</h1>
       </div>
     </header>
 
-    <main>
-      <RouterView />
-    </main>
+    <RouterView />
 
     <footer class="device-id-footer" v-if="deviceId">
       Device ID: {{ deviceId }}
@@ -49,11 +44,6 @@ header {
 .logo {
   display: block;
   margin: 0 auto 2rem;
-}
-
-main {
-  width: 100%;
-  height: 100%;
 }
 
 .device-id-footer {

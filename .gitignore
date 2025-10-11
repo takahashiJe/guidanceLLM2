@@ -30,3 +30,4 @@ plugins/lorart/dist/
 *.iml
 
 backend/logs/
+OC_guidanceLLM/

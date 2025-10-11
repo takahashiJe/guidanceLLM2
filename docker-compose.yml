@@ -1,11 +1,28 @@
 services:
+  # === Vector DB ===
+  chromadb:
+    image: chromadb/chroma:0.6.3   # バージョンを明示推奨
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb_data:/chroma/chroma  # データ永続化フォルダ
+    environment:
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=TRUE
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # === Static DB (POI / access_points) ===
   static-db:
     image: postgis/postgis:16-3.4
-    environment:
-      POSTGRES_DB: static_db
-      POSTGRES_USER: static_db
-      POSTGRES_PASSWORD: static_db
+    env_file:
+      - .env
     ports:
       - "5432:5432"       # ローカルから接続したい場合（不要なら消してください）
     volumes:
@@ -17,37 +34,70 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # === App DB (users / conversations) ===
+  app-db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${APP_DB_USER:-app_user}
+      POSTGRES_PASSWORD: ${APP_DB_PASSWORD:-app_password}
+      POSTGRES_DB: ${APP_DB_NAME:-app_db}
+    ports:
+      - "5433:5432" # static-dbとのポート衝突を避ける
+    volumes:
+      - pgdata_app:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${APP_DB_USER:-app_user} -d ${APP_DB_NAME:-app_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   # 初期データ投入（POI / facilities / access_points）
   static-db-init:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: ./backend/script/Dockerfile.init
     depends_on:
       static-db:
         condition: service_healthy
     working_dir: /app/backend
-    environment:
-      PYTHONPATH: /app/backend
-      STATIC_DB_HOST: static-db
-      STATIC_DB_PORT: "5432"
-      STATIC_DB_NAME: static_db
-      STATIC_DB_USER: static_db
-      STATIC_DB_PASSWORD: static_db
-      # 入力ファイル（必要に応じてパス調整）
-      POI_JSON_PATH: /app/backend/worker/data/POI.json
-      FACILITIES_JSON_PATH: /app/backend/worker/data/facilities.json
-      ACCESS_POINTS_PATH: /app/backend/worker/data/access_points.geojson
-      # 既存データがあっても挿入したい場合は 1 に（既定は 0 = 既存ありならスキップ）
-      LOAD_STATIC_JSON: "1"
-      FORCE_INSERT: "1"
+    env_file:
+      - .env
     volumes:
       - ./backend:/app/backend   # ← COPY せず volume で
-    command: |
-      sh -c "
-        echo '--- Waiting for DB...'
-        sleep 10
-        echo '--- Installing dependencies...'
-        pip install --no-cache-dir psycopg2-binary==2.9.9 sqlalchemy==2.0.30 geoalchemy2==0.14.6 shapely==2.0.4 pandas==2.2.2 orjson==3.10.3 geojson
-        echo '--- Running init script...'
+    command: >
+      bash -lc "
+        set -euo pipefail;
+        echo '--- Waiting for Static DB...';
+        sleep 5;
+        echo '--- Running Static DB init script...';
         python -B script/init_static_db.py
+      "
+
+  # App DBのテーブル作成
+  app-db-init:
+    build:
+      context: .
+      dockerfile: ./backend/script/Dockerfile.init
+    depends_on:
+      app-db:
+        condition: service_healthy
+    working_dir: /app/backend
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+    command: >
+      bash -lc "
+        set -euo pipefail;
+        echo '--- Waiting for App DB...';
+        sleep 5;
+        echo '--- Running App DB init script...';
+        python -B script/init_app_db.py;
+        echo '--- Ensuring spot_realtime table exists...';
+        python -B script/init_spot_realtime.py
       "
   
   # === OSRM (car / foot) ===
@@ -84,22 +134,6 @@ services:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
-    environment:
-      # --- 静的DB（POI・access_points） ---
-      STATIC_DB_HOST: static-db
-      STATIC_DB_PORT: "5432"
-      STATIC_DB_NAME: static_db
-      STATIC_DB_USER: static_db
-      STATIC_DB_PASSWORD: static_db
-      # --- 将来の動的DB（ユーザ）を見据えた命名 ---
-      APP_DB_HOST: app-db
-      APP_DB_PORT: "5432"
-      APP_DB_NAME: app_runtime
-      APP_DB_USER: app_runtime
-      APP_DB_PASSWORD: app_runtime
-      # --- NAVサービス ---
-      NAV_BASE: http://svc-nav:9100
-      ROUTING_BASE: http://svc-routing:9101
     env_file:
       - .env
     volumes:
@@ -107,7 +141,11 @@ services:
     depends_on:
       static-db:
         condition: service_healthy
+      app-db:
+        condition: service_healthy
       svc-nav:
+        condition: service_started
+      svc-agent: # AIエージェントサービスに依存
         condition: service_started
     command: bash -lc "uvicorn backend.api.main:app --host 0.0.0.0 --port 8080 --log-level debug"
     ports:
@@ -123,14 +161,8 @@ services:
   svc-routing:
     build: { context: ., dockerfile: ./backend/Dockerfile }
     command: bash -lc "uvicorn backend.worker.app.services.routing.main:app --host 0.0.0.0 --port 9101"
-    environment:
-      OSRM_CAR_URL: http://osrm-car:5000
-      OSRM_FOOT_URL: http://osrm-foot:5000
-      STATIC_DB_HOST: static-db
-      STATIC_DB_NAME: static_db
-      STATIC_DB_USER: static_db
-      STATIC_DB_PASSWORD: static_db
-      STATIC_DB_PORT: "5432"
+    env_file:
+      - .env
     volumes:
       - ./backend:/app/backend
     depends_on: [osrm-car, osrm-foot, static-db]
@@ -139,16 +171,24 @@ services:
   svc-alongpoi:
     build: { context: ., dockerfile: ./backend/Dockerfile }
     command: bash -lc "uvicorn backend.worker.app.services.alongpoi.main:app --host 0.0.0.0 --port 9102"
-    environment:
-      STATIC_DB_HOST: static-db
-      STATIC_DB_NAME: static_db
-      STATIC_DB_USER: static_db
-      STATIC_DB_PASSWORD: static_db
-      STATIC_DB_PORT: "5432"
+    env_file:
+      - .env
     volumes:
       - ./backend:/app/backend
     depends_on: [static-db]
     ports: ["9102:9102"]
+  
+  svc-llm:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.app.services.llm.main:app --host 0.0.0.0 --port 9103"
+    environment:
+      KNOWLEDGE_DIR: /app/backend/worker/data/knowledge
+      OLLAMA_URL: http://ollama:11434
+      COLLECTION_PREFIX: guidance_
+    volumes: 
+      - ./backend:/app/backend
+      - ./backend/worker/data:/app/backend/worker/data:ro
+    ports: ["9103:9103"]
 
   svc-voice:
     build:
@@ -164,17 +204,8 @@ services:
       uvicorn backend.worker.app.services.voice.main:app --host 0.0.0.0 --port 9104
       "
     gpus: all
-    environment:
-      COQUI_TOS_AGREED: 1
-      COQUI_DEVICE: cuda
-      PACKS_ROOT: /packs
-      VOICE_JA_REF: /app/backend/worker/app/services/voice/refs/alison_ja.wav
-      VOICE_EN_REF: /app/backend/worker/app/services/voice/refs/alison_en_safe.wav
-      VOICE_ZH_REF: /app/backend/worker/app/services/voice/refs/alison_zh.wav
-      VOICE_JA: "ja_female_1"
-      VOICE_EN: "en_female_1"
-      VOICE_ZH: "zh_female_1"
-      VOICE_DEFAULT: "neutral_1"
+    env_file:
+      - .env
     volumes:
       - ./backend:/app/backend
       - /var/www/packs:/packs
@@ -183,38 +214,31 @@ services:
   svc-nav:
     build: { context: ., dockerfile: ./backend/Dockerfile }
     command: bash -lc "uvicorn backend.worker.app.services.nav.main:app --host 0.0.0.0 --port 9100"
-    environment:
-      ROUTING_BASE: http://svc-routing:9101
-      ALONGPOI_BASE: http://svc-alongpoi:9102
-      VOICE_BASE: http://svc-voice:9104
-      PACKS_DIR: /packs
-      PACKS_BASE_URL: /packs
-      STATIC_DB_HOST: static-db
-      STATIC_DB_PORT: "5432"
-      STATIC_DB_NAME: static_db
-      STATIC_DB_USER: static_db
-      STATIC_DB_PASSWORD: static_db
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+    env_file:
+      - .env
     volumes:
       - ./backend:/app/backend
       - /var/www/packs:/packs
-    depends_on: [svc-routing, svc-alongpoi, svc-voice, redis]
+    depends_on: [svc-routing, svc-alongpoi, svc-llm, svc-voice, redis]
     ports: ["9100:9100"]
-  
-  # --- Frontend (開発用) ---
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     # ホストの5173番ポートをコンテナの5173番に接続 (Viteのデフォルト)
-  #     - "5173:5173" 
-  #   volumes:
-  #     # ソースコードの変更を即時反映させる
-  #     - ./frontend:/app
-  #     # node_modulesはホストと共有しない(パフォーマンスと環境差異のため)
-  #     - /app/node_modules
 
+  # === AI Agent Service ===
+  svc-agent:
+    build: { context: ., dockerfile: ./backend/Dockerfile }
+    command: bash -lc "uvicorn backend.worker.agent_app.api:app --host 0.0.0.0 --port 9200"
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app/backend
+    depends_on:
+      - app-db
+      - redis
+      - chromadb
+      # Celery workers are on another machine, so no depends_on
+    ports: ["9200:9200"]
+    restart: unless-stopped
+  
 volumes:
   pgdata_static:
+  pgdata_app:
+  chromadb_data:

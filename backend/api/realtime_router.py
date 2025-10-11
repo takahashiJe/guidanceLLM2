@@ -12,9 +12,12 @@ import random
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from starlette.responses import Response
+from sqlalchemy.exc import SQLAlchemyError
 
 from .schemas import RTDoc, RTDocResponse
 from backend.api.logging_config import get_lora_logger
+from backend.worker.agent_app.db_client import SessionLocal
+from backend.api.realtime_repo import get_spot_realtime, upsert_spot_realtime
 
 try:
     import paho.mqtt.client as mqtt
@@ -53,23 +56,35 @@ MQTT_DOWNLINK_TOPIC = f"v3/{TTN_APP_ID}@ttn/devices/{TTN_DEVICE_ID}/down/push"
 
 def _get_or_create_spot_data(spot_id: str) -> RTDoc:
     """
-    指定されたspot_idのデータを状態から取得するか、存在しない場合は作成する。
+    指定されたspot_idのデータをDBから取得し、存在しない場合は作成する。
     """
-    # 状態（_state）にデータが既に存在すれば、それを返す
-    if spot_id in _state:
-        return _state[spot_id]
-    
-    # 存在しない場合は、新しいランダムなダミーデータを生成する
-    import random
-    new_doc = RTDoc(
-        s=spot_id,
-        w=random.randint(0, 2),  # 0-2の範囲
-        c=random.randint(0, 2)   # 0-4の範囲
-    )
-    
-    # 新しいデータを状態に保存してから返す
-    _state[spot_id] = new_doc
-    return new_doc
+    cached = _state.get(spot_id)
+    if cached:
+        return cached
+
+    try:
+        with SessionLocal() as db:
+            record = get_spot_realtime(db, spot_id)
+            if record is None:
+                weather = random.randint(0, 2)
+                congestion = random.randint(0, 2)
+                record = upsert_spot_realtime(db, spot_id, weather, congestion)
+
+            doc = RTDoc(
+                s=spot_id,
+                w=int(record.weather),
+                c=int(record.congestion),
+            )
+    except SQLAlchemyError:
+        logger.exception("スポットのリアルタイム情報の取得に失敗しました (spot_id=%s)", spot_id)
+        doc = RTDoc(
+            s=spot_id,
+            w=random.randint(0, 2),
+            c=random.randint(0, 2),
+        )
+
+    _state[spot_id] = doc
+    return doc
 
 def _status_monitor():
     while True:
@@ -222,6 +237,16 @@ def _mock_push(spot_id: str, body: RTDocResponse):
     """
     # bodyのデータとspot_idを使って、新しいRTDocインスタンスを作成
     doc = RTDoc(s=spot_id, **body.model_dump())
+    try:
+        with SessionLocal() as db:
+            upsert_spot_realtime(db, spot_id, doc.w, doc.c)
+    except SQLAlchemyError:
+        logger.exception("リアルタイム情報の更新に失敗しました (spot_id=%s)", spot_id)
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "detail": "failed to persist realtime info"},
+        )
+
     # 作成したインスタンスを内部状態に保存
     _state[spot_id] = doc
     return {"ok": True}

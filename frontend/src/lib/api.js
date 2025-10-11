@@ -136,3 +136,40 @@ export async function fetchRealtimeBySpotId(spotId, opts = {}) {
 }
 
 // Obsolete polling functions and aliases are removed.
+
+// --- User Authentication ---
+
+/** POST /v1/users -> ユーザー新規作成 */
+export async function createUser(userName, language = 'ja') {
+  const { status, body } = await apiFetch('/v1/users', {
+    method: 'POST',
+    body: JSON.stringify({ user_name: userName, language }),
+  });
+  if (status !== 201) throw new Error(`unexpected status ${status}`);
+  return body;
+}
+
+/** POST /v1/login -> ログイン */
+export async function loginUser(userName) {
+  const { status, body } = await apiFetch('/v1/login', {
+    method: 'POST',
+    body: JSON.stringify({ user_name: userName }),
+  });
+  if (status !== 200) throw new Error(`unexpected status ${status}`);
+  return body;
+}
+
+/** POST /v1/chat -> AIエージェントとの会話 */
+export async function sendChatMessage(userName, userInput, threadId) {
+  const payload = {
+    user_name: userName,
+    user_input: userInput,
+    thread_id: threadId,
+  };
+  const { status, body } = await apiFetch('/v1/chat', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  if (status !== 200) throw new Error(`unexpected status ${status}`);
+  return body;
+}

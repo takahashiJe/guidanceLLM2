@@ -81,45 +81,36 @@ def _knowledge_base() -> Path:
     return Path(os.getenv("KNOWLEDGE_DIR", "backend/worker/data/knowledge")).resolve()
 
 
-def _safe_slug(s: Optional[str]) -> Optional[str]:
-    if not s:
-        return None
-    # ファイル名安全化
-    s2 = "".join(ch for ch in s if ch.isalnum() or ch in ("-", "_"))
-    return s2 or None
-
-
 def _value_from_ref(ref: Any, key: str, default: Any = None) -> Any:
     if isinstance(ref, dict):
         return ref.get(key, default)
     return getattr(ref, key, default)
 
 
-def _find_md_by_slug(lang: str, md_slug: str, max_files: int = 1) -> List[Dict]:
+def _find_md_by_spot_id(lang: str, spot_id: str) -> List[Dict]:
     """
-    knowledge/{lang}/**/{md_slug}.md を最優先で探索（再帰）。
+    knowledge/{lang}/faci_spot/{spot_id}.md を探索。
     """
-    base = _knowledge_base() / lang
+    base = _knowledge_base() / lang / "faci_spot"
     if not base.exists():
         return []
+
+    target_file = base / f"{spot_id}.md"
     matches: List[Dict] = []
-    for p in base.rglob(f"{md_slug}.md"):
+    if target_file.is_file():
         try:
-            txt = p.read_text(encoding="utf-8")
-        except Exception:
-            continue
-        matches.append({"text": txt, "source": str(p)})
-        if len(matches) >= max_files:
-            break
+            txt = target_file.read_text(encoding="utf-8")
+            matches.append({"text": txt, "source": str(target_file)})
+        except Exception as e:
+            _log.warning(f"Failed to read {target_file}: {e}")
     return matches
 
 
-def _load_md_by_slug(md_slug: str, lang: str) -> Optional[Dict[str, str]]:
-    safe_slug = _safe_slug(md_slug)
-    if not safe_slug:
+def _load_md_by_spot_id(spot_id: str, lang: str) -> Optional[Dict[str, str]]:
+    if not spot_id:
         return None
 
-    docs = _find_md_by_slug(lang, safe_slug, max_files=1)
+    docs = _find_md_by_spot_id(lang, spot_id)
     if not docs:
         return None
 
@@ -137,7 +128,7 @@ def _load_md_by_slug(md_slug: str, lang: str) -> Optional[Dict[str, str]]:
         except Exception:
             source = str(source)
     else:
-        source = f"{lang}/{safe_slug}.md"
+        source = f"{lang}/faci_spot/{spot_id}.md"
 
     return {"text": text, "source": source}
 
@@ -165,49 +156,29 @@ def _chroma_search(q: str, lang: str, n: int = 4) -> List[Dict]:
 
 def retrieve_context(spot_ref, lang: str) -> list[dict]:
     """
-    md_slug と description をまず入れる。
-    Chroma にインデックスがあれば、クエリに基づく関連チャンクを少量追加。
+    spot_id に紐づくMDがあればそれを使い、なければ description を使う。
     """
     ctx: list[dict] = []
 
-    # 1) md_slug を最優先で追加
-    md_slug = _value_from_ref(spot_ref, "md_slug")
-    if md_slug:
-        md_doc = _load_md_by_slug(md_slug, lang)
+    # 1) spot_id を最優先で追加
+    spot_id = _value_from_ref(spot_ref, "spot_id")
+    if spot_id:
+        md_doc = _load_md_by_spot_id(spot_id, lang)
         if md_doc:
             ctx.append(md_doc)
 
-    # 2) Spot.description も追加
-    desc = _value_from_ref(spot_ref, "description")
-    if desc:
-        if isinstance(desc, (dict, list)):
-            try:
-                desc_text = json.dumps(desc, ensure_ascii=False)
-            except Exception:
+    # spot_id でドキュメントが見つからなかった場合、description を使う
+    if not ctx:
+        desc = _value_from_ref(spot_ref, "description")
+        if desc:
+            if isinstance(desc, (dict, list)):
+                try:
+                    desc_text = json.dumps(desc, ensure_ascii=False)
+                except Exception:
+                    desc_text = str(desc)
+            else:
                 desc_text = str(desc)
-        else:
-            desc_text = str(desc)
-        if desc_text:
-            ctx.append({"text": desc_text, "source": "spot.description"})
-
-    # 3) 追加RAG: Chroma が使える場合だけ関連章節を付与（安全に無視可）
-    #    クエリは name+description を素朴に連結
-    name = _value_from_ref(spot_ref, "name", "") or ""
-    query = f"{name} {desc or ''}".strip()
-    if query:
-        coll_name = f"{COLLECTION_PREFIX}{lang}"
-        coll_id = _chroma_get_collection_id(coll_name)
-        if coll_id:
-            emb = _embed_query(query)
-            if emb:
-                extras = _chroma_query(coll_id, emb, k=6)
-                # 重複ソースを軽く抑制（同一sourceは最初だけ）
-                seen = set(s.get("source") for s in ctx)
-                for e in extras:
-                    src = e.get("source")
-                    if src in seen:
-                        continue
-                    seen.add(src)
-                    ctx.append({"text": e.get("text", ""), "source": src})
+            if desc_text:
+                ctx.append({"text": desc_text, "source": "spot.description"})
 
     return ctx

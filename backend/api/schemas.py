@@ -14,6 +14,33 @@ class Coord(BaseModel):
     lon: float
 
 
+class ChatRequest(BaseModel):
+    user_name: str
+    user_input: str
+    thread_id: str
+
+
+class ChatResponse(BaseModel):
+    response_text: str
+    itinerary: List[str]
+    thread_id: str
+    language: Literal["ja", "en", "zh"]
+
+
+class UserCreateRequest(BaseModel):
+    user_name: str
+    language: Literal["ja", "en", "zh"]
+
+
+class UserLoginRequest(BaseModel):
+    user_name: str
+
+
+class UserResponse(BaseModel):
+    user_name: str
+    language: Literal["ja", "en", "zh"]
+
+
 # class PlanRequest(BaseModel):
 #     """
 #     Frontend → Gateway（→ nav）で共有する入力スキーマ。
