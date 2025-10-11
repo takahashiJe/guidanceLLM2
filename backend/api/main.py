@@ -51,13 +51,18 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         res_log_message = f"[{datetime.datetime.now().isoformat()}] RESPONSE: {response.status_code} (took {process_time:.4f}s)\nBody: {res_body_to_log}\n---"
         logger.info(res_log_message)
 
-        return Response(content=res_body_bytes, status_code=response.status_code, headers=dict(response.headers), media_type=response.media_type)
+        # Preserve original headers but ensure Content-Type for JSON includes UTF-8
+        final_headers = dict(response.headers)
+        if response.media_type == "application/json":
+            final_headers["Content-Type"] = "application/json; charset=utf-8"
+
+        return Response(content=res_body_bytes, status_code=response.status_code, headers=final_headers, media_type=response.media_type)
 
 from fastapi.middleware.cors import CORSMiddleware
 
 def create_app() -> FastAPI:
     app = FastAPI(title="API Gateway", version="0.1.0")
-    # app.add_middleware(LoggingMiddleware) # ログが長すぎるため一時的に無効化
+    app.add_middleware(LoggingMiddleware)
 
     # origins = [
     #     "https://ibera.cps.akita-pu.ac.jp",

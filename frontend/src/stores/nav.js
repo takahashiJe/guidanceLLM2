@@ -40,6 +40,7 @@ export const useNavStore = defineStore('nav', () => {
   // --- Actions ---
 
   const reset = () => {
+    console.log('[NavStore] Resetting navigation state...');
     lang.value = 'ja'
     origin.value = null
     waypointsByIds.value = []
@@ -47,7 +48,7 @@ export const useNavStore = defineStore('nav', () => {
     isRouteLoading.value = false
     isNavigating.value = false
     error.value = null
-    console.log('NavStore reset')
+    console.log('[NavStore] Navigation state has been reset.');
   }
 
   const fetchRoute = async (planOptions, opts = {}) => {
@@ -137,6 +138,23 @@ export const useNavStore = defineStore('nav', () => {
     console.log('Device ID initialized:', deviceId.value)
   }
 
+  const setItinerary = (itinerary) => {
+    console.log('[NavStore] Setting itinerary:', itinerary);
+    if (!Array.isArray(itinerary)) {
+      console.warn('[NavStore] setItinerary received non-array value:', itinerary);
+      return;
+    };
+    waypointsByIds.value = itinerary;
+    if (plan.value) {
+      // This is a simplified representation. The full waypoint_info would ideally be fetched or already present.
+      plan.value.waypoints_info = itinerary.map(spot_id => ({ spot_id, name: spot_id }));
+    } else {
+      // If there is no plan, create a minimal one
+      plan.value = { waypoints_info: itinerary.map(spot_id => ({ spot_id, name: spot_id })) };
+    }
+    console.log('[NavStore] Itinerary set. Waypoints by ID:', waypointsByIds.value);
+  }
+
   return {
     // State
     lang,
@@ -157,6 +175,7 @@ export const useNavStore = defineStore('nav', () => {
     startGuidance,
     reset,
     initializeDeviceId,
+    setItinerary,
   }
 }, {
   persist: true // LocalStorageに保存

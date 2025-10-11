@@ -1,4 +1,3 @@
-<!-- frontend/src/views/LoginView.vue -->
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -16,22 +15,16 @@ const isLoginMode = computed(() => formMode.value === 'login')
 
 function toggleFormMode() {
   formMode.value = isLoginMode.value ? 'register' : 'login'
-  errorMessage.value = '' // モード切り替え時にエラーメッセージをクリア
+  errorMessage.value = ''
 }
 
 function getErrorMessage(error) {
-  if (!error || !error.status) {
-    return '不明なエラーが発生しました。'
-  }
+  if (!error || !error.status) return '不明なエラーが発生しました。'
   switch (error.status) {
-    case 404:
-      return 'ユーザーが見つかりません。'
-    case 409:
-      return 'そのユーザー名は既に使用されています。'
-    case 400:
-      return '不正なリクエストです。入力内容を確認してください。'
-    default:
-      return `エラーが発生しました (コード: ${error.status})。`
+    case 404: return 'ユーザーが見つかりません。';
+    case 409: return 'そのユーザー名は既に使用されています。';
+    case 400: return '不正なリクエストです。入力内容を確認してください。';
+    default: return `エラーが発生しました (コード: ${error.status})。`;
   }
 }
 
@@ -45,158 +38,144 @@ async function handleSubmit() {
 
 async function performLogin() {
   if (!userName.value.trim()) {
-    errorMessage.value = 'ユーザー名を入力してください。'
-    return
+    errorMessage.value = 'ユーザー名を入力してください。';
+    return;
   }
-  isLoading.value = true
-  errorMessage.value = ''
-  const result = await userStore.login(userName.value.trim())
-  isLoading.value = false
+  isLoading.value = true;
+  errorMessage.value = '';
+  const result = await userStore.login(userName.value.trim());
+  isLoading.value = false;
   if (result.success) {
-    router.push('/chat')
+    router.push('/app/chat');
   } else {
-    errorMessage.value = getErrorMessage(result.error)
+    errorMessage.value = getErrorMessage(result.error);
   }
 }
 
 async function performRegister() {
   if (!userName.value.trim()) {
-    errorMessage.value = 'ユーザー名を入力してください。'
-    return
+    errorMessage.value = 'ユーザー名を入力してください。';
+    return;
   }
-  isLoading.value = true
-  errorMessage.value = ''
-  const result = await userStore.register(userName.value.trim(), language.value)
-  isLoading.value = false
+  isLoading.value = true;
+  errorMessage.value = '';
+  const result = await userStore.register(userName.value.trim(), language.value);
+  isLoading.value = false;
   if (result.success) {
-    router.push('/chat')
+    formMode.value = 'login';
+    errorMessage.value = '登録が完了しました。ログインしてください。';
   } else {
-    errorMessage.value = getErrorMessage(result.error)
+    errorMessage.value = getErrorMessage(result.error);
   }
 }
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="login-box">
-      <h2>{{ isLoginMode ? 'ログイン' : '新規登録' }}</h2>
-      <form @submit.prevent="handleSubmit">
-        <div class="input-group">
-          <label for="username">ユーザー名</label>
-          <input
-            id="username"
-            v-model="userName"
-            type="text"
-            placeholder="例: tanaka"
-            required
-            :disabled="isLoading"
-          />
+  <div class="tw-relative tw-flex tw-min-h-screen tw-w-full tw-items-center tw-justify-center tw-overflow-hidden tw-p-4">
+    <!-- Background Image and Overlay -->
+    <div class="tw-absolute tw-inset-0 tw-z-0 tw-bg-cover tw-bg-center" style="background-image: url('/chokai.jpg')"></div>
+    <div class="tw-absolute tw-inset-0 tw-z-0 tw-bg-gradient-to-b tw-from-black/90 tw-via-black/60 tw-to-transparent"></div>
+
+    <!-- Absolutely Positioned Title -->
+    <div class="tw-absolute tw-top-0 tw-left-0 tw-right-0 tw-z-10 tw-pt-24 sm:tw-pt-32">
+      <div class="tw-w-full tw-max-w-md tw-mx-auto tw-px-4 animate-pop-in" style="animation-delay: 0.2s;">
+        <h1 class="tw-text-5xl tw-font-bold tw-text-white" style="text-shadow: 1px 1px 10px rgba(0,0,0,0.5);">
+          Chokai Guidance
+          <span class="tw-block tw-text-3xl tw-font-light tw-tracking-wider tw-mt-2">by LLM</span>
+        </h1>
+      </div>
+    </div>
+
+    <!-- Centered Login Panel -->
+    <div class="tw-relative tw-z-10 tw-w-full tw-max-w-md tw-mt-20 animate-fade-in-up" style="animation-delay: 0.4s;">
+      <!-- Glass Panel -->
+      <div class="tw-rounded-2xl tw-border tw-border-slate-700 tw-bg-slate-800/60 tw-p-8 tw-backdrop-blur-lg md:tw-p-10">
+        <div class="tw-text-center">
+          <h1 class="tw-text-3xl tw-font-bold tw-text-white md:tw-text-4xl">{{ isLoginMode ? 'Welcome Back' : 'Create Account' }}</h1>
+          <p class="tw-mt-2 tw-text-slate-400">{{ isLoginMode ? 'Enter your username to continue' : 'Join the platform' }}</p>
         </div>
 
-        <!-- Language Selector (Register mode only) -->
-        <div v-if="!isLoginMode" class="input-group">
-          <label for="language">言語</label>
-          <select id="language" v-model="language" :disabled="isLoading" class="language-select">
-            <option value="ja">日本語</option>
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
-        </div>
+        <form @submit.prevent="handleSubmit" class="tw-mt-8 tw-space-y-6">
+          <div class="tw-space-y-4">
+            <!-- Username Input -->
+            <div class="tw-relative">
+              <input
+                id="username"
+                v-model="userName"
+                type="text"
+                placeholder="Username"
+                required
+                :disabled="isLoading"
+                class="tw-peer tw-w-full tw-rounded-lg tw-border tw-border-slate-700 tw-bg-slate-900/70 tw-px-4 tw-py-3 tw-text-white placeholder:tw-text-slate-500 tw-transition-colors focus:tw-border-blue-500 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500/50"
+              />
+            </div>
 
-        <button type="submit" class="button" :disabled="isLoading">
-          {{ isLoading ? '処理中...' : (isLoginMode ? 'ログイン' : '新規登録') }}
-        </button>
+            <!-- Language Selector (Register mode only) -->
+            <div v-if="!isLoginMode" class="tw-relative">
+              <select id="language" v-model="language" :disabled="isLoading" class="tw-w-full tw-rounded-lg tw-border tw-border-slate-700 tw-bg-slate-900/70 tw-px-4 tw-py-3 tw-text-white tw-transition-colors focus:tw-border-blue-500 focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500/50">
+                <option value="ja">日本語</option>
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+              </select>
+            </div>
+          </div>
 
-        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
-      </form>
+          <!-- Error Message -->
+          <div v-if="errorMessage" class="tw-rounded-md tw-bg-red-500/10 tw-p-3 tw-text-center tw-text-sm tw-text-red-400">
+            {{ errorMessage }}
+          </div>
 
-      <div class="toggle-form">
-        <p>
-          {{ isLoginMode ? 'アカウントをお持ちでないですか？' : 'すでにアカウントをお持ちですか？' }}
-          <a href="#" @click.prevent="toggleFormMode">
-            {{ isLoginMode ? '新規登録' : 'ログイン' }}
-          </a>
-        </p>
+          <!-- Submit Button -->
+          <button type="submit" :disabled="isLoading" class="tw-w-full tw-rounded-lg tw-bg-blue-600 tw-px-5 tw-py-3 tw-text-base tw-font-semibold tw-text-white tw-transition-all hover:tw-bg-blue-700 active:tw-scale-95 disabled:tw-cursor-not-allowed disabled:tw-bg-slate-600">
+            <span v-if="isLoading">Processing...</span>
+            <span v-else>{{ isLoginMode ? 'Login' : 'Create Account' }}</span>
+          </button>
+
+          <!-- Toggle Form Mode -->
+          <div class="tw-text-center tw-text-sm tw-text-slate-400">
+            <p>
+              {{ isLoginMode ? "Don't have an account?" : 'Already have an account?' }}
+              <a href="#" @click.prevent="toggleFormMode" class="tw-font-medium tw-text-blue-400 tw-transition-colors hover:tw-text-blue-300">
+                {{ isLoginMode ? 'Sign up' : 'Log in' }}
+              </a>
+            </p>
+          </div>
+        </form>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.login-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #f0f2f5;
+/* Pop-in animation for the title */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-.login-box {
-  width: 100%;
-  max-width: 400px;
-  padding: 40px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  text-align: center;
+
+.animate-pop-in {
+  animation: fadeInScale 0.7s ease-out forwards;
 }
-h2 {
-  margin-bottom: 24px;
-  color: #333;
+
+/* Fade-in-up animation for the panel */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.input-group {
-  margin-bottom: 20px;
-  text-align: left;
-}
-label {
-  display: block;
-  margin-bottom: 5px;
-  font-weight: bold;
-  color: #555;
-}
-input,
-.language-select {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 16px;
-  background-color: white;
-}
-.button {
-  width: 100%;
-  padding: 12px;
-  background-color: #1d4ed8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s;
-  margin-top: 10px;
-}
-.button:disabled {
-  background-color: #9ca3af;
-  cursor: not-allowed;
-}
-.button:not(:disabled):hover {
-  opacity: 0.9;
-}
-.error-message {
-  color: #dc2626;
-  margin-top: 15px;
-  min-height: 1.2em;
-}
-.toggle-form {
-  margin-top: 20px;
-  font-size: 14px;
-  color: #555;
-}
-.toggle-form a {
-  color: #1d4ed8;
-  text-decoration: none;
-  font-weight: bold;
-}
-.toggle-form a:hover {
-  text-decoration: underline;
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
 }
 </style>

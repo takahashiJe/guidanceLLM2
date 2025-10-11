@@ -2,6 +2,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 
+// Import the new shell component
+import AppShell from '@/components/AppShell.vue';
+
 const PlanView = () => import('@/views/PlanView.vue');
 const NavView  = () => import('@/views/NavView.vue');
 const LoginView = () => import('@/views/LoginView.vue');
@@ -10,36 +13,46 @@ const ChatView = () => import('@/views/ChatView.vue');
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/login' },
+    { path: '/login', name: 'login', component: LoginView },
+    {
+      // New parent route for all authenticated views
+      path: '/app',
+      component: AppShell,
+      meta: { requiresAuth: true },
+      // Redirect /app to /app/chat by default
+      redirect: { name: 'chat' }, 
+      children: [
+        {
+          path: 'chat',
+          name: 'chat',
+          component: ChatView,
+        },
+        // Future authenticated views like a settings page can be added here
+      ]
+    },
+    // Legacy routes, kept for now
     { path: '/plan', name: 'plan', component: PlanView },
     { path: '/nav',  name: 'nav',  component: NavView  },
-    { path: '/login', name: 'login', component: LoginView },
-    { path: '/chat', name: 'chat', component: ChatView, meta: { requiresAuth: true } },
+    // Redirect root to login, the guard will handle redirecting to chat if already logged in
+    { path: '/', redirect: '/login' },
   ],
 });
 
 router.beforeEach((to, from, next) => {
-  // Piniaストアは`setup`外で呼び出すとエラーになる可能性があるため、
-  // ガード内で直接インポートしたストア定義から状態を取得するのではなく、
-  // main.jsでPiniaインスタンスが作成された後にストアにアクセスします。
-  // ここでは、セッションストレージを直接確認する簡易的な方法を取ります。
   const user = sessionStorage.getItem('user');
   const isLoggedIn = !!user;
 
-  // ログインが必要なページへのアクセスチェック
   if (to.matched.some(record => record.meta.requiresAuth)) {
     if (!isLoggedIn) {
-      // 未ログインの場合はログインページにリダイレクト
       next({ name: 'login' });
     } else {
-      next(); // ログイン済みの場合はそのまま表示
+      next();
     }
   } else if (to.name === 'login' && isLoggedIn) {
-    // ログイン済みでログインページにアクセスした場合はチャットページにリダイレクト
+    // If a logged-in user tries to access the login page, redirect them to the chat
     next({ name: 'chat' });
-  }
-  else {
-    next(); // 認証が不要なページはそのまま表示
+  } else {
+    next();
   }
 });
 

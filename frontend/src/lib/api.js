@@ -159,6 +159,15 @@ export async function loginUser(userName) {
   return body;
 }
 
+/** GET /v1/users/{user_name}/session -> セッション復元 */
+export async function getUserSession(userName) {
+  const { status, body } = await apiFetch(`/v1/users/${encodeURIComponent(userName)}/session`, {
+    method: 'GET',
+  });
+  if (status !== 200) throw new Error(`unexpected status ${status}`);
+  return body;
+}
+
 /** POST /v1/chat -> AIエージェントとの会話 */
 export async function sendChatMessage(userName, userInput, threadId) {
   const payload = {

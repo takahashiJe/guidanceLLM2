@@ -1,4 +1,5 @@
 from __future__ import annotations
+import datetime
 
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
@@ -39,6 +40,17 @@ class UserLoginRequest(BaseModel):
 class UserResponse(BaseModel):
     user_name: str
     language: Literal["ja", "en", "zh"]
+
+
+# Models for getting user session
+class HistoryMessage(BaseModel):
+    role: str
+    content: str
+    timestamp: datetime.datetime
+
+class UserSessionResponse(BaseModel):
+    chat_history: List[HistoryMessage]
+    itinerary: List[str]
 
 
 # class PlanRequest(BaseModel):
