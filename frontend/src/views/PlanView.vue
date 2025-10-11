@@ -3,19 +3,23 @@ import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useNavStore } from '@/stores/nav'
-// import { usePosition } from '@/lib/usePosition.js'
-import { usePosition } from '@/lib/usePosition.mock.js'
+import { usePosition } from '@/lib/usePosition.js'
+// import { usePosition } from '@/lib/usePosition.mock.js'
 import { sendSwMessage } from '@/lib/swClient'
+import { fetchPoiCatalog } from '@/lib/poi'
 import NavView from '@/views/NavView.vue'
 
 const nav = useNavStore()
 const router = useRouter()
 const { lang, isRouteLoading, error, plan } = storeToRefs(nav)
-const { currentPos, isMock } = usePosition()
+const position = usePosition()
+const { currentPos, isMock } = position
 
 const isMockPositionMode = computed(() => !!isMock)
 
 const pois = ref([])
+const spotPois = computed(() => pois.value.filter(p => p.kind !== 'facility'))
+const facilityPois = computed(() => pois.value.filter(p => p.kind === 'facility'))
 const selectedIds = ref([])
 
 const hasError = computed(() => !!error.value)
@@ -98,10 +102,11 @@ const previousWindowState = reactive({ x: navWindow.x, y: navWindow.y, width: na
 // --- POIデータ読み込み ---
 onMounted(async () => {
   try {
-    const res = await fetch('/pois.json', { cache: 'no-cache' })
-    pois.value = await res.json()
+    const catalog = fetchPoiCatalog({ includeFacilities: true })
+    pois.value = catalog.sort((a, b) => baseDisplayName(a).localeCompare(baseDisplayName(b), 'ja'))
   } catch (e) {
-    console.error('[plan] failed to load pois.json', e)
+    console.error('[plan] failed to load poi catalog', e)
+    pois.value = []
   }
 
   ensureNavWindowBounds()
@@ -118,9 +123,13 @@ onBeforeUnmount(() => {
 })
 
 // --- UI用ヘルパー関数 ---
+function baseDisplayName(poi) {
+  const names = poi?.official_name || poi?.names || {}
+  return names[lang.value] || names.ja || poi?.name || poi?.spot_id
+}
+
 function displayName(p) {
-  const o = p.official_name || {}
-  return o[lang.value] || o.ja || p.spot_id
+  return baseDisplayName(p)
 }
 
 function nameById(id) {
@@ -297,6 +306,18 @@ watch(isNavWindowVisible, (visible) => {
     isNavWindowFullScreen.value = false
   }
 })
+
+watch(() => nav.plan?.route, (newRoute) => {
+  if (
+    position.isMock &&
+    newRoute?.features?.[0]?.geometry?.type === 'LineString' &&
+    newRoute.features[0].geometry.coordinates &&
+    position.setMockTrack
+  ) {
+    const track = newRoute.features[0].geometry.coordinates;
+    position.setMockTrack(track);
+  }
+}, { deep: true });
 </script>
 
 <template>
@@ -320,15 +341,37 @@ watch(isNavWindowVisible, (visible) => {
 
       <div class="row">
         <label>スポット選択（複数可・順番に周遊）</label>
-        <div class="chips">
-          <button
-            v-for="p in pois"
-            :key="p.spot_id"
-            @click="toggleSpot(p.spot_id)"
-            :class="{ chip: true, on: selectedIds.includes(p.spot_id) }"
-          >
-            {{ displayName(p) }}
-          </button>
+        <div class="chips-groups">
+          <section>
+            <p class="chips-heading">自然スポット</p>
+            <div class="chips">
+              <button
+                v-for="p in spotPois"
+                :key="`spot-${p.spot_id}`"
+                @click="toggleSpot(p.spot_id)"
+                :class="{ chip: true, on: selectedIds.includes(p.spot_id) }"
+              >
+                <span v-if="p.kind === 'facility'" class="facility-chip" aria-hidden="true">🏢</span>
+                {{ displayName(p) }}
+              </button>
+              <p v-if="!spotPois.length" class="chips-empty">自然スポットが読み込めませんでした。</p>
+            </div>
+          </section>
+          <section>
+            <p class="chips-heading">施設</p>
+            <div class="chips">
+              <button
+                v-for="p in facilityPois"
+                :key="`facility-${p.spot_id}`"
+                @click="toggleSpot(p.spot_id)"
+                :class="{ chip: true, on: selectedIds.includes(p.spot_id) }"
+              >
+                <span class="facility-chip" aria-hidden="true">🏢</span>
+                {{ displayName(p) }}
+              </button>
+              <p v-if="!facilityPois.length" class="chips-empty">施設が読み込めませんでした。</p>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -462,10 +505,34 @@ select {
   font-size: 16px;
   width: 100%;
 }
+.chips-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.chips-heading {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.chips-empty {
+  color: #777;
+  font-size: 13px;
+  margin: 0;
+}
+.facility-chip {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 16px;
+  vertical-align: middle;
 }
 .chip {
   padding: 6px 12px;

@@ -1,27 +1,51 @@
+
 // src/lib/api.js
+import { useNavStore } from '@/stores/nav';
+
 const BACK_BASE = '/back';              // Nginxで /back → APIゲートウェイにリバースプロキシ
 const API_BASE  = `${BACK_BASE}/api`;
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
 async function apiFetch(path, opts = {}) {
-  const url = `${API_BASE}${path}`;
+  const navStore = useNavStore();
+  let url = `${API_BASE}${path}`;
+
+  // Inject deviceId as a query parameter for all requests
+  if (navStore.deviceId) {
+    const separator = url.includes('?') ? '&' : '?';
+    url += `${separator}uuid=${navStore.deviceId}`;
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(opts.headers || {}),
   };
+
   const init = {
     method: 'GET',
     ...opts,
     headers,
   };
+
+  // For non-GET requests, also inject deviceId into the body if it exists
+  if (init.method.toUpperCase() !== 'GET' && init.body) {
+    try {
+      const payload = JSON.parse(init.body);
+      if (navStore.deviceId) {
+        payload.uuid = navStore.deviceId;
+      }
+      init.body = JSON.stringify(payload);
+    } catch (e) {
+      console.error('Failed to inject deviceId into request body', e);
+    }
+  }
+
   console.debug('[api]', init.method, path);
   const res = await fetch(url, init);
   const txt = await res.text();
   let body;
   try { body = txt ? JSON.parse(txt) : {}; } catch { body = txt; }
   console.debug('[api]', init.method, 'status', res.status);
-  if (res.status >= 400 && res.status !== 202) {
+  if (res.status >= 400) { // Removed status 202 from special cases
     const err = new Error(`HTTP ${res.status}`);
     err.status = res.status;
     err.body = body;
@@ -53,15 +77,14 @@ export async function createRoutePlan(options) {
   return body;
 }
 
-/** POST /nav/plan → { task_id } (202) */
-export async function startNavigationTask(routePayload) {
+/** POST /nav/plan → PlanResponse (200) */
+async function createNavigationPlan(routePayload) {
   const { status, body } = await apiFetch('/nav/plan', {
     method: 'POST',
     body: JSON.stringify(routePayload),
   });
-  if (status !== 202) throw new Error(`unexpected status ${status}`);
-  if (!body?.task_id) throw new Error('no task_id');
-  return body; // { task_id }
+  if (status !== 200) throw new Error(`unexpected status ${status}`);
+  return body; // Returns the full plan
 }
 
 /**
@@ -77,7 +100,8 @@ export async function createPlan(payload) {
       buffer: payload.buffer || { car: 300, foot: 10 },
       ...payload,
     };
-    return startNavigationTask(navPayload);
+    // Directly call the new synchronous function
+    return createNavigationPlan(navPayload);
   }
 
   // 旧形式: routing 未実行の場合はここで routing → NAV を直列で呼び出す
@@ -91,40 +115,8 @@ export async function createPlan(payload) {
     legs: routeResult.legs,
     waypoints_info: routeResult.waypoints_info,
   };
-  return startNavigationTask(navPayload);
-}
-
-/** GET /nav/plan/tasks/:id を 200になるまでポーリングし、PlanResponse を返す */
-export async function pollPlan(taskId, onTick) {
-  let attempt = 0;
-  while (true) {
-    const { status, body } = await apiFetch(
-      `/nav/plan/tasks/${encodeURIComponent(taskId)}?ts=${Date.now()}`
-    );
-    if (status === 200) return body;        // 最終レスポンス
-    if (status === 202) {                   // 進捗
-      onTick && onTick({ attempt, state: body?.state, ready: body?.ready === true });
-      await sleep(Math.min(1500 + attempt * 200, 3000));
-      attempt++;
-      continue;
-    }
-    if (status === 500) {
-      const err = new Error('Server error');
-      err.body = body;
-      throw err;
-    }
-    const err = new Error(`Unexpected status ${status}`);
-    err.body = body;
-    throw err;
-  }
-}
-
-/** GET /nav/plan/tasks/:id → 単発取得（202/200どちらでもボディを返す） */
-export async function getPlanResult(taskId) {
-  const { body } = await apiFetch(
-    `/nav/plan/tasks/${encodeURIComponent(taskId)}?ts=${Date.now()}`
-  );
-  return body;
+  // Directly call the new synchronous function
+  return createNavigationPlan(navPayload);
 }
 
 // --- Realtime (LoRaWAN/MQTT) ---
@@ -143,6 +135,4 @@ export async function fetchRealtimeBySpotId(spotId, opts = {}) {
   return { status, body }
 }
 
-// 互換用エイリアス（既存コード対策）
-export const fetchPlanResult = pollPlan;
-export const fetchPlanTask   = pollPlan;
+// Obsolete polling functions and aliases are removed.

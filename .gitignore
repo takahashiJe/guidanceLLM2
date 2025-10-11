@@ -5,9 +5,6 @@
 __pycache__/
 *.pyc
 
-# ダウンロードした言語モデルを無視する
-backend/worker/llm_models/
-
 # Dockerが生成するファイルを無視する
 ollama_data/
 packs/
@@ -26,16 +23,10 @@ dist/
 plugins/lorart/node_modules/
 plugins/lorart/dist/
 
-# Android build
-android/.gradle/
-android/build/
-android/app/build/
-plugins/lorart/android/build/
-*.apk
-*.aab
-
 # OS / IDE
 .DS_Store
 .idea/
 .vscode/
 *.iml
+
+backend/logs/

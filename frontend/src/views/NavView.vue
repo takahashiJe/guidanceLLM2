@@ -18,26 +18,32 @@
       </div>
       <div class="debug-panel__row">
         <input
-          v-model.number="debugLat"
+          :value="debugLat"
           type="number"
           step="0.000001"
           placeholder="lat"
           class="debug-panel__input"
+          readonly
         />
         <input
-          v-model.number="debugLng"
+          :value="debugLng"
           type="number"
           step="0.000001"
           placeholder="lng"
           class="debug-panel__input"
+          readonly
         />
-        <button type="button" class="debug-panel__action" @click="setDebugPos(debugLat, debugLng)">
-          現在地をセット
+      </div>
+      <div class="debug-panel__row">
+        <button type="button" class="debug-panel__action" @click="startJourney()" :disabled="isJourneyInProgress">
+          ▶ Start
         </button>
-        <label class="debug-panel__follow-toggle">
-          <input type="checkbox" v-model="following" @change="toggleFollowing" />
-          追従
-        </label>
+        <button type="button" class="debug-panel__action" @click="stopJourney()" :disabled="!isJourneyInProgress">
+          ❚❚ Pause
+        </button>
+        <button type="button" class="debug-panel__action" @click="resetJourney()">
+          ↩ Reset
+        </button>
       </div>
       <p class="debug-panel__status">
         現在地:
@@ -203,7 +209,7 @@
             </div>
           </div>
           
-          <div v-if="isNavigationReady" class="control-buttons">
+          <div v-if="isRouteReady" class="control-buttons">
             <button @click="togglePolling" class="control-btn data-sync-btn" :class="{'is-active': isPollingEnabled}" title="リアルタイム情報">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 3v6h6" />
@@ -213,7 +219,7 @@
               </svg>
               <span class="data-sync-btn__label">Live Sync</span>
             </button>
-            <div class="lora-panel" :class="{ 'is-connected': isLoraConnected, 'is-connecting': isLoraConnecting }">
+            <div v-if="isNavigationReady" class="lora-panel" :class="{ 'is-connected': isLoraConnected, 'is-connecting': isLoraConnecting }">
               <div class="lora-panel__icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 2v4" />
@@ -254,9 +260,22 @@
                 <li v-for="(poi, index) in sortedWaypoints" :key="poi.spot_id">
                   <button @click="focusOnSpot(poi)">
                     <span class="order-index">{{ index + 1 }}</span>
-                    {{ poiListLabel(poi) }}
-                    <span class="rt-badges" v-if="isNavigationReady && latestBySpot(poi.spot_id)">
-                      <span class="rt-badge weather" :title="weatherTitle(latestBySpot(poi.spot_id))">{{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}</span>
+                    <span class="poi-label">
+                      <span v-if="isFacilitySpotId(poi.spot_id)" class="facility-chip" aria-hidden="true">🏢</span>
+                      {{ poiListLabel(poi) }}
+                    </span>
+                    <span class="rt-badges" v-if="isRouteReady && latestBySpot(poi.spot_id)">
+                      <span
+                        v-if="!isFacilitySpotId(poi.spot_id)"
+                        class="rt-badge weather"
+                        :title="weatherTitle(latestBySpot(poi.spot_id))"
+                      >{{ weatherEmoji(latestBySpot(poi.spot_id)?.w) }}</span>
+                      <span
+                        v-else
+                        class="rt-badge facility"
+                        title="施設"
+                        aria-label="施設"
+                      >🏢</span>
                       <span v-if="latestBySpot(poi.spot_id)?.u > 0" class="rt-badge upcoming" :title="upcomingTitle(latestBySpot(poi.spot_id))">
                         {{ upcomingEmoji(latestBySpot(poi.spot_id)?.u) }}
                         <small v-if="typeof latestBySpot(poi.spot_id)?.h === 'number'">{{ latestBySpot(poi.spot_id)?.h }}h</small>
@@ -276,7 +295,10 @@
                 <h3 class="nearby-title">Nearby Picks</h3>
                 <ul>
                   <li v-for="poi in sortedAlongPois" :key="poi.spot_id">
-                    <button @click="focusOnSpot(poi)" class="nearby-button">{{ poiListLabel(poi) }}</button>
+                    <button @click="focusOnSpot(poi)" class="nearby-button">
+                      <span v-if="isFacilitySpotId(poi.spot_id)" class="facility-chip" aria-hidden="true">🏢</span>
+                      {{ poiListLabel(poi) }}
+                    </button>
                   </li>
                 </ul>
               </div>
@@ -316,13 +338,13 @@ import {
   getIsJoined
 } from '@/lib/loraBridge'
 
-import { enqueueAudio, resetPlaybackState, useAudioPlaybackState } from '@/lib/audioManager.js'
+import { enqueueAudio, resetPlaybackState, useAudioPlaybackState, primeAudioPlayback } from '@/lib/audioManager.js'
 import * as geo from '@/lib/geoutils.js'
 import { tilesForRoute } from '@/lib/tiles'
 import { sendSwMessage } from '@/lib/swClient'
-
-import { usePosition } from '@/lib/usePosition.mock.js'
-// import { usePosition } from '@/lib/usePosition.js';
+import { fetchPoiCatalog } from '@/lib/poi'
+// import { usePosition } from '@/lib/usePosition.mock.js'
+import { usePosition } from '@/lib/usePosition.js';
 
 const navStore = useNavStore()
 const rtStore = useRtStore()
@@ -343,18 +365,48 @@ const online = ref(navigator.onLine)
 const isLoraConnecting = ref(false)
 const isLoraConnected = ref(false)
 let loraSendInterval = null
-const FOLLOW_MODE_ZOOM = 17
+const facilityIds = ref(new Set())
+const FOLLOW_MODE_ZOOM = 15
 const {
   currentPos,
   debugLat,
   debugLng,
-  following,
   setDebugPos,
-  toggleFollowing,
-  isMock
+  isMock,
+  // New journey controls
+  isJourneyInProgress,
+  startJourney,
+  stopJourney,
+  resetJourney,
 } = usePosition()
 const isDebug = computed(() => !!isMock)
 const isDebugPanelVisible = ref(true)
+
+async function loadFacilityCatalog() {
+  try {
+    const catalog = fetchPoiCatalog({ includeFacilities: true })
+    facilityIds.value = new Set(
+      catalog
+        .filter((item) => item.kind === 'facility')
+        .map((item) => item.spot_id)
+    )
+  } catch (e) {
+    console.error('[nav-view] failed to load facility catalog', e)
+    facilityIds.value = new Set()
+  }
+}
+
+function isFacilitySpotId(spotId) {
+  if (!spotId) return false
+  if (facilityIds.value && typeof facilityIds.value.has === 'function' && facilityIds.value.has(spotId)) {
+    return true
+  }
+  const alongList = plan.value?.along_pois
+  if (Array.isArray(alongList)) {
+    return alongList.some((poi) => poi.spot_id === spotId && poi.kind === 'facility')
+  }
+  return false
+}
 
 const showDebugPanel = () => {
   isDebugPanelVisible.value = true
@@ -374,11 +426,77 @@ const TILE_PRECACHE_PROFILES = [
 ]
 const tileProfileIndex = ref(0)
 
+const primeOnFirstPointer = () => {
+  primeAudioPlayback().catch(() => {})
+}
+
 const planAssetsList = computed(() => {
   const assets = plan.value?.assets
   if (!assets) return []
   return Array.isArray(assets) ? assets : Object.values(assets)
 })
+
+const prefetchedUrls = new Set()
+const pendingPrefetchUrls = new Set()
+let assetPrefetchPromise = null
+
+function resetAssetPrefetchState() {
+  prefetchedUrls.clear()
+  pendingPrefetchUrls.clear()
+  assetPrefetchPromise = null
+}
+
+function collectAssetUrls(assets) {
+  if (!Array.isArray(assets) || assets.length === 0) return []
+  const urls = []
+  for (const asset of assets) {
+    if (!asset) continue
+    const audioUrl = asset?.audio?.url || asset?.audio_url
+    if (audioUrl && !prefetchedUrls.has(audioUrl) && !pendingPrefetchUrls.has(audioUrl)) {
+      urls.push(audioUrl)
+    }
+    const textUrl = asset?.text_url
+    if (textUrl && !prefetchedUrls.has(textUrl) && !pendingPrefetchUrls.has(textUrl)) {
+      urls.push(textUrl)
+    }
+  }
+  return urls
+}
+
+function queueAssetPrefetch(assets) {
+  const urls = collectAssetUrls(assets)
+  if (!urls.length) return assetPrefetchPromise ?? Promise.resolve()
+
+  urls.forEach((url) => pendingPrefetchUrls.add(url))
+
+  const promise = (async () => {
+    const tasks = urls.map(async (url) => {
+      try {
+        const res = await fetch(url, { cache: 'no-cache' })
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`)
+        }
+        prefetchedUrls.add(url)
+      } catch (err) {
+        console.warn('[audio] Prefetch failed', url, err)
+      } finally {
+        pendingPrefetchUrls.delete(url)
+      }
+    })
+
+    await Promise.allSettled(tasks)
+  })()
+
+  assetPrefetchPromise = promise
+
+  promise.finally(() => {
+    if (assetPrefetchPromise === promise) {
+      assetPrefetchPromise = null
+    }
+  })
+
+  return promise
+}
 
 const activeTileProfile = () => TILE_PRECACHE_PROFILES[Math.min(tileProfileIndex.value, TILE_PRECACHE_PROFILES.length - 1)]
 const isFollowMode = ref(false)
@@ -426,6 +544,8 @@ const handleUserPan = () => {
 
 // --- ★★★ 新しいアクションを呼び出すメソッド ★★★ ---
 const startGuidance = async () => {
+  primeAudioPlayback().catch(() => {})
+  resetAssetPrefetchState()
   resetPlaybackState()
   await navStore.startGuidance()
 }
@@ -461,7 +581,9 @@ const handleSwMessage = (event) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  window.addEventListener('pointerdown', primeOnFirstPointer, { once: true })
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', handleSwMessage)
   }
@@ -471,12 +593,16 @@ onMounted(() => {
     router.push('/plan')
     return
   }
+
+  await loadFacilityCatalog()
 })
 
 onUnmounted(() => {
+  window.removeEventListener('pointerdown', primeOnFirstPointer)
   rtStore.stopPolling()
   stopLoraPolling()
   resetPlaybackState()
+  resetAssetPrefetchState()
   if (isLoraConnected.value) {
     disconnectLoraDevice()
   }
@@ -587,6 +713,25 @@ watch(currentPos, (newPos) => {
 })
 
 watch(
+  [isNavigationReady, () => planAssetsList.value],
+  ([ready, assets]) => {
+    if (!ready) return
+    queueAssetPrefetch(assets)
+  },
+  { immediate: true }
+)
+
+watch(
+  () => plan.value?.pack_id ?? null,
+  (packId) => {
+    if (!packId) {
+      resetAssetPrefetchState()
+    }
+  },
+  { immediate: true }
+)
+
+watch(
   () => plan.value?.waypoints_info,
   (waypoints) => {
     if (!Array.isArray(waypoints) || waypoints.length === 0) {
@@ -604,7 +749,7 @@ watch(
   { immediate: true }
 )
 
-watch(isNavigationReady, (ready) => {
+watch(isRouteReady, (ready) => {
   if (!ready) {
     stopAllRtPolling()
     isPollingEnabled.value = false
@@ -618,13 +763,22 @@ function enqueueAssetAudio(id, displayName, asset, { fallbackText = null } = {})
   const voiceUrl = asset?.audio?.url || asset?.audio_url
   if (!voiceUrl) return false
 
-  enqueueAudio({
+  const payload = {
     id,
     name: displayName,
     voice_path: voiceUrl,
-    text: asset?.text ?? fallbackText ?? null,
+    text: asset?.text_url ? null : (asset?.text || fallbackText || null),
     textUrl: asset?.text_url ?? null,
-  })
+  }
+
+  console.debug('[AudioQueue] Enqueueing asset', {
+    triggerId: id,
+    asset,
+    fallbackText,
+    finalPayload: payload,
+  });
+
+  enqueueAudio(payload)
 
   return true
 }
@@ -663,6 +817,15 @@ watch(
   () => rtStore.notifyLog.length,
   (newLength, oldLength) => {
     // ★★★ isNavigationReadyをチェックする条件を追加 ★★★
+    const lastEvent = newLength > 0 ? rtStore.notifyLog[newLength - 1] : null
+    console.debug('[nav-view] notifyLog watcher', {
+      newLength,
+      oldLength,
+      isNavigationReady: isNavigationReady.value,
+      hasPlan: !!plan.value,
+      event: lastEvent,
+    })
+
     if (newLength <= oldLength || !isNavigationReady.value || !plan.value) return;
 
     const event = rtStore.notifyLog[newLength - 1];
@@ -672,7 +835,7 @@ watch(
     const weatherChanged = !Number.isFinite(prevWeather)
       ? Number.isFinite(weatherCode)
       : prevWeather !== weatherCode
-    if (weatherChanged) {
+    if (weatherChanged && !isFacilitySpotId(spotId)) {
       const situationType = WEATHER_SITUATION_MAP[weatherCode]
       if (situationType) {
         queueSituationAnnouncement(spotId, situationType)
@@ -721,9 +884,8 @@ function poiKindLabel(poi) {
 
 function poiListLabel(poi) {
   const base = poi?.name || poi?.spot_id || '(unknown)'
-  const kind = poiKindLabel(poi)
   const category = poi?.category ? `（${poi.category}）` : ''
-  return kind ? `【${kind}】${base}${category}` : `${base}${category}`
+  return `${base}${category}`
 }
 
 const spotNameMap = computed(() => {
@@ -787,6 +949,7 @@ function stopLoraPolling() {
 }
 
 async function connectLoraDevice() {
+  primeAudioPlayback().catch(() => {})
   isLoraConnecting.value = true
   try {
     await connect(
@@ -829,6 +992,9 @@ window.addEventListener('online', _updateOnline)
 window.addEventListener('offline', _updateOnline)
 
 watch(online, (isOnline) => {
+  if (isOnline && isNavigationReady.value) {
+    queueAssetPrefetch(planAssetsList.value)
+  }
   if (!isPollingEnabled.value) {
     rtStore.stopPolling()
     return
@@ -841,15 +1007,26 @@ watch(online, (isOnline) => {
 })
 
 function startRtPollingIfNeeded() {
-  if (!isPollingEnabled.value) return
+  if (!isPollingEnabled.value) return;
+
+  // ナビ開始前はHTTPポーリングのみ
+  if (!isNavigationReady.value) {
+    if (online.value) {
+      stopLoraPolling();
+      rtStore.startPolling(plan.value?.waypoints_info || []);
+    }
+    return;
+  }
+
+  // ナビ開始後はLoRaを優先
   if (isLoraConnected.value) {
-    rtStore.stopPolling()
-    startLoraPolling()
+    rtStore.stopPolling();
+    startLoraPolling();
   } else if (online.value) {
-    stopLoraPolling()
-    rtStore.startPolling(plan.value?.waypoints_info || [])
+    stopLoraPolling();
+    rtStore.startPolling(plan.value?.waypoints_info || []);
   } else {
-    pushToast('リアルタイム', 'オフラインのためHTTP取得不可。LoRa接続すると取得できます。', 5000)
+    pushToast('リアルタイム', 'オフラインのためHTTP取得不可。LoRa接続すると取得できます。', 5000);
   }
 }
 
@@ -859,6 +1036,7 @@ function stopAllRtPolling() {
 }
 
 function togglePolling() {
+  primeAudioPlayback().catch(() => {})
   isPollingEnabled.value = !isPollingEnabled.value
   if (isPollingEnabled.value) startRtPollingIfNeeded()
   else stopAllRtPolling()
@@ -954,6 +1132,13 @@ function queueSituationAnnouncement(spotId, situationType) {
   const spotName = spotNameMap.value.get(spotId) || spotId
   const displayName = `${spotName} · ${meta.title}`
   const fallbackText = typeof meta.fallback === 'function' ? meta.fallback(spotName) : meta.fallback ?? null
+
+  console.debug('[nav-view] queueSituationAnnouncement', {
+    spotId,
+    situationType,
+    hasAsset: !!asset,
+    asset,
+  })
 
   enqueueAssetAudio(`${spotId}_${situationType}`, displayName, asset, { fallbackText })
 }

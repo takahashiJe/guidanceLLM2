@@ -2,86 +2,138 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
 /**
- * デバッグ用現在地フック
- * - 入力欄の lat/lng を「現在地」として扱う
- * - 「追従」ON中は同じ座標でも定期的に push して watch を発火
- * - NavView.vue 側の isDebug は isMock を参照
+ * デバッグ用現在地フック（動的経路設定対応版）
+ * - バックエンドから取得した経路をシミュレーション経路として設定可能にする
+ * - setMockTrack() を介して外部から経路を注入する
  */
 
-// ★ ご指定のデフォルト座標
-const debugLat = ref(39.39347690860294);
-const debugLng = ref(140.07376949003486);
+// デフォルトまたは外部から設定された経路
+let MOCK_TRACK = [
+  [140.073769, 39.393477],
+  [140.07381, 39.39352],
+  [140.07385, 39.39356],
+];
 
-// 現在地（NavViewが watch する）
-const currentPos = ref({ lat: debugLat.value, lng: debugLng.value });
+const currentPos = ref(null);
+const debugLat = ref(MOCK_TRACK[0][1]);
+const debugLng = ref(MOCK_TRACK[0][0]);
 
-// 追従（ON の間は一定間隔で pushNow して watch を発火）
-const following = ref(true);
-let timerId = null;
-let subscriberCount = 0;
+// --- ジャーニー・シミュレーション制御 ---
+const isJourneyInProgress = ref(false);
+let journeyTimerId = null;
+let trackIndex = 0;
 
-const pushNow = () => {
-  const la = Number(debugLat.value);
-  const ln = Number(debugLng.value);
-  if (!Number.isFinite(la) || !Number.isFinite(ln)) return;
-  currentPos.value = { lat: la, lng: ln };
+const stepJourney = () => {
+  if (trackIndex >= MOCK_TRACK.length) {
+    stopJourney();
+    return;
+  }
+
+  const [lng, lat] = MOCK_TRACK[trackIndex];
+  debugLat.value = lat;
+  debugLng.value = lng;
+  currentPos.value = { lat, lng };
+  
+  trackIndex++;
 };
 
-const startFollowing = () => {
-  if (timerId || subscriberCount === 0 || !following.value) return;
-  timerId = window.setInterval(pushNow, 1000); // 1000msごとに現在値を push
+const startJourney = () => {
+  if (isJourneyInProgress.value) return;
+  isJourneyInProgress.value = true;
+  stepJourney(); 
+  journeyTimerId = setInterval(stepJourney, 300);
 };
 
-const stopFollowing = () => {
-  if (timerId) {
-    clearInterval(timerId);
-    timerId = null;
+const stopJourney = () => {
+  if (!isJourneyInProgress.value) return;
+  isJourneyInProgress.value = false;
+  if (journeyTimerId) {
+    clearInterval(journeyTimerId);
+    journeyTimerId = null;
   }
 };
 
-const toggleFollowing = () => {
-  following.value = !following.value;
-  if (following.value) startFollowing();
-  else stopFollowing();
+const resetJourney = () => {
+  stopJourney();
+  trackIndex = 0;
+  if (MOCK_TRACK && MOCK_TRACK.length > 0) {
+    const [lng, lat] = MOCK_TRACK[0];
+    debugLat.value = lat;
+    debugLng.value = lng;
+    currentPos.value = { lat, lng };
+  }
 };
 
-// 入力欄から渡された緯度経度をセット（即時反映）
+// ★ 新しい関数：外部から経路を設定する
+const setMockTrack = (newTrack) => {
+  console.log('[usePosition.mock] Received new track with', newTrack?.length, 'points');
+  if (!newTrack || newTrack.length === 0) {
+    return;
+  }
+  // polylineは[lng, lat]形式なので、そのまま利用
+  MOCK_TRACK = newTrack;
+  resetJourney();
+};
+
+
+// --- 互換機能 ---
+const following = isJourneyInProgress; 
+const toggleFollowing = () => {
+  if (isJourneyInProgress.value) {
+    stopJourney();
+  } else {
+    startJourney();
+  }
+};
+
 const setDebugPos = (lat, lng) => {
   const la = Number(lat);
   const ln = Number(lng);
-  if (!Number.isFinite(la) || !Number.isFinite(ln)) {
-    console.warn('[usePosition.mock] invalid coords', lat, lng);
-    return;
+  if (!Number.isFinite(la) || !Number.isFinite(ln)) return;
+  if (isJourneyInProgress.value) {
+    stopJourney();
   }
   debugLat.value = la;
   debugLng.value = ln;
-  pushNow(); // 1回即時反映
+  currentPos.value = { lat: la, lng: ln };
 };
+
+
+let subscriberCount = 0;
 
 export function usePosition() {
   onMounted(() => {
-    subscriberCount += 1;
-    pushNow();
-    startFollowing();
+    subscriberCount++;
+    if (!currentPos.value) {
+      resetJourney();
+    }
   });
 
   onUnmounted(() => {
     subscriberCount = Math.max(0, subscriberCount - 1);
     if (subscriberCount === 0) {
-      stopFollowing();
+      stopJourney();
     }
   });
 
   return {
-    // 本番/モック判定用フラグ
     isMock: true,
-
-    // 実際に使うリアクティブ値と関数
     currentPos,
+    
+    // デバッグUI用
     debugLat,
     debugLng,
+    
+    // ジャーニー制御
+    isJourneyInProgress,
+    startJourney,
+    stopJourney,
+    resetJourney,
+    setMockTrack, // ★ UIから使えるように公開
+
+    // 互換用
     following,
-    setDebugPos,
     toggleFollowing,
+    setDebugPos,
   };
 }

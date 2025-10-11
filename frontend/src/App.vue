@@ -1,14 +1,23 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
+import { useNavStore } from '@/stores/nav'
 
 const route = useRoute()
+const navStore = useNavStore()
 
 // 現在のルートパスに応じてCSSクラスを切り替える
 const appClass = computed(() => {
   return {
     'nav-active': route.path === '/nav'
   }
+})
+
+const deviceId = computed(() => navStore.deviceId)
+
+// アプリケーションマウント時にUUIDを初期化
+onMounted(() => {
+  navStore.initializeDeviceId()
 })
 </script>
 
@@ -24,6 +33,10 @@ const appClass = computed(() => {
     <main>
       <RouterView />
     </main>
+
+    <footer class="device-id-footer" v-if="deviceId">
+      Device ID: {{ deviceId }}
+    </footer>
   </div>
 </template>
 
@@ -41,6 +54,19 @@ header {
 main {
   width: 100%;
   height: 100%;
+}
+
+.device-id-footer {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  padding: 2px 8px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 10px;
+  font-family: monospace;
+  border-top-left-radius: 5px;
+  z-index: 9999;
 }
 
 @media (min-width: 1024px) {
