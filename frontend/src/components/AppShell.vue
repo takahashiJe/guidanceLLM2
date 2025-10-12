@@ -1,22 +1,23 @@
 <template>
-  <div class="tw-h-screen tw-w-screen tw-bg-white">
+  <div class="tw-h-screen tw-w-screen tw-bg-gray-800">
     <!-- Static Sidebar for large screens -->
     <div class="tw-hidden lg:tw-block tw-fixed tw-top-0 tw-left-0 tw-h-full tw-w-[260px] tw-z-20">
       <OC_Sidebar />
     </div>
 
     <div class="tw-h-full tw-flex tw-flex-col lg:tw-pl-[260px]">
-      <!-- Header for small screens -->
-      <header class="tw-p-2 tw-border-b tw-flex tw-items-center tw-justify-between tw-shrink-0 tw-bg-white tw-z-10 lg:tw-hidden">
-        <button @click="isSidebarOpen = true" class="tw-p-2 tw-rounded-full hover:tw-bg-gray-100">
-          <svg xmlns="http://www.w3.org/2000/svg" class="tw-h-6 tw-w-6 tw-text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+      <!-- Unified Header -->
+      <header class="tw-p-3 tw-border-b tw-border-gray-700 tw-flex tw-items-center tw-gap-4 tw-shrink-0 tw-bg-gray-800 tw-z-10 tw-touch-action-none">
+        <!-- Hamburger for mobile -->
+        <button @click="isSidebarOpen = true" class="tw-p-1 tw-rounded-full hover:tw-bg-gray-700 lg:tw-hidden">
+          <svg xmlns="http://www.w3.org/2000/svg" class="tw-h-6 tw-w-6 tw-text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
-        <h1 class="tw-text-lg tw-font-semibold tw-text-gray-700">AI Agent</h1>
-        <div class="tw-w-8"></div> <!-- Spacer -->
+        <!-- Title -->
+        <h1 class="tw-text-base tw-font-semibold tw-text-white">AI Agent by Qwen3</h1>
       </header>
 
       <!-- Main Content -->
-      <main class="tw-flex-1 tw-overflow-y-auto">
+      <main class="tw-flex-1 tw-overflow-hidden tw-overscroll-y-contain">
         <RouterView />
       </main>
     </div>

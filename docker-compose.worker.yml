@@ -32,7 +32,6 @@ services:
       dockerfile: ./backend/Dockerfile
     command: bash -lc "celery -A backend.worker.celery_app.celery_app worker --loglevel=info --pool=threads --concurrency=1 -Q generation"
     environment:
-      REDIS_HOST: redis
       REDIS_PORT: 6379
       # 生成用Ollamaに接続
       OLLAMA_URL: http://ollama-generation:11434
@@ -52,7 +51,6 @@ services:
       dockerfile: ./backend/Dockerfile
     command: bash -lc "celery -A backend.worker.celery_app.celery_app worker --loglevel=info --pool=threads --concurrency=1 -Q embedding"
     environment:
-      REDIS_HOST: redis
       REDIS_PORT: 6379
       # エンべディング用Ollamaに接続
       OLLAMA_URL: http://ollama-embedding:11434

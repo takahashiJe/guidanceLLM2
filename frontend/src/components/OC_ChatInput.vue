@@ -1,24 +1,36 @@
 <template>
-  <div class="tw-p-4 tw-bg-white">
-    <div class="tw-max-w-4xl tw-mx-auto">
-      <div class="tw-flex tw-items-center tw-bg-[#f0f4f9] tw-rounded-full tw-p-2">
+  <div 
+    class="tw-bg-slate-50/90 tw-backdrop-blur-lg"
+    style="box-shadow: 0 -8px 32px -10px rgba(0, 0, 0, 0.08);"
+  >
+    <div class="tw-max-w-4xl tw-mx-auto tw-px-4 tw-py-3">
+      <div class="tw-relative tw-flex tw-items-end tw-gap-2">
         <textarea
           ref="textarea"
           v-model="value"
           @input="adjustTextareaHeight"
           @keydown.enter.prevent="handleEnter"
-          placeholder="メッセージを入力..."
-          class="tw-flex-1 tw-bg-transparent tw-border-none focus:tw-ring-0 tw-resize-none tw-p-2 tw-text-base tw-text-gray-800 placeholder:tw-text-gray-500"
+          :placeholder="placeholder"
+          class="tw-flex-1 tw-bg-slate-100 focus:tw-bg-slate-200/60 tw-rounded-2xl tw-border-none focus:tw-ring-0 tw-resize-none tw-py-2.5 tw-px-4 tw-text-base tw-text-gray-800 placeholder:tw-text-gray-500 tw-transition-colors tw-duration-200"
           rows="1"
+          style="max-height: 200px;"
         ></textarea>
         <button
           @click="handleSendMessage"
           :disabled="props.isSending || value.trim() === ''"
-          class="tw-w-10 tw-h-10 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-transition-colors"
-          :class="props.isSending || value.trim() === '' ? 'tw-bg-gray-300' : 'tw-bg-blue-500 hover:tw-bg-blue-600'"
+          class="tw-w-9 tw-h-9 tw-rounded-full tw-flex-shrink-0 tw-flex tw-items-center tw-justify-center tw-transition-all tw-duration-200 tw-mb-0.5"
+          :class="props.isSending || value.trim() === '' 
+            ? 'tw-text-slate-400 tw-cursor-not-allowed' 
+            : 'tw-bg-slate-800 tw-text-white hover:tw-bg-slate-700 active:tw-scale-90'"
+          aria-label="メッセージを送信"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="tw-h-5 tw-w-5 tw-text-white" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.428A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+          <svg v-if="props.isSending" class="tw-animate-spin tw-h-5 tw-w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="tw-opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="tw-opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="tw-h-5 tw-w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <polyline points="19 12 12 19 5 12"></polyline>
           </svg>
         </button>
       </div>
@@ -37,6 +49,10 @@ const props = defineProps({
   modelValue: { // for v-model
     type: String,
     default: ''
+  },
+  placeholder: {
+    type: String,
+    default: 'Send a message...'
   }
 });
 
@@ -57,7 +73,7 @@ const value = computed({
 const adjustTextareaHeight = () => {
   const el = textarea.value;
   if (el) {
-    el.style.height = 'auto';
+    el.style.height = 'auto'; // Reset height to shrink if text is deleted
     el.style.height = `${el.scrollHeight}px`;
   }
 };
@@ -79,11 +95,9 @@ const handleSendMessage = () => {
   });
 };
 
-watch(value, adjustTextareaHeight);
-
-// Adjust height when the prop is changed externally
+// Watch for external changes and initial load
 watch(() => props.modelValue, () => {
   nextTick(adjustTextareaHeight);
-});
+}, { immediate: true });
 
 </script>

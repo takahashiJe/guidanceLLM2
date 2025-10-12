@@ -186,7 +186,6 @@ export function useNavWindow() {
 
   watch(hasRoute, (available) => {
     if (available) {
-      isNavWindowVisible.value = true
       isNavWindowFullScreen.value = false
       ensureNavWindowBounds()
     } else {

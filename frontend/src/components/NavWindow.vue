@@ -15,18 +15,20 @@ const {
 </script>
 
 <template>
-  <button
-    v-if="hasRoute"
-    type="button"
-    :class="[
-      'nav-window__floating-toggle',
-      isNavWindowVisible ? 'nav-window__floating-toggle--open' : 'nav-window__floating-toggle--closed'
-    ]"
-    :aria-expanded="isNavWindowVisible ? 'true' : 'false'"
-    @click="toggleNavWindow"
-  >
-    <span class="sr-only">{{ isNavWindowVisible ? 'ナビを隠す' : 'ナビを表示' }}</span>
-  </button>
+  <Teleport to="body">
+    <button
+      v-if="hasRoute"
+      type="button"
+      :class="[
+        'nav-window__floating-toggle',
+        isNavWindowVisible ? 'nav-window__floating-toggle--open' : 'nav-window__floating-toggle--closed'
+      ]"
+      :aria-expanded="isNavWindowVisible ? 'true' : 'false'"
+      @click="toggleNavWindow"
+    >
+      <span class="sr-only">{{ isNavWindowVisible ? 'ナビを隠す' : 'ナビを表示' }}</span>
+    </button>
+  </Teleport>
   <Teleport to="body">
     <div
       v-if="hasRoute"
@@ -70,7 +72,7 @@ const {
 </template>
 
 <style scoped>
-/* PlanView.vueからnav-window関連のスタイルを全てコピー */
+/* Styles for screen-reader-only content */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -83,91 +85,70 @@ const {
   border: 0;
 }
 
+/* New styles for the floating toggle button */
 .nav-window__floating-toggle {
   position: fixed;
-  top: 120px;
-  right: -32px;
+  top: 92px; /* Adjusted position */
+  right: 16px; /* Positioned fully inside the screen */
   z-index: 1300;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 88px;
-  height: 48px;
+  width: 56px; /* Adjusted width */
+  height: 56px; /* Made it a square/circle */
   padding: 0;
-  border-radius: 999px 0 0 999px;
-  border: 1px solid rgba(15, 23, 42, 0.3);
-  border-right: none;
-  background: rgba(15, 23, 42, 0.92);
+  border-radius: 18px; /* Rounded square */
+  border: none;
+  background: linear-gradient(145deg, #3b82f6, #818cf8); /* Bright blue/purple gradient */
+  color: white;
   cursor: pointer;
-  box-shadow: -6px 12px 22px rgba(15, 23, 42, 0.22);
-  transition: background-color 0.25s ease, border-color 0.2s ease, transform 0.25s ease;
-  overflow: visible;
+  box-shadow: -2px 4px 16px rgba(59, 130, 246, 0.3);
+  transition: all 0.3s ease;
+  animation: pulse-glow 2.5s infinite ease-in-out;
 }
 
 .nav-window__floating-toggle:hover {
-  background: rgba(30, 64, 175, 0.93);
-  border-color: rgba(30, 64, 175, 0.6);
-}
-
-.nav-window__floating-toggle:focus-visible {
-  outline: 2px solid rgba(168, 213, 255, 0.9);
-  outline-offset: 3px;
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: -4px 10px 24px rgba(99, 102, 241, 0.4);
 }
 
 .nav-window__floating-toggle:active {
-  transform: translateX(-3px);
+  transform: translateY(0) scale(0.98);
 }
 
-.nav-window__floating-toggle:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
+/* Pulse animation for the button */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: -2px 4px 16px rgba(59, 130, 246, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: -4px 8px 28px rgba(99, 102, 241, 0.5);
+    transform: scale(1.05);
+  }
 }
 
-.nav-window__floating-toggle--open {
-  background: rgba(15, 23, 42, 0.88);
-}
-
-.nav-window__floating-toggle--closed {
-  background: rgba(30, 64, 175, 0.9);
-  border-color: rgba(30, 64, 175, 0.6);
-}
-
-.nav-window__floating-toggle::before,
-.nav-window__floating-toggle::after {
+/* Arrow icon inside the button */
+.nav-window__floating-toggle::before {
   content: '';
   position: absolute;
-  pointer-events: none;
-}
-
-.nav-window__floating-toggle::before {
   top: 50%;
-  left: 34px;
+  left: 50%;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.92);
+  border: 2.5px solid white;
   border-left: 0;
   border-bottom: 0;
   transform-origin: center;
-  transform: translate(-50%, -50%) rotate(45deg);
-  transition: transform 0.28s ease;
+  transform: translate(-60%, -50%) rotate(45deg); /* Centered and pointing right (for open state) */
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .nav-window__floating-toggle--closed::before {
-  transform: translate(-50%, -50%) rotate(-135deg);
+  transform: translate(-40%, -50%) rotate(-135deg); /* Centered and pointing left (for closed state) */
 }
 
-.nav-window__floating-toggle::after {
-  inset: 12px;
-  border-radius: 999px 0 0 999px;
-  background: rgba(255, 255, 255, 0.22);
-  filter: blur(18px);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.nav-window__floating-toggle:hover::after {
-  opacity: 0.6;
-}
+/* --- The rest of the styles for the window are kept as they were --- */
 
 .nav-window__controls {
   display: flex;

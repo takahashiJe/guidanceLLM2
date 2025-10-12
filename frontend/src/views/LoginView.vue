@@ -87,7 +87,7 @@ async function performRegister() {
     </div>
 
     <!-- Centered Login Panel -->
-    <div class="tw-relative tw-z-10 tw-w-full tw-max-w-md tw-mt-20 animate-fade-in-up" style="animation-delay: 0.4s;">
+    <div class="tw-relative tw-z-10 tw-w-full tw-max-w-md tw-mt-32 animate-fade-in-up" style="animation-delay: 0.4s;">
       <!-- Glass Panel -->
       <div class="tw-rounded-2xl tw-border tw-border-slate-700 tw-bg-slate-800/60 tw-p-8 tw-backdrop-blur-lg md:tw-p-10">
         <div class="tw-text-center">
