@@ -4,7 +4,7 @@ import os
 import httpx
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
-DEFAULT_MODEL = os.getenv("OLLAMA_GENERATION_MODEL", "qwen2:7b")
+DEFAULT_MODEL = os.getenv("OLLAMA_GENERATION_MODEL", "qwen3:14b")
 
 
 def generate(prompt: str, model: str | None = None, options: dict | None = None, timeout: float = 3000.0) -> str:

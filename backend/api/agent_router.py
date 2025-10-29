@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from backend.api.schemas import ChatRequest, ChatResponse
 
 AGENT_SERVICE_URL = os.getenv("AGENT_SERVICE_URL", "http://svc-agent:9200")
-REQUEST_TIMEOUT = float(os.getenv("AGENT_REQUEST_TIMEOUT_SECONDS", "120"))
+REQUEST_TIMEOUT = float(os.getenv("AGENT_REQUEST_TIMEOUT_SECONDS", "180"))
 
 router = APIRouter(prefix="/v1", tags=["AI Agent"])
 

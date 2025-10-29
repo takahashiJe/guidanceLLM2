@@ -6,7 +6,7 @@ services:
       - "11434:11434"
     environment:
       # デフォルトモデルを言語生成用に設定
-      OLLAMA_GENERATION_MODEL: qwen3:30b
+      OLLAMA_GENERATION_MODEL: qwen3:14b
     volumes:
       - ollama_generation_models:/root/.ollama
     gpus: all
@@ -35,7 +35,7 @@ services:
       REDIS_PORT: 6379
       # 生成用Ollamaに接続
       OLLAMA_URL: http://ollama-generation:11434
-      OLLAMA_GENERATION_MODEL: qwen3:30b
+      OLLAMA_GENERATION_MODEL: qwen3:14b
     env_file:
       - .env
     volumes:

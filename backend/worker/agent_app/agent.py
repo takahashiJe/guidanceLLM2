@@ -565,7 +565,7 @@ def _extract_profile_from_text(user_input: str, awaiting_fields: List[str], lang
 
     task = generate_text.delay(system_prompt, user_prompt)
     try:
-        raw_response = task.get(timeout=30)
+        raw_response = task.get(timeout=180)
     except Exception as exc:
         print(f"[WARN] profile extractor timeout/error: {exc}")
         return {}
@@ -616,7 +616,7 @@ def _generate_profile_question(fields: List[str], language: Optional[str]) -> st
     user_prompt = json.dumps({"missing_fields": fields}, ensure_ascii=False)
     task = generate_text.delay(system_prompt, user_prompt)
     try:
-        text = task.get(timeout=30)
+        text = task.get(timeout=180)
         text = text.strip()
         if text:
             return text
@@ -905,7 +905,7 @@ def parse_intent(state: AgentState):
             options={"temperature": 0.0},
             response_format="json",
         )
-        model_output = task.get(timeout=30)
+        model_output = task.get(timeout=180)
         last_output = model_output
         parsed_intent = _parse_intent_payload(model_output)
         if parsed_intent:
@@ -948,7 +948,7 @@ def generate_response(state: AgentState):
     print("--- Node: generate_response ---")
     system_prompt = get_response_generator_prompt(state)
     task = generate_text.delay(system_prompt, state['user_input'], state['chat_history'])
-    response_text = task.get(timeout=60)
+    response_text = task.get(timeout=180)
 
     def _remove_think_blocks(text: str) -> str:
         if not text:
@@ -1031,6 +1031,7 @@ def update_itinerary(state: AgentState):
 
 def end_session(state: AgentState):
     print("--- Node: end_session ---")
+    print(f"[DEBUG] response_text in end_session: '{state.get('response_text')}'")
     db = next(db_client.get_db_session())
     user = db_client.get_or_create_user(db, state['user_name'])
     config = state.get("configurable", {})
