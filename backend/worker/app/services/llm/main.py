@@ -15,18 +15,29 @@ def describe_endpoint(req: DescribeRequest):
     Accepts a description request, forwards it to a Celery worker,
     and waits for the result.
     """
+    async_results = []
     try:
-        # Celeryタスクを呼び出し、結果を同期的に待つ
-        async_result = celery_app.send_task(
-            "llm.describe",
-            args=[req.model_dump()],
-            queue="generation"
-        )
-        # タイムアウトを長めに設定
-        result = async_result.get(timeout=3000)
-        return result
+        for job in req.jobs:
+            payload = {
+                "job_id": job.job_id,
+                "spot": job.spot.model_dump(),
+                "language": req.language,
+            }
+            async_results.append(
+                celery_app.send_task(
+                    "llm.describe_job",
+                    args=[payload],
+                    queue="generation",
+                )
+            )
+
+        items = []
+        for ar in async_results:
+            items.append(ar.get(timeout=3000))
+
+        return DescribeResponse(items=items)
     except Exception as e:
-        logger.exception("Failed to get result from Celery task")
+        logger.exception("Failed to get result from Celery tasks")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")

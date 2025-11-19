@@ -19,11 +19,16 @@ class SpotRef(BaseModel):
     playback: Optional[Literal["arrival", "pass_by"]] = None
     situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
 
+class DescribeJob(BaseModel):
+    job_id: str
+    spot: SpotRef
+
 class DescribeRequest(BaseModel):
     language: Literal["ja","en","zh"]
-    spots: List[SpotRef]
+    jobs: List[DescribeJob]
 
 class DescribeItem(BaseModel):
+    job_id: Optional[str] = None
     spot_id: str
     playback: Optional[Literal["arrival", "pass_by"]] = None
     situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
@@ -63,33 +68,34 @@ def _extract_narration(raw_text: str) -> str:
     # 残ったテキストの先頭と末尾の空白（改行含む）を除去
     return clean_text.strip()
 
-@celery_app.task(name="llm.describe", queue="generation")
-def describe(payload: dict) -> dict:
+@celery_app.task(name="llm.describe_job", queue="generation")
+def describe_job(payload: dict) -> dict:
     """
-    LLMでスポットの説明文を生成するCeleryタスク。
+    単一スポットの説明文を生成するCeleryタスク。
+    payload には {"spot": SpotRef dict, "language": "ja"} の形で渡す。
     """
-    req = DescribeRequest(**payload)
-    items: list[DescribeItem] = []
-    for s in req.spots:
-        logger.debug(f"Describing spot: {s.spot_id}, situation={s.situation}")
-        # 既存処理：コンテキスト収集 → プロンプト生成 → LLM生成
-        ctx = generator.retrieve_context(s.model_dump(), req.language)
-        ptxt = prompt.build_prompt(s.model_dump(), ctx, req.language)
+    if "spot" not in payload or "language" not in payload or "job_id" not in payload:
+        raise ValueError("payload must include 'job_id', 'spot' and 'language'")
 
-        # generator が生のテキスト(思考タグ含む)を返す
-        raw_text = generator.generate_text(ptxt) # generator.py を使用
-        logger.info(f"LLM raw output for spot {s.spot_id}: {raw_text}")
+    spot = SpotRef(**payload["spot"])
+    language = payload["language"]
+    job_id = payload["job_id"]
 
-        # 抽出関数を通してクリーンアップする
-        narration_text = _extract_narration(raw_text)
-        logger.info(f"LLM cleaned narration for spot {s.spot_id}: {narration_text}")
-        
-        items.append(DescribeItem(
-            spot_id=s.spot_id,
-            playback=s.playback,
-            situation=s.situation,
-            text=narration_text
-        ))
-    
-    response = DescribeResponse(items=items)
-    return response.model_dump()
+    logger.debug(f"[{job_id}] Describing spot: {spot.spot_id}, situation={spot.situation}")
+    ctx = generator.retrieve_context(spot.model_dump(), language)
+    ptxt = prompt.build_prompt(spot.model_dump(), ctx, language)
+
+    raw_text = generator.generate_text(ptxt)
+    logger.info(f"[{job_id}] LLM raw output for spot {spot.spot_id}: {raw_text}")
+
+    narration_text = _extract_narration(raw_text)
+    logger.info(f"[{job_id}] LLM cleaned narration for spot {spot.spot_id}: {narration_text}")
+
+    item = DescribeItem(
+        job_id=job_id,
+        spot_id=spot.spot_id,
+        playback=spot.playback,
+        situation=spot.situation,
+        text=narration_text,
+    )
+    return item.model_dump()

@@ -163,38 +163,13 @@ function playNextInQueue() {
     setTimeout(playNextInQueue, 500);
   });
 
-  let voiceStarted = false;
-  const startVoicePlayback = () => {
-    if (voiceStarted) return;
-    voiceStarted = true;
-    currentAudio.play().catch(error => {
-      console.error(`[Queue] Playback initiation failed for "${spotInfo.name}":`, error);
-      currentAudio = null;
-      isPlaying = false;
-      clearPlaybackInfo();
-      setTimeout(playNextInQueue, 500);
-    });
-  };
-
-  try {
-    const chime = new Audio(CHIME_PATH);
-    chime.addEventListener('ended', startVoicePlayback, { once: true });
-    chime.addEventListener('error', (err) => {
-      console.warn('[Queue] Chime playback failed, skipping.', err);
-      startVoicePlayback();
-    }, { once: true });
-
-    const playPromise = chime.play();
-    if (playPromise && typeof playPromise.then === 'function') {
-      playPromise.catch((err) => {
-        console.warn('[Queue] Unable to start chime playback.', err);
-        startVoicePlayback();
-      });
-    }
-  } catch (err) {
-    console.warn('[Queue] Failed to create chime audio.', err);
-    startVoicePlayback();
-  }
+  currentAudio.play().catch(error => {
+    console.error(`[Queue] Playback initiation failed for "${spotInfo.name}":`, error);
+    currentAudio = null;
+    isPlaying = false;
+    clearPlaybackInfo();
+    setTimeout(playNextInQueue, 500);
+  });
 }
 
 

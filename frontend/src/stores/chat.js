@@ -3,15 +3,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useUserStore } from '@/stores/user'
 import { useNavStore } from '@/stores/nav'
-import { usePosition } from '@/lib/usePosition'
 import { sendChatMessage, getUserSession } from '@/lib/api' // Import getUserSession
 import { sendSwMessage } from '@/lib/swClient'
+
+const DEFAULT_ORIGIN = Object.freeze({ lat: 39.393477, lon: 140.073769 })
 
 export const useChatStore = defineStore('chat', () => {
   const userStore = useUserStore()
   const navStore = useNavStore()
-  const position = usePosition()
-  const { currentPos } = position
 
   // State
   const messages = ref([])
@@ -67,25 +66,9 @@ export const useChatStore = defineStore('chat', () => {
 
       // 6. If itinerary is present, trigger navigation plan
       if (response.itinerary && response.itinerary.length > 0) {
-        if (!currentPos.value) {
-          console.warn('Current position not available for navigation plan.')
-          // Add a new system message for this specific error
-          messages.value.push({
-            id: crypto.randomUUID(),
-            content: '現在地が取得できないため、ナビゲーションプランを作成できませんでした。',
-            sender: 'system',
-            timestamp: new Date(),
-          })
-          return
-        }
-
-        const { lat, lng } = currentPos.value
         const planOptions = {
           language: response.language,
-          origin: {
-            lat,
-            lon: lng
-          },
+          origin: DEFAULT_ORIGIN,
           waypoints: response.itinerary.map((spot_id) => ({ spot_id: spot_id }))
         }
 

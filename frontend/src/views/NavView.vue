@@ -6,7 +6,8 @@
       type="button"
       @click="isDebugPanelVisible ? hideDebugPanel() : showDebugPanel()"
     >
-      {{ isDebugPanelVisible ? 'デバッグパネルを閉じる' : 'デバッグパネルを開く' }}
+      <span class="sr-only">{{ isDebugPanelVisible ? 'デバッグパネルを閉じる' : 'デバッグパネルを開く' }}</span>
+      <span aria-hidden="true" class="debug-toggle__dot"></span>
     </button>
 
     <div v-if="isDebug && isDebugPanelVisible" class="debug-panel" role="group">
@@ -378,9 +379,10 @@ const {
   startJourney,
   stopJourney,
   resetJourney,
+  setMockTrack,
 } = usePosition()
 const isDebug = computed(() => !!isMock)
-const isDebugPanelVisible = ref(true)
+const isDebugPanelVisible = ref(false)
 
 async function loadFacilityCatalog() {
   try {
@@ -580,6 +582,40 @@ const handleSwMessage = (event) => {
     }
   }
 }
+
+function buildTrackFromRoute(route) {
+  if (!route || route.type !== 'FeatureCollection' || !Array.isArray(route.features)) {
+    return null
+  }
+  const track = []
+  for (const feature of route.features) {
+    const coords = feature?.geometry?.type === 'LineString' ? feature.geometry.coordinates : null
+    if (!Array.isArray(coords) || coords.length === 0) continue
+    for (let i = 0; i < coords.length; i += 1) {
+      const coord = coords[i]
+      if (!Array.isArray(coord) || coord.length < 2) continue
+      const [lng, lat] = coord
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
+      const last = track[track.length - 1]
+      if (last && last[0] === lng && last[1] === lat) {
+        continue
+      }
+      track.push([lng, lat])
+    }
+  }
+  return track.length > 1 ? track : null
+}
+
+// GeoJSONのLineStringをモック現在地トラックに流し込む
+watch(
+  () => plan.value?.route,
+  (route) => {
+    if (!isMock || typeof setMockTrack !== 'function') return
+    const track = buildTrackFromRoute(route)
+    if (track) setMockTrack(track)
+  },
+  { deep: true, immediate: true }
+)
 
 onMounted(async () => {
   window.addEventListener('pointerdown', primeOnFirstPointer, { once: true })
@@ -1241,18 +1277,47 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
 }
 .debug-toggle {
   position: fixed;
-  bottom: 24px;
-  left: 24px;
+  bottom: 20px;
+  left: 20px;
   z-index: 960;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid #475569;
-  background: rgba(15, 23, 42, 0.85);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, 0.92);
   color: #f8fafc;
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.45);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.debug-toggle:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+.debug-toggle:focus-visible {
+  outline: 2px solid rgba(148, 163, 184, 0.7);
+  outline-offset: 3px;
+}
+.debug-toggle__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 -8px 0 currentColor, 0 8px 0 currentColor;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 @media (max-width: 640px) {
   .debug-panel {
@@ -1264,10 +1329,7 @@ function latestBySpot(spotId) { return rtStore.getLatest?.(spotId) ?? null }
   }
   .debug-toggle {
     left: 16px;
-    right: 16px;
     bottom: 16px;
-    width: auto;
-    text-align: center;
   }
 }
 .nav-container {

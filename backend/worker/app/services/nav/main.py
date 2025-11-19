@@ -242,10 +242,17 @@ def plan_endpoint(req: PlanRequest, request: Request):
             conditional_spot_refs.append(conditional_ref)
 
     combined_spots_for_llm = spot_refs + conditional_spot_refs
+    llm_jobs = [
+        {
+            "job_id": f"{idx}:{spot.get('spot_id')}:{spot.get('situation') or spot.get('playback') or 'default'}",
+            "spot": spot,
+        }
+        for idx, spot in enumerate(combined_spots_for_llm)
+    ]
 
     llm_items = []
-    if combined_spots_for_llm:
-        llm_req = {"language": req.language, "spots": combined_spots_for_llm}
+    if llm_jobs:
+        llm_req = {"language": req.language, "jobs": llm_jobs}
         situation_count = sum(1 for s in combined_spots_for_llm if "situation" in s)
         logger.info(f"{situation_count} spots have 'situation' for conditional prompts.")
         llm_result = post_describe(llm_req)

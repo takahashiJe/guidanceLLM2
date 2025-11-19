@@ -20,6 +20,14 @@ from .prompts import (
     get_profile_question_prompt,
     get_response_generator_prompt,
 )
+from .profile_taxonomy import (
+    TRAVEL_STYLE_CATEGORIES,
+    TRAVEL_STYLE_SYNONYMS,
+    TRAVEL_FREQUENCY_CATEGORIES,
+    TRAVEL_FREQUENCY_SYNONYMS,
+    PREFERRED_DESTINATION_CATEGORIES,
+    PREFERRED_DESTINATION_COMPONENT_SYNONYMS,
+)
 
 # --- 1. State (状態) の定義 --- #
 class AgentState(TypedDict):
@@ -415,6 +423,241 @@ CONGESTION_LABELS = {
 }
 
 PROFILE_FIELDS = ["age", "travel_style", "travel_frequency", "interests"]
+
+
+_PROFILE_RECOMMENDER_KEYS = {
+    "travel_style": "Travel_Style",
+    "travel_frequency": "Travel_Frequency",
+    "interests": "Preferred_Destinations",
+    # 既に大文字を使って保存されているケースにも対応
+    "preferred_destinations": "Preferred_Destinations",
+}
+
+_NORMALIZE_PUNCT_PATTERN = re.compile(r"[^\w\s/;]+")
+
+
+def _normalize_profile_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (int, float)):
+        text = str(value)
+    else:
+        text = str(value)
+    text = unicodedata.normalize("NFKC", text)
+    text = text.lower()
+    text = _NORMALIZE_PUNCT_PATTERN.sub(" ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _build_synonym_map(categories: List[str], synonym_table: Dict[str, Set[str]]) -> Dict[str, str]:
+    mapping: Dict[str, str] = {}
+    for canonical in categories:
+        normalized = _normalize_profile_text(canonical)
+        mapping[normalized] = canonical
+        for synonym in synonym_table.get(canonical, set()):
+            normalized_syn = _normalize_profile_text(synonym)
+            if normalized_syn:
+                mapping[normalized_syn] = canonical
+    return mapping
+
+
+_TRAVEL_STYLE_SYNONYM_MAP = _build_synonym_map(TRAVEL_STYLE_CATEGORIES, TRAVEL_STYLE_SYNONYMS)
+_TRAVEL_STYLE_CANONICAL_LOOKUP = { _normalize_profile_text(item): item for item in TRAVEL_STYLE_CATEGORIES }
+_TRAVEL_STYLE_NORMALIZED = list(_TRAVEL_STYLE_CANONICAL_LOOKUP.keys())
+
+_TRAVEL_FREQUENCY_SYNONYM_MAP = _build_synonym_map(TRAVEL_FREQUENCY_CATEGORIES, TRAVEL_FREQUENCY_SYNONYMS)
+_TRAVEL_FREQUENCY_CANONICAL_LOOKUP = { _normalize_profile_text(item): item for item in TRAVEL_FREQUENCY_CATEGORIES }
+_TRAVEL_FREQUENCY_NORMALIZED = list(_TRAVEL_FREQUENCY_CANONICAL_LOOKUP.keys())
+
+_PREFERRED_DEST_NORMALIZED = { _normalize_profile_text(item): item for item in PREFERRED_DESTINATION_CATEGORIES }
+_PREFERRED_DEST_NORMALIZED_LIST = list(_PREFERRED_DEST_NORMALIZED.keys())
+_PREFERRED_COMPONENT_SYNONYMS_NORMALIZED = {
+    component: { _normalize_profile_text(token) for token in tokens if _normalize_profile_text(token) }
+    for component, tokens in PREFERRED_DESTINATION_COMPONENT_SYNONYMS.items()
+}
+_PREFERRED_COMPONENT_COMBOS: Dict[frozenset[str], str] = {}
+for canonical in PREFERRED_DESTINATION_CATEGORIES:
+    parts = tuple(part.strip() for part in canonical.split(";") if part.strip())
+    if not parts:
+        continue
+    key = frozenset(parts)
+    _PREFERRED_COMPONENT_COMBOS.setdefault(key, canonical)
+
+_PREFERRED_COMPONENT_ORDER = ["Beaches", "Cities", "Historical Sites", "Mountains", "Nature/forests"]
+
+
+def _match_with_similarity(normalized_value: str, normalized_candidates: List[str], canonical_lookup: Dict[str, str], cutoff: float = 0.75) -> Optional[str]:
+    if not normalized_value:
+        return None
+    matches = difflib.get_close_matches(normalized_value, normalized_candidates, n=1, cutoff=cutoff)
+    if matches:
+        return canonical_lookup.get(matches[0])
+    return None
+
+
+def _iterate_profile_values(value: Any) -> List[Any]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [item for item in value if item not in (None, "")]
+    return [value]
+
+
+def _resolve_travel_style_value(value: Any) -> Optional[str]:
+    for item in _iterate_profile_values(value):
+        normalized = _normalize_profile_text(item)
+        if not normalized:
+            continue
+        direct = _TRAVEL_STYLE_SYNONYM_MAP.get(normalized)
+        if direct:
+            return direct
+    for item in _iterate_profile_values(value):
+        normalized = _normalize_profile_text(item)
+        if not normalized:
+            continue
+        similar = _match_with_similarity(normalized, _TRAVEL_STYLE_NORMALIZED, _TRAVEL_STYLE_CANONICAL_LOOKUP, cutoff=0.6)
+        if similar:
+            return similar
+    return None
+
+
+def _resolve_travel_frequency_value(value: Any) -> Optional[str]:
+    for item in _iterate_profile_values(value):
+        normalized = _normalize_profile_text(item)
+        if not normalized:
+            continue
+        direct = _TRAVEL_FREQUENCY_SYNONYM_MAP.get(normalized)
+        if direct:
+            return direct
+    for item in _iterate_profile_values(value):
+        normalized = _normalize_profile_text(item)
+        if not normalized:
+            continue
+        similar = _match_with_similarity(normalized, _TRAVEL_FREQUENCY_NORMALIZED, _TRAVEL_FREQUENCY_CANONICAL_LOOKUP, cutoff=0.6)
+        if similar:
+            return similar
+    return None
+
+
+def _extract_destination_components(value: Any) -> Set[str]:
+    normalized = _normalize_profile_text(value)
+    if not normalized:
+        return set()
+    direct = _PREFERRED_DEST_NORMALIZED.get(normalized)
+    if direct:
+        return {part.strip() for part in direct.split(";") if part.strip()}
+    components: Set[str] = set()
+    for component, tokens in _PREFERRED_COMPONENT_SYNONYMS_NORMALIZED.items():
+        if any(token and token in normalized for token in tokens):
+            components.add(component)
+    return components
+
+
+def _components_to_canonical(components: Set[str]) -> Optional[str]:
+    if not components:
+        return None
+    key = frozenset(components)
+    direct = _PREFERRED_COMPONENT_COMBOS.get(key)
+    if direct:
+        return direct
+    ordered = [component for component in _PREFERRED_COMPONENT_ORDER if component in components]
+    if not ordered:
+        return None
+    candidate = ";".join(ordered)
+    normalized = _normalize_profile_text(candidate)
+    direct_candidate = _PREFERRED_DEST_NORMALIZED.get(normalized)
+    if direct_candidate:
+        return direct_candidate
+    similar = _match_with_similarity(normalized, _PREFERRED_DEST_NORMALIZED_LIST, _PREFERRED_DEST_NORMALIZED, cutoff=0.6)
+    return similar
+
+
+def _resolve_preferred_destinations_value(value: Any) -> Optional[str]:
+    items = _iterate_profile_values(value)
+    if not items:
+        return None
+
+    accumulated_components: Set[str] = set()
+    fallback_candidates: List[str] = []
+
+    for item in items:
+        normalized = _normalize_profile_text(item)
+        if not normalized:
+            continue
+
+        direct = _PREFERRED_DEST_NORMALIZED.get(normalized)
+        if direct:
+            parts = {part.strip() for part in direct.split(";") if part.strip()}
+            accumulated_components.update(parts)
+            fallback_candidates.append(direct)
+            continue
+
+        components = _extract_destination_components(item)
+        if components:
+            accumulated_components.update(components)
+            continue
+
+        similar = _match_with_similarity(normalized, _PREFERRED_DEST_NORMALIZED_LIST, _PREFERRED_DEST_NORMALIZED, cutoff=0.6)
+        if similar:
+            parts = {part.strip() for part in similar.split(";") if part.strip()}
+            accumulated_components.update(parts)
+            fallback_candidates.append(similar)
+
+    canonical = _components_to_canonical(accumulated_components)
+    if canonical:
+        return canonical
+
+    for candidate in fallback_candidates:
+        if candidate:
+            return candidate
+
+    for item in items:
+        normalized = _normalize_profile_text(item)
+        similar = _match_with_similarity(normalized, _PREFERRED_DEST_NORMALIZED_LIST, _PREFERRED_DEST_NORMALIZED, cutoff=0.5)
+        if similar:
+            return similar
+    return None
+
+
+def _get_profile_value(profile: dict, keys: Tuple[str, ...]) -> Any:
+    for key in keys:
+        value = profile.get(key)
+        if value not in (None, "", []):
+            return value
+    return None
+
+
+def _profile_for_recommender(profile: dict) -> Dict[str, Any]:
+    """Recommender モデルが想定するキーへユーザープロファイルを変換する。"""
+    if not profile:
+        return {}
+
+    mapped: Dict[str, Any] = {}
+
+    travel_style_raw = _get_profile_value(profile, ("Travel_Style", "travel_style"))
+    travel_style = _resolve_travel_style_value(travel_style_raw)
+    if travel_style:
+        mapped["Travel_Style"] = travel_style
+    elif isinstance(travel_style_raw, str) and travel_style_raw.strip():
+        mapped["Travel_Style"] = travel_style_raw.strip()
+
+    travel_frequency_raw = _get_profile_value(profile, ("Travel_Frequency", "travel_frequency"))
+    travel_frequency = _resolve_travel_frequency_value(travel_frequency_raw)
+    if travel_frequency:
+        mapped["Travel_Frequency"] = travel_frequency
+    elif isinstance(travel_frequency_raw, str) and travel_frequency_raw.strip():
+        mapped["Travel_Frequency"] = travel_frequency_raw.strip()
+
+    preferred_raw = _get_profile_value(profile, ("Preferred_Destinations", "preferred_destinations", "interests"))
+    preferred = _resolve_preferred_destinations_value(preferred_raw)
+    if preferred:
+        mapped["Preferred_Destinations"] = preferred
+    elif isinstance(preferred_raw, str) and preferred_raw.strip():
+        mapped["Preferred_Destinations"] = preferred_raw.strip()
+
+    return mapped
+
 
 PROFILE_LOCALIZATION = {
     "ja": {
@@ -921,7 +1164,8 @@ def parse_intent(state: AgentState):
 
 def get_recommendations(state: AgentState):
     print("--- Node: get_recommendations ---")
-    recs = rec_engine.get_recommendations(state['user_profile'], state['itinerary'])
+    profile_for_model = _profile_for_recommender(state.get('user_profile') or {})
+    recs = rec_engine.get_recommendations(profile_for_model, state['itinerary'])
     spot_ids = [rec.get("spot_id") for rec in recs if rec.get("spot_id")]
     realtime_map = {}
     if spot_ids:

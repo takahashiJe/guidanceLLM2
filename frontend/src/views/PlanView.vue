@@ -12,13 +12,16 @@ import { fetchPoiCatalog } from '@/lib/poi'
 // 新しく追加
 import NavWindow from '@/components/NavWindow.vue'
 
+const DEBUG_ORIGIN = Object.freeze({ lat: 39.393477, lon: 140.073769 })
+
 const nav = useNavStore()
 const router = useRouter()
 const { lang, isRouteLoading, error, plan } = storeToRefs(nav)
 const position = usePosition()
-const { currentPos, isMock } = position
 
-const isMockPositionMode = computed(() => !!isMock)
+const effectiveOrigin = computed(() => DEBUG_ORIGIN)
+
+const isMockPositionMode = computed(() => true)
 
 const pois = ref([])
 const spotPois = computed(() => pois.value.filter(p => p.kind !== 'facility'))
@@ -26,7 +29,7 @@ const facilityPois = computed(() => pois.value.filter(p => p.kind === 'facility'
 const selectedIds = ref([])
 
 const hasError = computed(() => !!error.value)
-const hasNoPosition = computed(() => !currentPos.value)
+const hasNoPosition = computed(() => !effectiveOrigin.value)
 const hasRoute = computed(() => !!plan.value?.route)
 
 // 削除: isNavWindowVisible, isNavWindowFullScreen, navWindow, navWindowStyle, previousUserSelect, previousWindowState
@@ -97,11 +100,15 @@ async function submitPlan() {
     alert('現在地が取得できていません。ブラウザのGPS利用を許可してください。')
     return
   }
-
-  const { lat, lng } = currentPos.value
+  const origin = effectiveOrigin.value
+  if (!origin) {
+    // ガード: 念のため null チェック（上の hasNoPosition で基本的に弾かれる）
+    alert('現在地の解決に失敗しました。')
+    return
+  }
   const planOptions = {
     language: lang.value,
-    origin: { lat, lon: lng },
+    origin,
     waypoints: selectedIds.value.map((id) => ({ spot_id: id }))
   }
 

@@ -160,7 +160,10 @@ async function performRegister() {
 }
 
 .animate-pop-in {
+  opacity: 0;
+  transform: scale(0.95);
   animation: fadeInScale 0.7s ease-out forwards;
+  animation-fill-mode: both;
 }
 
 /* Fade-in-up animation for the panel */
@@ -176,6 +179,9 @@ async function performRegister() {
 }
 
 .animate-fade-in-up {
+  opacity: 0;
+  transform: translateY(20px);
   animation: fadeInUp 0.8s ease-out forwards;
+  animation-fill-mode: both;
 }
 </style>
