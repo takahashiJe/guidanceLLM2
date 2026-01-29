@@ -1,66 +1,44 @@
 from __future__ import annotations
 
-import re
-from typing import List, Literal, Optional
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from backend.worker.celery_app import celery_app
+from backend.worker.app.services.llm.tasks import DescribeRequest, DescribeResponse
+import logging
 
-from backend.worker.app.services.llm import generator, prompt
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="llm service")
 
-class SpotRef(BaseModel):
-    spot_id: str
-    name: Optional[str] = None
-    description: Optional[str] = None
-    md_slug: Optional[str] = None
-
-class DescribeRequest(BaseModel):
-    language: Literal["ja","en","zh"]
-    spots: List[SpotRef]
-    style: str = "narration"
-
-class DescribeItem(BaseModel):
-    spot_id: str
-    text: str
-
-class DescribeResponse(BaseModel):
-    items: List[DescribeItem]
-
-def _extract_narration(raw_text: str) -> str:
-    """
-    LLMが生成した <think>...</think> ブロックを除去し、
-    その後に続く本番のナレーションテキストのみを抽出する。
-    """
-    # <think> タグ（複数行モード re.DOTALL を使用）を除去
-    clean_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL)
-    
-    # 残ったテキストの先頭と末尾の空白（改行含む）を除去
-    return clean_text.strip()
-
-def describe_impl(payload: DescribeRequest) -> DescribeResponse:
-    items: list[DescribeItem] = []
-    for s in payload.spots:
-        # 既存処理：コンテキスト収集 → プロンプト生成 → LLM生成
-        ctx = generator.retrieve_context(s.spot_id, payload.language)
-        ptxt = prompt.build_prompt(s.model_dump(), ctx, payload.language, payload.style)
-
-        # generator が生のテキスト(思考タグ含む)を返す
-        raw_text = generator.generate_text(ptxt) # generator.py を使用
-        # 抽出関数を通してクリーンアップする
-        narration_text = _extract_narration(raw_text)
-        
-        items.append(DescribeItem(spot_id=s.spot_id, text=narration_text))
-    return DescribeResponse(items=items)
-
 @app.post("/describe", response_model=DescribeResponse)
-def describe(req: DescribeRequest) -> DescribeResponse:
+def describe_endpoint(req: DescribeRequest):
     """
-    LLMでスポットの説明文を生成するエンドポイント。
-    入力・出力の形式は元のCeleryタスクと同一。
+    Accepts a description request, forwards it to a Celery worker,
+    and waits for the result.
     """
-    # 中核ロジックを呼び出す
-    return describe_impl(req)
+    async_results = []
+    try:
+        for job in req.jobs:
+            payload = {
+                "job_id": job.job_id,
+                "spot": job.spot.model_dump(),
+                "language": req.language,
+            }
+            async_results.append(
+                celery_app.send_task(
+                    "llm.describe_job",
+                    args=[payload],
+                    queue="generation",
+                )
+            )
+
+        items = []
+        for ar in async_results:
+            items.append(ar.get(timeout=3000))
+
+        return DescribeResponse(items=items)
+    except Exception as e:
+        logger.exception("Failed to get result from Celery tasks")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 def health():

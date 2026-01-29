@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Dict, Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, field_validator
 
-# logic モジュールは後で実装（integration テストで monkeypatch 前提）
 from backend.worker.app.services.routing import logic as rlogic
 from backend.worker.app.services.routing.spot_repo import SpotRepo
-from backend.worker.app.services.routing.logic import build_legs_with_switch, stitch_to_geojson
+from backend.worker.app.services.routing.logic import build_legs_with_switch, stitch_to_geojson, build_waypoints_info
 
 app = FastAPI(title="routing service")
 
@@ -30,9 +29,21 @@ class Waypoint(BaseModel):
     spot_id: Optional[str] = None
 
 class RouteRequest(BaseModel):
+    language: Literal["ja", "en", "zh"]
     origin: Coord
     waypoints: List[Waypoint]
+    return_to_origin: bool = True
     car_to_trailhead: bool = True
+
+class WaypointInfo(BaseModel):
+    """waypoints_info として返却するスポット情報のスキーマ"""
+    spot_id: str
+    name: str
+    lon: float
+    lat: float
+    # NAV部で使っていた nearest_idx, distance_m もここで計算して含める
+    nearest_idx: int
+    distance_m: float
 
 class Leg(BaseModel):
     mode: Literal["car", "foot"]
@@ -52,12 +63,13 @@ class RouteResponse(BaseModel):
     legs: List[Leg]
     polyline: List[list[float]]
     segments: List[Segment]
+    waypoints_info: List[WaypointInfo]
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-@app.post("/route")
+@app.post("/route", response_model=RouteResponse)
 def route(req: RouteRequest) -> RouteResponse:
     """
     入力: RouteRequest
@@ -77,7 +89,7 @@ def route(req: RouteRequest) -> RouteResponse:
     """
 
     # 0) バリデーション
-    if not req.waypoints or len(req.waypoints) < 2:
+    if not req.waypoints or len(req.waypoints) < 1:
         raise HTTPException(status_code=400, detail="At least two waypoints are required.")
 
     spot_ids = []
@@ -117,9 +129,18 @@ def route(req: RouteRequest) -> RouteResponse:
     # 4) GeoJSON / polyline / segments 生成
     feature_collection, polyline, segments = stitch_to_geojson(legs)
 
+    # 5) waypoints_info を生成
+    #    - 入力: spot_idのリスト, 言語, 生成されたポリライン
+    #    - 出力: フロントでマーカー表示に必要な情報リスト
+    waypoints_info = []
+    if polyline:
+        waypoints_info = build_waypoints_info(spot_ids, req.language, polyline)
+
+    # 6) レスポンスを組み立てる
     return RouteResponse(
         feature_collection=feature_collection,
-        legs=legs,
+        legs=[Leg(**leg) for leg in legs], # スキーマに合わせて変換
         polyline=polyline,
-        segments=segments,
+        segments=[Segment(**seg) for seg in segments], # スキーマに合わせて変換
+        waypoints_info=waypoints_info, # ★ 生成した情報を追加
     )

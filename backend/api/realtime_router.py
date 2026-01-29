@@ -7,10 +7,17 @@ import time
 from typing import Dict, Optional
 from typing_extensions import TypedDict
 import base64  # ★★★ Base64デコードのためにインポート
+import random
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from starlette.responses import Response
+from sqlalchemy.exc import SQLAlchemyError
+
+from .schemas import RTDoc, RTDocResponse
+from backend.api.logging_config import get_lora_logger
+from backend.worker.agent_app.db_client import SessionLocal
+from backend.api.realtime_repo import get_spot_realtime, upsert_spot_realtime
 
 try:
     import paho.mqtt.client as mqtt
@@ -23,11 +30,6 @@ logger = logging.getLogger(__name__)
 logger.debug("デバッグログ")
 
 router = APIRouter(prefix="/rt", tags=["realtime"])
-
-class RTDoc(TypedDict, total=False):
-    s: str
-    w: int
-    c: int
 
 _state: Dict[str, RTDoc] = {}
 _MQTT_CLIENT: Optional["mqtt.Client"] = None
@@ -52,6 +54,38 @@ MQTT_UPLINK_TOPIC = f"v3/{TTN_APP_ID}@ttn/devices/{TTN_DEVICE_ID}/up"
 # MQTT_DOWNLINK_TOPIC = f"v3/{TTN_APP_ID}/devices/{TTN_DEVICE_ID}/down/push"
 MQTT_DOWNLINK_TOPIC = f"v3/{TTN_APP_ID}@ttn/devices/{TTN_DEVICE_ID}/down/push"
 
+def _get_or_create_spot_data(spot_id: str) -> RTDoc:
+    """
+    指定されたspot_idのデータをDBから取得し、存在しない場合は作成する。
+    """
+    cached = _state.get(spot_id)
+    if cached:
+        return cached
+
+    try:
+        with SessionLocal() as db:
+            record = get_spot_realtime(db, spot_id)
+            if record is None:
+                weather = random.randint(0, 2)
+                congestion = random.randint(0, 2)
+                record = upsert_spot_realtime(db, spot_id, weather, congestion)
+
+            doc = RTDoc(
+                s=spot_id,
+                w=int(record.weather),
+                c=int(record.congestion),
+            )
+    except SQLAlchemyError:
+        logger.exception("スポットのリアルタイム情報の取得に失敗しました (spot_id=%s)", spot_id)
+        doc = RTDoc(
+            s=spot_id,
+            w=random.randint(0, 2),
+            c=random.randint(0, 2),
+        )
+
+    _state[spot_id] = doc
+    return doc
+
 def _status_monitor():
     while True:
         if _MQTT_CLIENT:
@@ -71,12 +105,10 @@ def _on_connect(client, userdata, flags, rc, properties=None):
 
 def _on_message(client, userdata, msg):
     """ ★★★ TTNからのUplinkメッセージを処理する関数 ★★★ """
-    print(f"【DEBUG】MQTTメッセージ受信コールバック開始")
+    lora_logger = get_lora_logger()
     try:
-        decoded_payload = msg.payload.decode("utf-8")
-        print(f"【DEBUG】ペイロードデコード済み: {decoded_payload}")
         ttn_msg = json.loads(msg.payload.decode("utf-8"))
-        print(f"TTNメッセージ内容: {json.dumps(ttn_msg, indent=2, ensure_ascii=False)}")
+        lora_logger.info(f"UPLINK: {json.dumps(ttn_msg, indent=2, ensure_ascii=False)}")
 
         # 'data' キーが存在し、その中に 'uplink_message' があるかチェック
         if "data" in ttn_msg and "uplink_message" in ttn_msg["data"]:
@@ -98,23 +130,11 @@ def _on_message(client, userdata, msg):
         spot_id = base64.b64decode(payload_b64).decode("utf-8")
         print(f"TTNからUplink受信: spot_id = {spot_id}")
 
-        # --- ここで本来は天候や混雑度をDBなどから取得する ---
-        # 今回はダミーデータを生成する
-        import random
-        dummy_weather = random.randint(0, 2)
-        dummy_congestion = random.randint(0, 4)
-        # ----------------------------------------------------
-
-        response_doc: RTDoc = {"s": spot_id, "w": dummy_weather, "c": dummy_congestion}
-        
-        # 内部状態を更新
-        _state[spot_id] = response_doc
-
-        # ★★★ フロントエンドに応答を返すためにDownlinkを送信 ★★★
-        _publish_downlink(response_doc)
+        response_doc: RTDoc = _get_or_create_spot_data(spot_id)
+        _publish_downlink(response_doc.model_dump())
 
     except Exception as e:
-        print(f"MQTTメッセージの処理中にエラーが発生しました: {e}")
+        lora_logger.error(f"UPLINK_ERROR: {e}\nPayload: {msg.payload.decode(errors='ignore')}")
         return
 
 def _publish_downlink(payload: RTDoc):
@@ -138,13 +158,13 @@ def _publish_downlink(payload: RTDoc):
         }]
     }
     
+    lora_logger = get_lora_logger()
     try:
         downlink_json_for_ttn = json.dumps(downlink_msg)
         _MQTT_CLIENT.publish(MQTT_DOWNLINK_TOPIC, downlink_json_for_ttn, qos=1)
-        print(f"【DEBUG】ダウンリンク送信成功: {downlink_json_for_ttn}")
+        lora_logger.info(f"DOWNLINK: {downlink_json_for_ttn}")
     except Exception as e:
-        print(f"【ERROR】ダウンリンク送信失敗: {e}")
-
+        lora_logger.error(f"DOWNLINK_ERROR: {e}")
 
 def _mqtt_worker():
     global _MQTT_CLIENT
@@ -205,15 +225,28 @@ def _shutdown_mqtt():
     if mqtt is None or not _MQTT_CLIENT: return
     _MQTT_CLIENT.disconnect()
 
-@router.get("/spot/{spot_id}", response_class=JSONResponse, summary="最新のリアルタイム情報（極小JSON）")
+@router.get("/spot/{spot_id}", response_model=RTDocResponse, summary="最新のリアルタイム情報（極小JSON）")
 def get_spot_rt(spot_id: str):
-    item = _state.get(spot_id)
-    if not item:
-        return Response(status_code=204)
-    return JSONResponse(content=item)
+    item = _get_or_create_spot_data(spot_id)
+    return item
 
-@router.post("/_mock/{spot_id}")
-def _mock_push(spot_id: str, body: RTDoc):
-    body["s"] = spot_id
-    _state[spot_id] = body
+@router.post("/_mock/{spot_id}", summary="MQTTを介さずに擬似的にデータをPUSHする")
+def _mock_push(spot_id: str, body: RTDocResponse):
+    """
+    指定spot_idのリアルタイム情報を更新し、MQTTでDownlinkを送信する
+    """
+    # bodyのデータとspot_idを使って、新しいRTDocインスタンスを作成
+    doc = RTDoc(s=spot_id, **body.model_dump())
+    try:
+        with SessionLocal() as db:
+            upsert_spot_realtime(db, spot_id, doc.w, doc.c)
+    except SQLAlchemyError:
+        logger.exception("リアルタイム情報の更新に失敗しました (spot_id=%s)", spot_id)
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "detail": "failed to persist realtime info"},
+        )
+
+    # 作成したインスタンスを内部状態に保存
+    _state[spot_id] = doc
     return {"ok": True}

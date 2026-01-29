@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Optional
 
 from sqlalchemy import create_engine, text, bindparam
 from sqlalchemy.engine import Engine, Result
+import json
 
 
 @dataclass
@@ -37,7 +38,7 @@ def _get_engine() -> Engine:
     return _engine
 
 
-def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
+def get_spots_by_ids(ids: Iterable[str], lang: str) -> Dict[str, SpotRow]:
     """
     spots テーブルから spot_id 群を引き、 {spot_id: SpotRow} を返す。
     想定カラム: spot_id (PK), name, description, md_slug
@@ -45,20 +46,67 @@ def get_spots_by_ids(ids: Iterable[str]) -> Dict[str, SpotRow]:
     id_list = [str(i) for i in ids if i]
     if not id_list:
         return {}
+    
+    if lang not in ['ja', 'en', 'zh']:
+        return {}
+    
+    sql_query = f"""
+        WITH combined AS (
+            SELECT
+                s.spot_id::text AS spot_id,
+                COALESCE(
+                    s.official_name->>'{lang}',
+                    s.official_name->>'ja',
+                    s.official_name->>'en',
+                    s.official_name->>'zh'
+                ) AS name,
+                COALESCE(
+                    s.description->>'{lang}',
+                    s.description->>'ja',
+                    s.description->>'en',
+                    s.description->>'zh'
+                ) AS description,
+                s.md_slug,
+                ST_Y(s.geom) AS lat,
+                ST_X(s.geom) AS lon,
+                1 AS ord
+            FROM spots s
+            WHERE s.spot_id IN :ids
 
-    sql = text(
-        """
-        SELECT
-        spot_id::text AS spot_id,
-        official_name->>'ja' AS name,
-        description,
-        md_slug,
-        ST_Y(geom) AS lat,
-        ST_X(geom) AS lon
-        FROM spots
-        WHERE spot_id IN :ids
-        """
-    ).bindparams(bindparam("ids", expanding=True))
+            UNION ALL
+
+            SELECT
+                f.spot_id::text AS spot_id,
+                COALESCE(
+                    f.official_name->>'{lang}',
+                    f.official_name->>'ja',
+                    f.official_name->>'en',
+                    f.official_name->>'zh'
+                ) AS name,
+                COALESCE(
+                    f.description->>'{lang}',
+                    f.description->>'ja',
+                    f.description->>'en',
+                    f.description->>'zh'
+                ) AS description,
+                f.md_slug,
+                ST_Y(f.geom) AS lat,
+                ST_X(f.geom) AS lon,
+                2 AS ord
+            FROM facilities f
+            WHERE f.spot_id IN :ids
+        )
+        SELECT DISTINCT ON (spot_id)
+            spot_id,
+            name,
+            description,
+            md_slug,
+            lat,
+            lon
+        FROM combined
+        ORDER BY spot_id, ord
+    """
+    sql = text(sql_query).bindparams(bindparam("ids", expanding=True))
 
     try:
         eng = _get_engine()

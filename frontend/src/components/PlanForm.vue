@@ -16,13 +16,29 @@
     <div class="columns">
       <!-- 候補リスト -->
       <div class="col">
-        <h3>スポット一覧（{{ filtered.length }}）</h3>
-        <ul class="list">
-          <li v-for="poi in filtered" :key="poi.spot_id">
+        <h3>自然スポット（{{ filteredSpots.length }}）</h3>
+        <ul class="list" v-if="filteredSpots.length">
+          <li v-for="poi in filteredSpots" :key="poi.spot_id">
             <button class="add" @click="add(poi.spot_id)" :disabled="selectedIds.includes(poi.spot_id)">＋</button>
-            <span class="name">{{ displayName(poi) }}</span>
+            <span class="name">
+              <span v-if="poi.kind === 'facility'" class="facility-chip" aria-hidden="true">🏢</span>
+              {{ displayName(poi) }}
+            </span>
           </li>
         </ul>
+        <p v-else class="empty">該当する自然スポットはありません。</p>
+
+        <h3>施設（{{ filteredFacilities.length }}）</h3>
+        <ul class="list" v-if="filteredFacilities.length">
+          <li v-for="poi in filteredFacilities" :key="poi.spot_id">
+            <button class="add" @click="add(poi.spot_id)" :disabled="selectedIds.includes(poi.spot_id)">＋</button>
+            <span class="name">
+              <span class="facility-chip" aria-hidden="true">🏢</span>
+              {{ displayName(poi) }}
+            </span>
+          </li>
+        </ul>
+        <p v-else class="empty">該当する施設はありません。</p>
       </div>
 
       <!-- 選択順序 -->
@@ -59,6 +75,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useNavStore } from '@/stores/nav'
+import { fetchPoiCatalog } from '@/lib/poi'
 
 const store = useNavStore()
 
@@ -78,22 +95,28 @@ const selectedIds = ref(
   : []
 )
 
-// ---- POI読み込み（/public/pois.json）----
+// ---- POI & 施設の読み込み ----
 onMounted(async () => {
   try {
-    const res = await fetch('/pois.json', { cache: 'no-store' })
-    const arr = await res.json()
-    pois.value = Array.isArray(arr) ? arr.filter(p => p && p.spot_id) : []
+    const catalog = fetchPoiCatalog({ includeFacilities: true })
+    pois.value = catalog.sort((a, b) => baseDisplayName(a).localeCompare(baseDisplayName(b), 'ja'))
   } catch (e) {
-    console.error('[plan] failed to load /pois.json', e)
+    console.error('[plan] failed to load poi catalog', e)
     pois.value = []
   }
 })
 
 // ---- 表示名ユーティリティ ----
+function baseDisplayName(poi) {
+  const names = poi?.names || poi?.official_name
+  const localized = (names && names[langLocal.value]) || null
+  if (localized) return String(localized)
+  if (poi?.name) return String(poi.name)
+  return poi?.spot_id ? String(poi.spot_id) : '(no name)'
+}
+
 function displayName(poi) {
-  const n = (poi?.official_name && poi.official_name[langLocal.value]) || poi?.name
-  return (n && String(n)) || poi?.spot_id || '(no name)'
+  return baseDisplayName(poi)
 }
 function nameById(id) {
   const p = pois.value.find(x => x.spot_id === id)
@@ -103,8 +126,19 @@ function nameById(id) {
 const filtered = computed(() => {
   const needle = q.value.trim().toLowerCase()
   if (!needle) return pois.value
-  return pois.value.filter(p => displayName(p).toLowerCase().includes(needle))
+  return pois.value.filter((p) => {
+    const base = baseDisplayName(p)
+    const category = p?.category ? String(p.category) : ''
+    const spotId = p?.spot_id ? String(p.spot_id) : ''
+    const names = p?.names && typeof p.names === 'object'
+      ? Object.values(p.names).filter(Boolean).join(' ') : ''
+    return [displayName(p), base, category, spotId, names]
+      .some((str) => str && String(str).toLowerCase().includes(needle))
+  })
 })
+
+const filteredSpots = computed(() => filtered.value.filter(p => p.kind !== 'facility'))
+const filteredFacilities = computed(() => filtered.value.filter(p => p.kind === 'facility'))
 
 // ---- 選択操作 ----
 function add(id) {
@@ -145,4 +179,6 @@ function start() {
 .origin{ margin-top:8px; }
 .origin .row{ display:flex; gap:8px; }
 .primary{ margin-top:12px; width:100%; height:44px; font-size:16px; }
+.empty{ margin:4px 0 12px; color:#777; font-size:13px; }
+.facility-chip{ display:inline-block; margin-right:4px; font-size:16px; vertical-align:middle; }
 </style>

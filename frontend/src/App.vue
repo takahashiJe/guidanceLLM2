@@ -1,63 +1,25 @@
 <script setup>
-import { computed } from 'vue'
-import { RouterView, useRoute } from 'vue-router'
+import { onMounted } from 'vue'
+import { RouterView } from 'vue-router'
+import { useNavStore } from '@/stores/nav'
 
-const route = useRoute()
+const navStore = useNavStore()
 
-// 現在のルートパスに応じてCSSクラスを切り替える
-const appClass = computed(() => {
-  return {
-    'nav-active': route.path === '/nav'
-  }
+// Initialize any app-wide logic here, like the device ID.
+onMounted(() => {
+  navStore.initializeDeviceId()
 })
 </script>
 
 <template>
-  <div id="app" :class="appClass">
-    <header v-if="!appClass['nav-active']">
-      <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-      <div class="wrapper">
-        <h1>Guidance LLM</h1>
-      </div>
-    </header>
-
-    <main>
-      <RouterView />
-    </main>
-  </div>
+  <RouterView />
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-main {
-  width: 100%;
-  height: 100%;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
+<style>
+/* 
+  All layout-specific styles have been removed from App.vue.
+  The layout is now handled by AppShell.vue for authenticated routes 
+  and by individual views like LoginView.vue for others.
+  Global styles are in the /src/assets folder.
+*/
 </style>

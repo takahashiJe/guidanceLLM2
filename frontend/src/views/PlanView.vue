@@ -1,124 +1,154 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useNavStore } from '@/stores/nav';
-import { createPlan, pollPlan } from '@/lib/api';
+import { ref, reactive, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
+import { useNavStore } from '@/stores/nav'
+import { usePosition } from '@/lib/usePosition.js'
+// import { usePosition } from '@/lib/usePosition.mock.js'
+import { sendSwMessage } from '@/lib/swClient'
+import { fetchPoiCatalog } from '@/lib/poi'
+// import NavView from '@/views/NavView.vue' // 削除
 
-const router = useRouter();
-const nav = useNavStore();
+// 新しく追加
+import NavWindow from '@/components/NavWindow.vue'
 
-const lang = ref(nav.lang);
-const pois = ref([]);
-const selectedIds = ref([]);
-const submitting = ref(false);
+const DEBUG_ORIGIN = Object.freeze({ lat: 39.393477, lon: 140.073769 })
+
+const nav = useNavStore()
+const router = useRouter()
+const { lang, isRouteLoading, error, plan } = storeToRefs(nav)
+const position = usePosition()
+
+const effectiveOrigin = computed(() => DEBUG_ORIGIN)
+
+const isMockPositionMode = computed(() => true)
+
+const pois = ref([])
+const spotPois = computed(() => pois.value.filter(p => p.kind !== 'facility'))
+const facilityPois = computed(() => pois.value.filter(p => p.kind === 'facility'))
+const selectedIds = ref([])
+
+const hasError = computed(() => !!error.value)
+const hasNoPosition = computed(() => !effectiveOrigin.value)
+const hasRoute = computed(() => !!plan.value?.route)
+
+// 削除: isNavWindowVisible, isNavWindowFullScreen, navWindow, navWindowStyle, previousUserSelect, previousWindowState
+
+// 削除: clamp 関数
 
 // --- POIデータ読み込み ---
 onMounted(async () => {
   try {
-    const res = await fetch('/pois.json', { cache: 'no-cache' });
-    pois.value = await res.json();
+    const catalog = fetchPoiCatalog({ includeFacilities: true })
+    pois.value = catalog.sort((a, b) => baseDisplayName(a).localeCompare(baseDisplayName(b), 'ja'))
   } catch (e) {
-    console.error('[plan] failed to load pois.json', e);
+    console.error('[plan] failed to load poi catalog', e)
+    pois.value = []
   }
-});
+
+  // 削除: ensureNavWindowBounds()
+  // 削除: if (typeof window !== 'undefined') { window.addEventListener('resize', handleWindowResize) }
+})
+
+onBeforeUnmount(() => {
+  // 削除: endPointerInteraction()
+  // 削除: if (typeof window !== 'undefined') { window.removeEventListener('resize', handleWindowResize) }
+})
 
 // --- UI用ヘルパー関数 ---
+function baseDisplayName(poi) {
+  const names = poi?.official_name || poi?.names || {}
+  return names[lang.value] || names.ja || poi?.name || poi?.spot_id
+}
+
 function displayName(p) {
-  const o = (p.official_name || {});
-  return (o[lang.value] || o.ja || p.spot_id);
+  return baseDisplayName(p)
 }
 
 function nameById(id) {
-  const p = pois.value.find(x => x.spot_id === id);
-  return p ? displayName(p) : id;
+  const p = pois.value.find((x) => x.spot_id === id)
+  return p ? displayName(p) : id
 }
 
 // --- 選択・並べ替えロジック ---
 function toggleSpot(id) {
-  const i = selectedIds.value.indexOf(id);
+  const i = selectedIds.value.indexOf(id)
   if (i >= 0) {
-    selectedIds.value.splice(i, 1);
+    selectedIds.value.splice(i, 1)
   } else {
-    selectedIds.value.push(id);
+    selectedIds.value.push(id)
   }
 }
 
 function move(i, d) {
-  const j = i + d;
-  if (j < 0 || j >= selectedIds.value.length) return;
-  const arr = selectedIds.value;
-  [arr[i], arr[j]] = [arr[j], arr[i]];
+  const j = i + d
+  if (j < 0 || j >= selectedIds.value.length) return
+  const temp = selectedIds.value[i]
+  selectedIds.value[i] = selectedIds.value[j]
+  selectedIds.value[j] = temp
 }
 
 function remove(i) {
-  selectedIds.value.splice(i, 1);
+  selectedIds.value.splice(i, 1)
 }
 
-// --- 現在地取得 ---
-function getCurrentPositionOnce() {
-  return new Promise(resolve => {
-    if (!navigator.geolocation) {
-      return resolve(null);
-    }
-    navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 3000, maximumAge: 5000 }
-    );
-  });
-}
-
-// --- 送信処理 ---
+/**
+ * ルート計画の作成をストアのアクションに依頼する
+ */
 async function submitPlan() {
-  if (submitting.value || selectedIds.value.length === 0) return;
-
-  try {
-    submitting.value = true;
-
-    const freshOrigin = await getCurrentPositionOnce();
-    if (freshOrigin) {
-      nav.setOrigin(freshOrigin);
-    }
-
-    nav.setLang(lang.value);
-    nav.setWaypointsByIds(selectedIds.value);
-
-    const payload = {
-      language: nav.lang,
-      origin: { lat: nav.origin.lat, lon: nav.origin.lon },
-      return_to_origin: true,
-      waypoints: nav.waypointsByIds.map(id => ({ spot_id: id })),
-    };
-    
-    console.debug('[plan] payload', payload);
-
-    const { task_id } = await createPlan(payload);
-    const planResult = await pollPlan(task_id, (tick) =>
-      console.debug('[plan] tick', tick)
-    );
-
-    nav.setPlan(planResult);
-    router.push('/nav');
-
-  } catch (e) {
-    console.error('[plan] submit error', e);
-    alert('プランの作成に失敗しました。通信状態を確認するか、時間をおいて再度お試しください。');
-  } finally {
-    submitting.value = false;
+  if (hasNoPosition.value) {
+    alert('現在地が取得できていません。ブラウザのGPS利用を許可してください。')
+    return
   }
+  const origin = effectiveOrigin.value
+  if (!origin) {
+    // ガード: 念のため null チェック（上の hasNoPosition で基本的に弾かれる）
+    alert('現在地の解決に失敗しました。')
+    return
+  }
+  const planOptions = {
+    language: lang.value,
+    origin,
+    waypoints: selectedIds.value.map((id) => ({ spot_id: id }))
+  }
+
+  await sendSwMessage({ type: 'RESET_TILES_CACHE' })
+  await nav.fetchRoute(planOptions, { navigate: false })
+  // 削除: isNavWindowVisible.value = true
+  // 削除: isNavWindowFullScreen.value = false
+  // 削除: ensureNavWindowBounds()
 }
+
+// 削除: toggleNavWindow, openNavFullScreen, startDrag, attachGlobalPointerListeners, onPointerMove, endPointerInteraction, lockUserSelect, unlockUserSelect, handleWindowResize, ensureNavWindowBounds 関数
+
+// 削除: watch(hasRoute, ...), watch(plan, ...), watch(isNavWindowVisible, ...)
+
+watch(() => nav.plan?.route, (newRoute) => {
+  if (
+    position.isMock &&
+    newRoute?.features?.[0]?.geometry?.type === 'LineString' &&
+    newRoute.features[0].geometry.coordinates &&
+    position.setMockTrack
+  ) {
+    const track = newRoute.features[0].geometry.coordinates;
+    position.setMockTrack(track);
+  }
+}, { deep: true });
 </script>
 
 <template>
   <div class="page">
     <header class="bar">
-      <h1>プラン作成</h1>
+      <h1>ナビ計画</h1>
+      <div v-if="isMockPositionMode" class="mock-indicator" role="status">
+        モック現在地モード
+      </div>
     </header>
 
     <section class="form">
       <div class="row">
-        <label>言語</label>
-        <select v-model="lang">
+        <label for="lang">表示言語</label>
+        <select id="lang" v-model="lang">
           <option value="ja">日本語</option>
           <option value="en">English</option>
           <option value="zh">中文</option>
@@ -126,26 +156,52 @@ async function submitPlan() {
       </div>
 
       <div class="row">
-        <label>スポット（訪問したい順に選択・並べ替え）</label>
-        <div class="chips">
-          <button
-            v-for="p in pois"
-            :key="p.spot_id"
-            :class="['chip', selectedIds.includes(p.spot_id) ? 'on' : '']"
-            @click="toggleSpot(p.spot_id)"
-          >
-            {{ displayName(p) }}
-          </button>
+        <label>スポット選択（複数可・順番に周遊）</label>
+        <div class="chips-groups">
+          <section>
+            <p class="chips-heading">自然スポット</p>
+            <div class="chips">
+              <button
+                v-for="p in spotPois"
+                :key="`spot-${p.spot_id}`"
+                @click="toggleSpot(p.spot_id)"
+                :class="{ chip: true, on: selectedIds.includes(p.spot_id) }"
+              >
+                <span v-if="p.kind === 'facility'" class="facility-chip" aria-hidden="true">🏢</span>
+                {{ displayName(p) }}
+              </button>
+              <p v-if="!spotPois.length" class="chips-empty">自然スポットが読み込めませんでした。</p>
+            </div>
+          </section>
+          <section>
+            <p class="chips-heading">施設</p>
+            <div class="chips">
+              <button
+                v-for="p in facilityPois"
+                :key="`facility-${p.spot_id}`"
+                @click="toggleSpot(p.spot_id)"
+                :class="{ chip: true, on: selectedIds.includes(p.spot_id) }"
+              >
+                <span class="facility-chip" aria-hidden="true">🏢</span>
+                {{ displayName(p) }}
+              </button>
+              <p v-if="!facilityPois.length" class="chips-empty">施設が読み込めませんでした。</p>
+            </div>
+          </section>
         </div>
+      </div>
 
-        <div v-if="selectedIds.length" class="reorder">
-          <h4>訪問順</h4>
+      <div class="row" v-if="selectedIds.length > 0">
+        <label>訪問順</label>
+        <div class="reorder">
           <ul>
             <li v-for="(id, i) in selectedIds" :key="id">
-              <span>{{ i + 1 }}. {{ nameById(id) }}</span>
-              <span class="ops">
-                <button @click="move(i, -1)" :disabled="i === 0">↑</button>
-                <button @click="move(i, 1)" :disabled="i === selectedIds.length - 1">↓</button>
+              <span class="name">{{ i + 1 }}. {{ nameById(id) }}</span>
+              <span class="ctrl">
+                <button class="up" :disabled="i === 0" @click="move(i, -1)">↑</button>
+                <button class="down" :disabled="i === selectedIds.length - 1" @click="move(i, 1)">
+                  ↓
+                </button>
                 <button class="del" @click="remove(i)">×</button>
               </span>
             </li>
@@ -153,30 +209,180 @@ async function submitPlan() {
         </div>
       </div>
 
+      <div v-if="hasError" class="error-box">
+        <p>エラーが発生しました:</p>
+        <pre>{{ nav.error }}</pre>
+      </div>
+      <div v-if="hasNoPosition" class="error-box">
+        <p>現在地を取得中です...</p>
+      </div>
+
       <div class="row">
-        <button class="primary" :disabled="submitting || selectedIds.length === 0" @click="submitPlan">
-          {{ submitting ? '作成中...' : 'この条件でナビ開始' }}
+        <button
+          class="primary"
+          :disabled="isRouteLoading || selectedIds.length === 0 || hasNoPosition"
+          @click="submitPlan"
+        >
+          {{ isRouteLoading ? 'ルート作成中...' : 'ルートを作成して地図で確認' }}
         </button>
       </div>
     </section>
   </div>
+  <!-- 削除: フローティングボタン -->
+  <!-- 削除: Teleportとnav-window -->
+  <NavWindow /> <!-- 追加 -->
 </template>
 
 <style scoped>
-.page { max-width: 720px; margin: 0 auto; padding: 8px 12px 24px; }
-.bar { display:flex; align-items:center; justify-content:space-between; }
-.form { margin-top:8px; }
-.row { margin: 16px 0; }
-label { display: block; margin-bottom: 8px; font-weight: bold; }
-select { padding:8px; font-size:16px; width: 100%; }
-.chips { display:flex; flex-wrap:wrap; gap:8px; }
-.chip { padding:6px 12px; border:1px solid #ccc; border-radius:16px; background:#fff; cursor: pointer; transition: all 0.2s; }
-.chip.on { background:#e8f0fe; border-color:#2563eb; color:#2563eb; font-weight: bold; }
-.reorder { margin-top: 16px; }
-.reorder ul { list-style: none; padding:0; margin:6px 0 0; }
-.reorder li { display:flex; align-items:center; justify-content:space-between; padding:8px 4px; border-bottom:1px solid #eee; }
-.ops button { margin-left:6px; }
-.del { color:#b91c1c; }
-.primary { width:100%; padding:12px; font-size:16px; background:#2563eb; color:#fff; border:none; border-radius:10px; cursor: pointer; }
-.primary:disabled { background: #ccc; cursor: not-allowed; }
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 12px 24px;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mock-indicator {
+  margin-left: 16px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.16);
+  border: 1px solid rgba(37, 99, 235, 0.45);
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.form {
+  margin-top: 8px;
+}
+.row {
+  margin: 16px 0;
+}
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+select {
+  padding: 8px;
+  font-size: 16px;
+  width: 100%;
+}
+.chips-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.chips-heading {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chips-empty {
+  color: #777;
+  font-size: 13px;
+  margin: 0;
+}
+.facility-chip {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 16px;
+  vertical-align: middle;
+}
+.chip {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.chip.on {
+  background: #e8f0fe;
+  border-color: #2563eb;
+  color: #2563eb;
+  font-weight: bold;
+}
+.reorder {
+  margin-top: 16px;
+}
+.reorder ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.reorder li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+}
+.reorder li:last-child {
+  border-bottom: none;
+}
+.reorder .name {
+  font-size: 16px;
+}
+.reorder .ctrl {
+  display: flex;
+  gap: 4px;
+}
+.reorder .ctrl button {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background: #f8f8f8;
+  cursor: pointer;
+}
+.reorder .ctrl button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.reorder .ctrl button.del {
+  border-color: #e11d48;
+  color: #e11d48;
+}
+
+button.primary {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button.primary:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.error-box {
+  border: 1px solid #f87171;
+  background-color: #fef2f2;
+  color: #b91c1c;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 16px;
+}
+
+/* 削除: nav-window関連のスタイル */
 </style>

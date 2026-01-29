@@ -1,21 +1,28 @@
 from __future__ import annotations
 
-import os
-from typing import List, Dict, Iterable, Any
 import json
+import logging
+import os
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional
 
+from pyproj import Transformer
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
-from shapely.ops import unary_union
-from shapely.geometry import Polygon, MultiPolygon, MultiLineString, mapping
+from shapely.geometry import (MultiLineString, MultiPolygon, Point, Polygon, shape)
 from shapely.geometry.base import BaseGeometry
+from shapely.ops import transform, unary_union
 from shapely.validation import make_valid
-import logging
 
 # print文が見つけやすいように、目立つセパレータを使います
 SEPARATOR = "■■■ DEBUG ■■■"
 log = logging.getLogger(__name__)
 _engine: Engine | None = None
+
+_DEFAULT_FACILITIES_PATH = Path(__file__).resolve().parents[3] / "data" / "facilities.json"
+_FACILITIES_PATH = Path(os.getenv("FACILITIES_JSON_PATH", str(_DEFAULT_FACILITIES_PATH)))
+_TRANSFORMER_TO_3857 = Transformer.from_crs(4326, 3857, always_xy=True)
 
 def _clean_and_extract_polygons(geoms: Iterable[BaseGeometry]) -> List[Polygon]:
     cleaned_polygons: List[Polygon] = []
@@ -65,6 +72,196 @@ def _get_engine() -> Engine:
     if _engine is None:
         _engine = create_engine(_conn_url(), future=True)
     return _engine
+
+def _normalize_md_slug(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    slug = value.strip()
+    if not slug or slug.lower() == "none":
+        return None
+    return slug
+
+
+def _select_facility_name(rec: Dict[str, Any]) -> Optional[str]:
+    official = rec.get("official_name") or {}
+    for lang in ("ja", "en", "zh"):
+        name = official.get(lang)
+        if name:
+            return str(name)
+    aliases = rec.get("aliases") or {}
+    for lang in ("ja", "en", "zh"):
+        alias = aliases.get(lang)
+        if isinstance(alias, list) and alias:
+            return str(alias[0])
+        if isinstance(alias, str) and alias:
+            return str(alias)
+    return None
+
+
+def _iter_polygons(geom: BaseGeometry) -> Iterable[Polygon]:
+    if geom.geom_type == "Polygon":
+        yield geom
+    elif geom.geom_type == "MultiPolygon":
+        for sub in geom.geoms:
+            if isinstance(sub, BaseGeometry) and not sub.is_empty:
+                yield from _iter_polygons(sub)
+    elif geom.geom_type == "GeometryCollection":
+        for sub in geom.geoms:
+            if isinstance(sub, BaseGeometry) and not sub.is_empty:
+                yield from _iter_polygons(sub)
+
+
+def _normalize_polygons(polys: Iterable[BaseGeometry]) -> List[Polygon]:
+    normalized: List[Polygon] = []
+    for geom in polys or []:
+        if not isinstance(geom, BaseGeometry) or geom.is_empty:
+            continue
+        candidate = make_valid(geom) if not geom.is_valid else geom
+        for poly in _iter_polygons(candidate):
+            normalized.append(poly)
+    return normalized
+
+
+def _project_to_3857(geom: BaseGeometry) -> BaseGeometry:
+    return transform(_TRANSFORMER_TO_3857.transform, geom)
+
+
+@lru_cache(maxsize=1)
+def _load_facility_records() -> List[Dict[str, Any]]:
+    path = _FACILITIES_PATH
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+
+    records: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for rec in data:
+        spot_id = rec.get("spot_id") or rec.get("id")
+        if not spot_id:
+            continue
+        sid = str(spot_id)
+        if sid in seen:
+            continue
+        coords = rec.get("coordinates") or {}
+        try:
+            lat = float(coords.get("latitude"))
+            lon = float(coords.get("longitude"))
+        except (TypeError, ValueError):
+            continue
+        point = Point(lon, lat)
+        record = {
+            "spot_id": sid,
+            "name": _select_facility_name(rec) or sid,
+            "lon": lon,
+            "lat": lat,
+            "kind": "facility",
+            "md_slug": _normalize_md_slug(rec.get("md_slug")),
+            "geom": point,
+            "geom_m": _project_to_3857(point),
+        }
+        records.append(record)
+        seen.add(sid)
+    return records
+
+
+def _shape_to_3857(geojson_obj: Any) -> Optional[BaseGeometry]:
+    if not geojson_obj:
+        return None
+    try:
+        geom = shape(geojson_obj)
+    except Exception:
+        return None
+    if geom.is_empty:
+        return None
+    return _project_to_3857(geom)
+
+
+def _merge_hits(primary: List[Dict[str, Any]], extras: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    if not primary:
+        return list(extras) if extras else []
+    if not extras:
+        return list(primary)
+
+    merged = list(primary)
+    seen = {hit.get("spot_id") for hit in merged if hit.get("spot_id")}
+    for hit in extras:
+        sid = hit.get("spot_id")
+        if sid and sid in seen:
+            continue
+        merged.append(hit)
+        if sid:
+            seen.add(sid)
+    return merged
+
+
+def _query_facilities_in_polys(polys: Iterable[BaseGeometry]) -> List[Dict[str, Any]]:
+    records = _load_facility_records()
+    if not records:
+        return []
+    normalized = _normalize_polygons(polys)
+    if not normalized:
+        return []
+
+    hits: List[Dict[str, Any]] = []
+    for rec in records:
+        pt: BaseGeometry = rec["geom"]
+        if any(poly.intersects(pt) for poly in normalized):
+            hits.append({
+                "spot_id": rec["spot_id"],
+                "name": rec["name"],
+                "lon": rec["lon"],
+                "lat": rec["lat"],
+                "kind": rec["kind"],
+                "md_slug": rec["md_slug"],
+            })
+    return hits
+
+
+def _query_facilities_near_lines(
+    lines: Optional[Dict[str, Any]],
+    car_m: float,
+    foot_m: float,
+) -> List[Dict[str, Any]]:
+    records = _load_facility_records()
+    if not records:
+        return []
+
+    car_geom = _shape_to_3857((lines or {}).get("car"))
+    foot_geom = _shape_to_3857((lines or {}).get("foot"))
+    if car_geom is None and foot_geom is None:
+        return []
+
+    hits: List[Dict[str, Any]] = []
+    for rec in records:
+        distances: List[tuple[str, float]] = []
+        if car_geom is not None:
+            dist_car = float(car_geom.distance(rec["geom_m"]))
+            if dist_car <= car_m:
+                distances.append(("car", dist_car))
+        if foot_geom is not None:
+            dist_foot = float(foot_geom.distance(rec["geom_m"]))
+            if dist_foot <= foot_m:
+                distances.append(("foot", dist_foot))
+        if not distances:
+            continue
+
+        mode, dist = min(distances, key=lambda item: item[1])
+        hits.append({
+            "spot_id": rec["spot_id"],
+            "name": rec["name"],
+            "lon": rec["lon"],
+            "lat": rec["lat"],
+            "kind": rec["kind"],
+            "md_slug": rec["md_slug"],
+            "distance_m": float(dist),
+            "source_segment_mode": mode,
+        })
+    return hits
 
 def _build_geometry_collection_wkt(polys: List[BaseGeometry]) -> str | None:
     """
@@ -132,20 +329,20 @@ _SQL_QUERY = text(
 
 
 def query_pois(polys: List[BaseGeometry]) -> List[Dict]:
+    facility_hits = _query_facilities_in_polys(polys)
     wkt = _build_geometry_collection_wkt(polys)
-    if not wkt:
-        return []
-    try:
-        eng = _get_engine()
-    except Exception:
-        return []
 
-    try:
-        with eng.connect() as conn:
-            rows = conn.execute(_SQL_QUERY, {"wkt": wkt}).mappings().all()
-            return [dict(r) for r in rows]
-    except Exception:
-        return []
+    db_hits: List[Dict[str, Any]] = []
+    if wkt:
+        try:
+            eng = _get_engine()
+            with eng.connect() as conn:
+                rows = conn.execute(_SQL_QUERY, {"wkt": wkt}).mappings().all()
+                db_hits = [dict(r) for r in rows]
+        except Exception:
+            db_hits = []
+
+    return _merge_hits(db_hits, facility_hits)
 
 _SQL_NEARBY = text("""
 WITH car_line AS (
@@ -197,21 +394,25 @@ def query_pois_near_route(
     car_m: float,
     foot_m: float,
 ) -> List[Dict]:
-    try:
-        eng = _get_engine()
-    except Exception:
-        return []
+    car_radius = float(car_m)
+    foot_radius = float(foot_m)
+
+    facility_hits = _query_facilities_near_lines(lines, car_radius, foot_radius)
 
     params = {
-        "car_geojson":  _to_geojson_or_none(lines.get("car")),
-        "foot_geojson": _to_geojson_or_none(lines.get("foot")),
-        "car_m": float(car_m),
-        "foot_m": float(foot_m),
+        "car_geojson": _to_geojson_or_none((lines or {}).get("car")),
+        "foot_geojson": _to_geojson_or_none((lines or {}).get("foot")),
+        "car_m": car_radius,
+        "foot_m": foot_radius,
     }
 
+    db_hits: List[Dict[str, Any]] = []
     try:
+        eng = _get_engine()
         with eng.connect() as conn:
             rows = conn.execute(_SQL_NEARBY, params).mappings().all()
-            return [dict(r) for r in rows]
+            db_hits = [dict(r) for r in rows]
     except Exception:
-        return []
+        db_hits = []
+
+    return _merge_hits(db_hits, facility_hits)

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-import os, json, logging
+from gtts import gTTS
+from io import BytesIO
+import os, json, logging, time
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Literal, Dict, Any
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -16,7 +19,8 @@ from .tts import (
     ffmpeg_convert_wav_to_mp3,
     estimate_wav_duration_sec,
     try_ffprobe_duration_sec,
-    VOICE_REGISTRY, DEFAULT_BY_LANG,
+    # VOICE_REGISTRY, 
+    # DEFAULT_BY_LANG,
 )
 
 logger = logging.getLogger("svc-voice")
@@ -28,6 +32,10 @@ app = FastAPI(title="voice", version="1.0.0")
 PACKS_ROOT = Path(os.getenv("PACKS_ROOT", "/packs"))  # ★ デフォルトを /packs に
 DEFAULT_FORMAT = os.getenv("TTS_FORMAT", "mp3").lower()
 DEFAULT_BITRATE = int(os.getenv("VOICE_BITRATE_KBPS", "64"))
+GTTS_MAX_ATTEMPTS = int(os.getenv("GTTS_MAX_ATTEMPTS", "4"))
+GTTS_BACKOFF_SECONDS = float(os.getenv("GTTS_BACKOFF_SECONDS", "2.0"))
+GTTS_TIMEOUT_SECONDS = float(os.getenv("GTTS_TIMEOUT_SECONDS", "10.0"))
+GTTS_COOLDOWN_SECONDS = float(os.getenv("GTTS_COOLDOWN_SECONDS", "15.0"))
 
 # 起動前に保存先を用意
 ensure_packs_root(PACKS_ROOT)
@@ -54,7 +62,10 @@ class SingleSynthResponse(BaseModel):
 
 
 class SynthesizeItem(BaseModel):
+    job_id: Optional[str] = None
     spot_id: str
+    playback: Optional[Literal["arrival", "pass_by"]] = None
+    situation: Optional[Literal["weather_1","weather_2","congestion_1","congestion_2"]] = None
     text: str
 
 
@@ -69,6 +80,7 @@ class SynthesizeAndSaveRequest(BaseModel):
 
 class SynthesizeAndSaveItemResponse(BaseModel):
     spot_id: str
+    situation: Optional[str] = None
     audio_url: str           # ← url ではなく audio_url
     bytes: int               # ← size_bytes ではなく bytes
     duration_s: float        # ← duration_sec ではなく duration_s
@@ -115,6 +127,10 @@ def normalize_lang(s: str) -> str:
     k = s.strip().lower().replace("_", "-")
     return LANG_MAP.get(k, s)
 
+def _safe_token(s: str) -> str:
+    """ファイル名の一部に使うトークンを簡易サニタイズ"""
+    return "".join(ch if ch.isalnum() or ch in ("_", "-", ".") else "_" for ch in (s or ""))
+
 # ----- ヘルスチェック -----
 @app.get("/health")
 def health():
@@ -124,34 +140,35 @@ def health():
         "default_format": "mp3",
         "default_bitrate": 64,
         "model": os.getenv("TTS_MODEL", "tts_models/multilingual/multi-dataset/xtts_v2"),
-        "voices": {k: v["language"] for k, v in VOICE_REGISTRY.items()},
-        "default_by_lang": DEFAULT_BY_LANG,
+        # "voices": {k: v["language"] for k, v in VOICE_REGISTRY.items()},
+        # "default_by_lang": DEFAULT_BY_LANG,
     }
 
 
 # ----- 単発：お試し合成（保存しない） -----
 @app.post("/synthesize", response_model=SingleSynthResponse)
 def synthesize(req: SingleSynthRequest) -> SingleSynthResponse:
-    try:
-        wav = synthesize_wav_bytes(runtime=_runtime, text=req.text, language=req.language)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS failed: {e}")
+    # try:
+    #     wav = synthesize_wav_bytes(runtime=_runtime, text=req.text, language=req.language)
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"TTS failed: {e}")
 
-    target_fmt = (req.format or DEFAULT_FORMAT).lower()
-    bitrate = int(req.bitrate_kbps or DEFAULT_BITRATE)
+    # target_fmt = (req.format or DEFAULT_FORMAT).lower()
+    # bitrate = int(req.bitrate_kbps or DEFAULT_BITRATE)
 
-    if target_fmt == "mp3":
-        try:
-            mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
-            # 時間は ffprobe があれば使い、無ければビットレート近似
-            dur = try_ffprobe_duration_sec(mp3) or max(0.0, len(mp3) * 8.0 / (bitrate * 1000.0))
-            return SingleSynthResponse(size_bytes=len(mp3), duration_sec=dur, format="mp3")
-        except Exception as e:
-            # WAV にフォールバック
-            pass
+    # if target_fmt == "mp3":
+    #     try:
+    #         mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
+    #         # 時間は ffprobe があれば使い、無ければビットレート近似
+    #         dur = try_ffprobe_duration_sec(mp3) or max(0.0, len(mp3) * 8.0 / (bitrate * 1000.0))
+    #         return SingleSynthResponse(size_bytes=len(mp3), duration_sec=dur, format="mp3")
+    #     except Exception as e:
+    #         # WAV にフォールバック
+    #         pass
 
-    dur_wav = estimate_wav_duration_sec(wav)
-    return SingleSynthResponse(size_bytes=len(wav), duration_sec=dur_wav, format="wav")
+    # dur_wav = estimate_wav_duration_sec(wav)
+    # return SingleSynthResponse(size_bytes=len(wav), duration_sec=dur_wav, format="wav")
+    raise HTTPException(status_code=404, detail="This endpoint is disabled.")
 
 
 # ----- バッチ：保存付き（要求仕様） -----
@@ -167,55 +184,76 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
     bitrate = int(req.bitrate_kbps or DEFAULT_BITRATE)
 
     out_items: List[SynthesizeAndSaveItemResponse] = []
+    last_failure_at: Dict[str, float] = {}
 
     for it in req.items:
         # 1) TTS → WAV
-        try:
-            wav = synthesize_wav_bytes(runtime=_runtime, text=it.text, language=req.language)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"TTS failed for {it.spot_id}: {e}")
+        # # Coqui TTS を使用する場合 (XTTS)
+        # try:
+        #     lang = normalize_lang(req.language)
+        #     wav = synthesize_wav_bytes(runtime=_runtime, text=it.text, language=lang)
+        # except Exception as e:
+        #     raise HTTPException(status_code=500, detail=f"TTS failed for {it.spot_id}: {e}")
 
-        # 2) 変換（mp3優先、失敗時はwavフォールバック）
-        fmt = "wav"
-        data = wav
-        if target_fmt == "mp3":
-            try:
-                mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
-                data = mp3
-                fmt = "mp3"
-            except Exception:
-                fmt = "wav"
-                data = wav
+        # # 2) 変換（mp3優先、失敗時はwavフォールバック）
+        # fmt = "wav"
+        # data = wav
+        # if target_fmt == "mp3":
+        #     try:
+        #         mp3 = ffmpeg_convert_wav_to_mp3(wav, bitrate_kbps=bitrate)
+        #         data = mp3
+        #         fmt = "mp3"
+        #     except Exception:
+        #         fmt = "wav"
+        #         data = wav
+        
+        # gTTS を使用する場合
+        lang = normalize_lang(req.language)
+        # 北京語の場合は gTTS 用の 'zh-CN' に変換
+        lang_code = "zh-CN" if lang == "zh" else lang
+
+        data = _synthesize_with_backoff(it, lang_code, last_failure_at)
+        fmt = "mp3"  # gTTSはMP3を直接生成
 
         # 3) ファイル名
-        audio_name = f"{it.spot_id}.{req.language}.{fmt}"
-        text_name  = f"{it.spot_id}.{req.language}.txt"
+        ntype = it.situation or "default"
+        base = _safe_token(it.spot_id)
+        variant = _safe_token(ntype)
+        base_name = f"{base}_{variant}" if variant != "default" else base
+
+        audio_name = f"{base_name}.{lang}.{fmt}"
+        text_name  = f"{base_name}.{lang}.txt"
+
+        audio_path = pack_dir / audio_name
+        text_path  = pack_dir / text_name
 
         # 4) 安全書き込み（fsync）
         try:
-            _safe_write_bytes(pack_dir / audio_name, data)
+            _safe_write_bytes(audio_path, data)
             if req.save_text:
-                _safe_write_text(pack_dir / text_name, it.text)
+                _safe_write_text(text_path, it.text)
         except Exception as e:
             logger.exception("Failed to write files for %s/%s", req.pack_id, it.spot_id)
             raise HTTPException(status_code=500, detail=f"file write failed: {e}")
 
-        # 5) duration（ffprobe はファイルパスに対して）
-        audio_path = pack_dir / audio_name
-        if fmt == "wav":
-            dur = estimate_wav_duration_sec(data)
-        else:
-            dur = try_ffprobe_duration_sec(audio_path) or max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
 
-        size = len(data)
+        # 5) duration（ffprobe はファイルパスに対して）
+        if fmt == "mp3":
+            dur = try_ffprobe_duration_sec(data) or max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
+        else:
+            dur = estimate_wav_duration_sec(data)
+        if not dur and fmt == "mp3":
+            dur = max(0.0, len(data) * 8.0 / (bitrate * 1000.0))
+
         text_url = f"/packs/{req.pack_id}/{text_name}" if req.save_text else None
 
         # 6) レスポンス item
         out_items.append(
             SynthesizeAndSaveItemResponse(
                 spot_id=it.spot_id,
+                situation=it.situation,
                 audio_url=f"/packs/{req.pack_id}/{audio_name}",
-                bytes=size,
+                bytes=len(data),
                 duration_s=dur,
                 format=fmt,
                 text_url=text_url,
@@ -225,13 +263,13 @@ def synthesize_and_save(req: SynthesizeAndSaveRequest) -> SynthesizeAndSaveRespo
         logger.info(
             "Wrote audio: %s (%d bytes, format=%s) text:%s",
             f"/packs/{req.pack_id}/{audio_name}",
-            size,
+            len(data),
             fmt,
             text_url or "-"
         )
 
     # 7) manifest をここで確実に保存（return の前）
-    _write_manifest(pack_dir, req.pack_id, req.language, [i.model_dump() for i in out_items])
+    # _write_manifest(pack_dir, req.pack_id, req.language, [i.model_dump() for i in out_items])
 
     return SynthesizeAndSaveResponse(
         pack_id=req.pack_id,
@@ -247,3 +285,49 @@ def ensure_pack_dir(pack_id: str) -> Path:
         raise HTTPException(status_code=400, detail="invalid pack_id")
     pack_dir.mkdir(parents=True, exist_ok=True)
     return pack_dir
+
+
+def _synthesize_with_backoff(item: SynthesizeItem, lang_code: str, last_failure_at: Dict[str, float]) -> bytes:
+    """gTTS 呼び出しに指数バックオフと簡易クールダウンを付けて実行する。"""
+    attempts = 0
+    last_error: Exception | None = None
+
+    while attempts < GTTS_MAX_ATTEMPTS:
+        attempts += 1
+
+        # 同じスポットで直前に失敗していれば一定時間待機
+        failure_ts = last_failure_at.get(item.spot_id)
+        if failure_ts is not None:
+            remaining = GTTS_COOLDOWN_SECONDS - (time.monotonic() - failure_ts)
+            if remaining > 0:
+                logger.info("Cooldown %.1fs before retrying gTTS for %s", remaining, item.spot_id)
+                time.sleep(remaining)
+
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_call_gtts, item.text, lang_code)
+                return future.result(timeout=GTTS_TIMEOUT_SECONDS)
+        except FuturesTimeout as e:
+            last_error = e
+            logger.warning("gTTS timed out for %s (attempt %d/%d)", item.spot_id, attempts, GTTS_MAX_ATTEMPTS)
+        except Exception as e:  # includes HTTP errors inside gTTS
+            last_error = e
+            logger.warning("gTTS call failed for %s (attempt %d/%d): %s", item.spot_id, attempts, GTTS_MAX_ATTEMPTS, e)
+
+        last_failure_at[item.spot_id] = time.monotonic()
+        if attempts >= GTTS_MAX_ATTEMPTS:
+            break
+
+        backoff = GTTS_BACKOFF_SECONDS * (2 ** (attempts - 1))
+        logger.info("Retrying gTTS for %s in %.1fs", item.spot_id, backoff)
+        time.sleep(backoff)
+
+    raise HTTPException(status_code=500, detail=f"gTTS failed for {item.spot_id}: {last_error}")
+
+
+def _call_gtts(text: str, lang_code: str) -> bytes:
+    """実際に gTTS を呼び出して MP3 バイト列を返す。"""
+    tts = gTTS(text=text, lang=lang_code, slow=False)
+    fp = BytesIO()
+    tts.write_to_fp(fp)
+    return fp.getvalue()
