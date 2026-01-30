@@ -152,6 +152,19 @@ services:
       - "8080:8080"
     restart: unless-stopped
 
+  # === Frontend (Vite dev server) ===
+  frontend:
+    image: node:20-alpine
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+    ports:
+      - "5173:5173"
+    command: sh -lc "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - api
+
   redis:
     image: redis:7.2-alpine
     ports: ["6379:6379"]
@@ -241,3 +254,4 @@ volumes:
   pgdata_static:
   pgdata_app:
   chromadb_data:
+  frontend_node_modules:

@@ -11,6 +11,15 @@ export default defineConfig({
     vue(),
     vueDevTools(),
   ],
+  server: {
+    proxy: {
+      '/back': {
+        target: 'http://api:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/back/, ''),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
