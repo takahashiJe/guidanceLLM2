@@ -84,5 +84,3 @@ uvicorn backend.api.main:app --host 0.0.0.0 --port 8080 --log-level debug
 - `frontend/` フロントエンド (Vue/Vite)
 - `docker-compose.yml` 統合開発環境
 - `docker-compose.worker.yml` worker 構成
-
----
