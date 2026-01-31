@@ -86,17 +86,3 @@ uvicorn backend.api.main:app --host 0.0.0.0 --port 8080 --log-level debug
 - `docker-compose.worker.yml` worker 構成
 
 ---
-
-## Notes
-- 依存関係: `backend/requirements.txt` / `frontend/package.json`
-- 音声サービスには `ffmpeg` が必要です
-
----
-
-## Contributing
-Issue / PR を歓迎します。改善提案やバグ報告はお気軽にどうぞ。
-
----
-
-## License
-未設定（必要に応じて `LICENSE` を追加してください）
